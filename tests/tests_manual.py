@@ -14,7 +14,8 @@ import json
 from ocp_tessellate.convert import to_assembly
 from ocp_tessellate.convert import combined_bb, tessellate_group, get_normal_len
 from ocp_tessellate.defaults import get_default, get_defaults, preset
-from ocp_tessellate.utils import numpy_to_json
+from ocp_tessellate.utils import numpy_to_json, Color
+from ocp_tessellate.ocp_utils import webcol_to_cq, ocpColor, get_rgba
 
 import requests
 
@@ -25,6 +26,7 @@ class Progress:
     def update(self):
         print(".", end="", flush=True)
 
+
 def send(data, port=None):
     if port is None:
         port = CMD_PORT
@@ -32,7 +34,9 @@ def send(data, port=None):
     if r.status_code != 201:
         print("Error", r.text)
 
+
 # %%
+
 
 def convert(*cad_objs, names=None, colors=None, alphas=None, **kwargs):
     part_group = to_assembly(
@@ -121,12 +125,49 @@ def show(obj):
 
 # %%
 
-c = cq.Workplane().box(1, 2, 3)
+c_box = cq.Workplane().box(1, 2, 3)
+c_sphere = cq.Workplane().sphere(1)
 
-c_ass = cq.Assembly(c, name="box")
+box1 = cq.Workplane("XY").box(10, 20, 30).edges(">X or <X").chamfer(2)
+box1.name = "box1"
 
-m_ass = MAssembly(c, name=c)
+box2 = cq.Workplane("XY").box(8, 18, 28).edges(">X or <X").chamfer(2)
+box2.name = "box2"
 
+box3 = (
+    cq.Workplane("XY")
+    .transformed(offset=(0, 15, 7))
+    .box(30, 20, 6)
+    .edges(">Z")
+    .fillet(3)
+)
+box3.name = "box3"
+
+box4 = box3.mirror("XY").translate((0, -5, 0))
+box4.name = "box4"
+
+box1 = box1.cut(box2).cut(box3).cut(box4)
+
+c_ass = (
+    cq.Assembly(name="ensemble")
+    .add(
+        box1,
+        name="red box",
+        color=cq.Color(*Color("#d7191c").percentage, 0.5),
+    )  # transparent alpha = 0x80/0xFF
+    .add(
+        box3,
+        name="green box",
+        color=cq.Color(*Color("#abdda4").percentage),
+    )
+    .add(
+        box4,
+        name="blue box",
+        color=cq.Color(43 / 255, 131 / 255, 186 / 255, 0.3),
+    )  # transparent, alpha = 0.3
+)
+
+show(c_ass)
 # %%
 
 with bd.BuildPart() as bd_box:
@@ -162,7 +203,6 @@ a_line = Line((0, 0), (1, 1))
 # with BuildAssembly(name="a") as b_ass:
 #     with b_Mates(a.faces().max()):
 #         Part(a, name="a")
-
 
 
 # %%

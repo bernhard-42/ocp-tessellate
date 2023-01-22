@@ -99,10 +99,6 @@ def make_compound(objs):
     return comp
 
 
-def OcpColor(r, g, b, alpha):
-    return Quantity_ColorRGBA(r, g, b, alpha)
-
-
 def _has(obj, attrs):
     return all([hasattr(obj, a) for a in attrs])
 
@@ -550,25 +546,30 @@ def get_point(vertex):
     return (p.X(), p.Y(), p.Z())
 
 
-def get_rgb(color):
-    if color is None:
-        return (176, 176, 176)
-    rgb = color.wrapped.GetRGB()
-    return (int(255 * rgb.Red()), int(255 * rgb.Green()), int(255 * rgb.Blue()))
+def ocpColor(r, g, b, alpha):
+    return Quantity_ColorRGBA(r, g, b, alpha)
 
 
 def get_rgba(color):
     if color is None:
-        return (176, 176, 176, 1.0)
-    else:
-        rgba = color.toTuple()
-        return (int(rgba[0] * 255), int(rgba[1] * 255), int(rgba[2] * 255), rgba[3])
+        return (176 / 255, 176 / 255, 176 / 255, 1.0)
+    rgb = color.GetRGB()
+    alpha = color.Alpha()
+    return (rgb.Red(), rgb.Green(), rgb.Blue(), alpha)
+
+
+# def get_rgba(color):
+#     if color is None:
+#         return (176, 176, 176, 1.0)
+#     else:
+#         rgba = color.toTuple()
+#         return (int(rgba[0] * 255), int(rgba[1] * 255), int(rgba[2] * 255), rgba[3])
 
 
 def webcol_to_cq(col):
     color = [c / 255.0 for c in hex_to_rgb(col[:7])]
     alpha = 1.0 if len(col) == 7 else int(col[7:9], 16) / 255
-    return Color(*color, alpha)
+    return ocpColor(*color, alpha)
 
 
 def tq_to_loc(t, q):

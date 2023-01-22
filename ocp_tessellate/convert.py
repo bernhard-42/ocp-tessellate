@@ -22,18 +22,20 @@ from .defaults import get_default, preset
 from .mp_tessellator import get_mp_result, is_apply_result
 from .ocp_utils import (
     BoundingBox,
-    OcpColor,
+    ocpColor,
+    get_rgba,
     downcast,
     get_edges,
     get_faces,
     get_solids,
     get_vertices,
     get_wires,
+    is_cadquery,
+    is_cadquery_assembly,
     is_build123d,
     is_build123d_assembly,
     is_build123d_compound,
     is_build123d_shape,
-    is_cadquery,
     is_edge_list,
     is_face_list,
     is_solid_list,
@@ -62,7 +64,7 @@ def _debug(msg):
 
 def web_color(name):
     wc = Color(name)
-    return OcpColor(*wc.percentage)
+    return ocpColor(*wc.percentage)
 
 
 def tessellate_group(group, kwargs=None, progress=None, timeit=False):
@@ -153,6 +155,7 @@ def get_normal_len(render_normals, shapes, deviation):
 
 
 def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
+    print(cad_obj, obj_id, obj_name, obj_color, obj_alpha)
     cad_objs = []
 
     # BuildPart, BuildSketch, BuildLine
@@ -240,7 +243,8 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
         return Vertices(cad_objs, name=name, color=obj_color, size=6)
 
     else:
-        return Part([make_compound(cad_objs)], color=obj_color)
+        name = f"{obj_name if obj_name is not None else 'Part'}_{obj_id}"
+        return Part([make_compound(cad_objs)], name=name, color=(*obj_color, obj_alpha))
 
 
 def to_assembly(
@@ -271,13 +275,23 @@ def to_assembly(
     obj_id = 0
 
     for obj_name, obj_color, obj_alpha, cad_obj in zip(names, colors, alphas, cad_objs):
-        pg.add(
-            conv(
-                cad_obj,
-                obj_id,
-                obj_name,
-            )
-        )
+        if is_cadquery_assembly(cad_obj) or is_build123d_assembly(cad_obj):
+            pg.name = cad_obj.name
+            if cad_obj.obj is not None:
+                r, g, b, a = get_rgba(cad_obj.color.wrapped)
+                pg.add(
+                    conv(
+                        cad_obj.obj,
+                        obj_id,
+                        cad_obj.name,
+                        (r, g, b),
+                        a,
+                    )
+                )
+            for child in cad_obj.children:
+                pg.add(to_assembly(child))
+        else:
+            pg.add(conv(cad_obj, obj_id, obj_name))
         obj_id += 1
 
     if len(pg.objects) == 1 and isinstance(pg.objects[0], PartGroup):
