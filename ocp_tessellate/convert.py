@@ -155,7 +155,6 @@ def get_normal_len(render_normals, shapes, deviation):
 
 
 def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
-    print(cad_obj, obj_id, obj_name, obj_color, obj_alpha)
     cad_objs = []
 
     # BuildPart, BuildSketch, BuildLine
@@ -247,7 +246,9 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
 
     else:
         name = f"{obj_name if obj_name is not None else 'Part'}_{obj_id}"
-        return Part([make_compound(cad_objs)], name=name, color=(*obj_color, obj_alpha))
+        if obj_color is not None:
+            obj_color = (*obj_color, obj_alpha)
+        return Part([make_compound(cad_objs)], name=name, color=obj_color)
 
 
 def to_assembly(
@@ -260,6 +261,7 @@ def to_assembly(
     mate_scale=1,
     default_color=None,
     show_parent=True,
+    loc=None,
 ):
     if names is None:
         names = [None] * len(cad_objs)
@@ -278,21 +280,37 @@ def to_assembly(
     obj_id = 0
 
     for obj_name, obj_color, obj_alpha, cad_obj in zip(names, colors, alphas, cad_objs):
-        if is_cadquery_assembly(cad_obj) or is_build123d_assembly(cad_obj):
-            pg.name = cad_obj.name
+
+        is_ba, is_ca = is_build123d_assembly(cad_obj), is_cadquery_assembly(cad_obj)
+
+        if is_ca or is_ba:
+            pg.name = cad_obj.label if is_ba else cad_obj.name
+
+            loc = cad_obj.location if is_ba else cad_obj.loc
+            pg.loc = loc
+
+            if cad_obj.color is None:
+                if obj_color is None:
+                    r, g, b = get_default("default_color")
+                    a = 1.0 if obj_alpha is None else obj_alpha
+                else:
+                    r, g, b, a = get_rgba(cad_obj.color.wrapped)
+            else:
+                r, g, b, a = get_rgba(cad_obj.color)
+
             if cad_obj.obj is not None:
-                r, g, b, a = get_rgba(cad_obj.color.wrapped)
+                obj = cad_obj.wrapped if is_ba else cad_obj.obj
                 pg.add(
                     conv(
-                        cad_obj.obj,
+                        obj,
                         obj_id,
-                        cad_obj.name,
+                        pg.name,
                         (r, g, b),
                         a,
-                    )
+                    ),
                 )
             for child in cad_obj.children:
-                pg.add(to_assembly(child))
+                pg.add(to_assembly(child, loc=loc))
         else:
             pg.add(conv(cad_obj, obj_id, obj_name))
         obj_id += 1
