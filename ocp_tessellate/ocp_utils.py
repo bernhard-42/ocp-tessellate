@@ -546,7 +546,7 @@ def get_point(vertex):
     return (p.X(), p.Y(), p.Z())
 
 
-def ocpColor(r, g, b, alpha):
+def ocpColor(r, g, b, alpha=1.0):
     return Quantity_ColorRGBA(r, g, b, alpha)
 
 
