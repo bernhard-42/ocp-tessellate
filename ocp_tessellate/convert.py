@@ -191,6 +191,9 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
     elif is_cadquery(cad_obj):
         cad_objs = [downcast(v.wrapped) for v in cad_obj.vals()]
 
+    elif is_wrapped(cad_obj):
+        cad_objs = [cad_obj.wrapped]
+
     elif is_topods_compound(cad_obj):
         _debug(f"CAD Obj {obj_id}: TopoDS Compound")
 
