@@ -23,7 +23,7 @@ from .ocp_utils import (
     bounding_box,
     get_point,
     loc_to_tq,
-    wrapped_or_None,
+    get_location,
     np_bbox,
     is_line,
 )
@@ -109,7 +109,7 @@ class Part(CADObject):
         # A first rough estimate of the bounding box.
         # Will be too large, but is sufficient for computing the quality
         with Timer(timeit, self.name, "compute quality:", 2) as t:
-            bb = bounding_box(self.shape, loc=wrapped_or_None(loc), optimal=False)
+            bb = bounding_box(self.shape, loc=get_location(loc), optimal=False)
             quality = compute_quality(bb, deviation=deviation)
             t.info = str(bb)
 
@@ -128,7 +128,7 @@ class Part(CADObject):
                 f"{{quality:{quality:.4f}, angular_tolerance:{angular_tolerance:.2f}}}"
             )
 
-            t, q = loc_to_tq(wrapped_or_None(loc))
+            t, q = loc_to_tq(get_location(loc))
             if parallel and is_apply_result(result):
                 mesh = {"result": result, "t": t, "q": q}
                 bb = {}
@@ -213,7 +213,7 @@ class Edges(CADObject):
         self.id = f"{path}/{self.name}"
 
         with Timer(timeit, self.name, "bounding box:", 2) as t:
-            bb = bounding_box(self.shape, loc=wrapped_or_None(loc))
+            bb = bounding_box(self.shape, loc=get_location(loc))
             quality = compute_quality(bb, deviation=deviation)
             deflection = quality / 100 if edge_accuracy is None else edge_accuracy
             t.info = str(bb)
@@ -277,7 +277,7 @@ class Vertices(CADObject):
     ):
         self.id = f"{path}/{self.name}"
 
-        bb = bounding_box(self.shape, loc=wrapped_or_None(loc))
+        bb = bounding_box(self.shape, loc=get_location(loc))
 
         if progress is not None:
             progress.update()
@@ -342,7 +342,7 @@ class PartGroup(CADObject):
 
         result = {
             "parts": [],
-            "loc": None if self.loc is None else loc_to_tq(wrapped_or_None(self.loc)),
+            "loc": None if self.loc is None else loc_to_tq(self.loc),
             "name": self.name,
         }
         for obj in self.objects:
