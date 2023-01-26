@@ -627,5 +627,19 @@ def loc_to_tq(loc):
     return ((t.X(), t.Y(), t.Z()), (q.X(), q.Y(), q.Z(), q.W()))
 
 
-def wrapped_or_None(obj):
-    return None if obj is None else obj.wrapped
+def identity_location():
+    return TopLoc_Location(gp_Trsf())
+
+
+def get_location(obj, as_none=True):
+    if obj is None:
+        if as_none:
+            return None
+        else:
+            return identity_location()
+    elif hasattr(obj, "wrapped"):
+        return obj.wrapped
+    elif isinstance(obj, TopLoc_Location):
+        return obj
+    else:
+        raise TypeError(f"Unknown location typ {type(obj)}")
