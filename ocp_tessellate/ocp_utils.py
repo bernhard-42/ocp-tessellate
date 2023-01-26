@@ -595,14 +595,6 @@ def get_rgba(color, alpha=None):
     return r, g, b, a
 
 
-# def get_rgba(color):
-#     if color is None:
-#         return (176, 176, 176, 1.0)
-#     else:
-#         rgba = color.toTuple()
-#         return (int(rgba[0] * 255), int(rgba[1] * 255), int(rgba[2] * 255), rgba[3])
-
-
 def webcol_to_cq(col):
     color = [c / 255.0 for c in hex_to_rgb(col[:7])]
     alpha = 1.0 if len(col) == 7 else int(col[7:9], 16) / 255
