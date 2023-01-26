@@ -1,6 +1,6 @@
 import cadquery as cq
 from cq_vscode import show
-from cadquery_massembly import MAssembly, Mate
+from cadquery_massembly import MAssembly
 
 # %%
 # MAssembly Test

@@ -321,6 +321,3 @@ for name in leg_names:
 animation.animate(speed=3)
 
 # %%
-animation.add_track("/bottom/top", "rz", [1, 2, 3, 4], [5, 6, 7, 8])
-
-# %%
