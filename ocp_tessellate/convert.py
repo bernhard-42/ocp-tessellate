@@ -326,7 +326,7 @@ def to_assembly(
 
             if cad_obj.color is None:
                 if obj_color is None:
-                    r, g, b = get_default("default_color")
+                    r, g, b = default_color
                     a = 1.0 if obj_alpha is None else obj_alpha
                 else:
                     r, g, b, a = get_rgba(obj_color)
@@ -359,19 +359,17 @@ def to_assembly(
                 pg.add(to_assembly(child, loc=loc, grp_id=grp_id))
 
         else:
-            if cad_obj.color is None:
-                if obj_color is None:
-                    r, g, b = get_default("default_color")
-                    a = 1.0 if obj_alpha is None else obj_alpha
-                else:
-                    r, g, b, a = get_rgba(obj_color)
+            rgb, a = None, None
+            if obj_color is None:
+                if hasattr(cad_obj, "color") and cad_obj.color is not None:
+                    *rgb, a = Color(cad_obj.color).rgba
+
+                if obj_alpha is not None:
+                    a = obj_alpha
+
+                pg.add(conv(cad_obj, obj_id, obj_name, rgb, a))
             else:
-                r, g, b, a = get_rgba(cad_obj.color)
-
-            pg.add(conv(cad_obj, obj_id, obj_name, (r, g, b), a))
-
-            if cad_obj.label != "":
-                pg.name = cad_obj.label
+                pg.add(conv(cad_obj, obj_id, obj_name, obj_color, obj_alpha))
 
         if pg.loc is None:
             pg.loc = identity_location()
