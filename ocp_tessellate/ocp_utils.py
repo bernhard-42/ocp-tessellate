@@ -453,6 +453,28 @@ def get_vertices(shape):
     return _get_topo(shape, TopAbs_VERTEX)
 
 
+def get_downcasted_shape(shape):
+    if next(get_solids(shape), None) is not None:
+        objs = get_solids(shape)
+
+    elif next(get_faces(shape), None) is not None:
+        objs = get_faces(shape)
+
+    elif next(get_wires(shape), None) is not None:
+        objs = get_wires(shape)
+
+    elif next(get_edges(shape), None) is not None:
+        objs = get_edges(shape)
+
+    elif next(get_vertices(shape), None) is not None:
+        objs = get_vertices(shape)
+
+    else:
+        raise NotImplementedError("Unknow TopoDS Compound")
+
+    return [downcast(obj) for obj in objs]
+
+
 # Check TopoDS shapes
 
 
