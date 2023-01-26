@@ -1,146 +1,104 @@
-import cadquery as cq
-import build123d as bd
-from alg123d import *
-from cadquery_massembly.build123d import (
-    BuildAssembly,
-    Mates as b_Mates,
-    MAssembly,
-    Mates,
-)
+from build123d import *
+from cadquery_massembly.build123d import BuildAssembly, Mates
+from cq_vscode import show
+
+# %%
+with BuildPart() as box:
+    Box(1, 2, 3)
+
+with BuildPart() as sphere:
+    Sphere(1)
+
+with BuildSketch() as circle:
+    Circle(1)
+
+with BuildSketch() as rect:
+    Rectangle(1, 2)
+
+with BuildLine() as line:
+    Line((1, 1), (2, 2))
+
+with BuildLine() as pline:
+    Polyline((0, 0), (0, 1), (1, 1))
 
 # %%
 
-c_box = cq.Workplane().box(1, 2, 3)
-c_sphere = cq.Workplane().sphere(1)
+# Parts
 
-box1 = cq.Workplane("XY").box(10, 20, 30).edges(">X or <X").chamfer(2)
-box1.name = "box1"
-
-box2 = cq.Workplane("XY").box(8, 18, 28).edges(">X or <X").chamfer(2)
-box2.name = "box2"
-
-box3 = (
-    cq.Workplane("XY")
-    .transformed(offset=(0, 15, 7))
-    .box(30, 20, 6)
-    .edges(">Z")
-    .fillet(3)
+show(box)
+# %%
+show(
+    sphere.part, names=["sphere"], colors=["red"], alphas=[0.5], grid=(True, True, True)
 )
-box3.name = "box3"
+# %%
+show(box.part.wrapped, transparent=True, grid=(True, True, True))
+# %%
 
-box4 = box3.mirror("XY").translate((0, -5, 0))
-box4.name = "box4"
+# Sketches
 
-box1 = box1.cut(box2).cut(box3).cut(box4)
+show(circle)
+# %%
+show(
+    circle,
+    rect.sketch,
+    names=["circle", "rect"],
+    colors=["green", "red"],
+    alphas=[0.5, 0.8],
+    grid=(True, True, True),
+)
+# %%
+show(circle.sketch.wrapped, transparent=True, grid=(True, True, True))
+# %%
 
-c_ass = (
-    cq.Assembly(name="ensemble")
-    .add(
-        box1,
-        name="red box",
-        color=cq.Color(*Color("#d7191c").percentage, 0.5),
-    )  # transparent alpha = 0x80/0xFF
-    .add(
-        box3,
-        name="green box",
-        color=cq.Color(*Color("#abdda4").percentage),
+# Lines
+
+show(pline)
+# %%
+show(line.line, colors=["blue"])
+# %%
+show(pline.line.wrapped)
+# %%
+
+# ShapeList and Color tests
+
+show(box.edges(), colors=["black"])
+# %%
+show(box.faces())
+# %%
+show(box.vertices(), colors=[(0.0, 1.0, 1.0)])
+# %%
+show(*box.vertices(), colors=[(1.0, 0.0, 0.0)] * 4 + [(0.0, 0.0, 0.0)] * 4)
+# %%
+show(*box.edges())
+# %%
+show(*box.faces())
+# %%
+show(*box.vertices())
+# %%
+
+# Mixed Compounds
+
+mixed = Compound.make_compound(box.faces() + box.edges())
+show(sphere, mixed)
+# %%
+def axis_symbol(self, l=1) -> Edge:
+    edge = Edge.make_line(self.position, self.position + self.direction * 0.95 * l)
+    plane = Plane(
+        origin=self.position + 0.95 * l * self.direction,
+        z_dir=self.direction,
     )
-    .add(
-        box4,
-        name="blue box",
-        color=cq.Color(43 / 255, 131 / 255, 186 / 255, 0.3),
-    )  # transparent, alpha = 0.3
-)
+    cone = Solid.make_cone(l / 60, 0, l / 20, plane)
+    return Compound.make_compound([edge] + cone.faces())
 
-show(c_ass)
-# %%
 
-with bd.BuildPart() as bd_box:
-    bd.Box(1, 2, 3)
-
-with bd.BuildPart() as bd_sphere:
-    bd.Sphere(1)
-
-with bd.BuildSketch() as bd_circle:
-    bd.Circle(1)
-
-with bd.BuildLine() as bd_line:
-    bd.Line((0, 0), (1, 1))
-
-bd_compound = bd.Compound.make_compound([bd_box.part, bd_sphere.part])
-bd_assembly = bd.Compound(label="assembly", children=[bd_box.part, bd_sphere.part])
-bd_solid = bd_box.part
-bd_facelist = bd_box.faces()
-bd_edgelist = bd_box.edges()
-bd_solid = bd_box.solids()[0]
-bd_face = bd_box.faces()[2]
-bd_edge = bd_box.edges()[0]
-bd_vertex = bd_box.vertices()[0]
-
-mixed = bd.Compound.make_compound(bd_box.faces() + bd_box.edges())
+sym = axis_symbol(Axis.X)
+show(box, sym)
 
 # %%
+compound = Compound.make_compound([box.part, sphere.part])
 
-a_box = Box(1, 2, 3)
-a_circle = Circle(1)
-a_line = Line((0, 0), (1, 1))
-
-# with BuildAssembly(name="a") as b_ass:
-#     with b_Mates(a.faces().max()):
-#         Part(a, name="a")
-
-
+show(compound)
 # %%
 
-print("\npart:\n")
-show(bd_box)
-
-# %%
-
-print("\nsketch:\n")
-show(bd_circle)
-
-# %%
-
-print("\nline:\n")
-show(bd_line)
-
-# %%
-
-print("\nbd_face:\n")
-show(bd_face)
-
-# %%
-
-print("\nbd_edge:\n")
-show(bd_edge)
-
-# %%
-
-print("\nbd_vertex:\n")
-show(bd_vertex)
-
-# %%
-
-
-# %%
-
-print("\nbd_facelist:\n")
-show(bd_facelist)
-
-# %%
-
-print("\nbd_edgelist:\n")
-show(bd_edgelist)
-
-# %%
-
-print("\nbd_compound\n")
-show(bd_compound)
-
-# %%
-
-
-# print("bd_assembly", conv(bd_assembly))
-
+show(*compound)
 # %%

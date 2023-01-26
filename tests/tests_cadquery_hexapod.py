@@ -1,6 +1,6 @@
 import cadquery as cq
 import numpy as np
-from cadquery_massembly import MAssembly, Mate
+from cadquery_massembly import MAssembly
 from cq_vscode import show, Animation
 
 from ocp_tessellate import web_color
