@@ -30,10 +30,13 @@ class Color:
             self.g = c.green
             self.b = c.blue
         elif isinstance(color, (tuple, list)) and len(color) >= 3:
-            if all((isinstance(c, float) and (c <= 1.0) and (c >= 0.0)) for c in color[:3]):
-                self.r, self.g, self.b = (int(c * 255) for c in color[:3])
-            elif all((isinstance(c, int) and (c <= 255) and (c >= 0)) for c in color[:3]):
-                self.r, self.g, self.b = color[:3]
+            rgb = color[:3]
+            if any([isinstance(c, float) for c in rgb]) and all(
+                [0.0 <= c <= 1.0 for c in rgb]
+            ):
+                self.r, self.g, self.b = (int(c * 255) for c in rgb)
+            elif all([isinstance(c, int) and (0 <= c <= 255) for c in rgb]):
+                self.r, self.g, self.b = rgb
             else:
                 self._invalid(color)
 
