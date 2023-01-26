@@ -68,6 +68,7 @@ from quaternion import rotate_vectors
 from webcolors import hex_to_rgb
 
 from .utils import distance, Color
+from .defaults import get_default
 
 MAX_HASH_KEY = 2147483647
 
@@ -550,12 +551,26 @@ def ocpColor(r, g, b, alpha=1.0):
     return Quantity_ColorRGBA(r, g, b, alpha)
 
 
-def get_rgba(color):
+def get_rgba(color, alpha=None):
     if color is None:
-        return (176 / 255, 176 / 255, 176 / 255, 1.0)
-    rgb = color.GetRGB()
-    alpha = color.Alpha()
-    return (rgb.Red(), rgb.Green(), rgb.Blue(), alpha)
+        color = get_default("default_color")
+
+    a = alpha
+    if hasattr(color, "wrapped") or isinstance(color, Quantity_ColorRGBA):
+        if hasattr(color, "wrapped"):
+            color = color.wrapped
+
+        rgb = color.GetRGB()
+        if a is None:
+            a = color.Alpha()
+        r, g, b = rgb.Red(), rgb.Green(), rgb.Blue()
+    else:
+        col = Color(color)
+        r, g, b = col.percentage
+        if a is None:
+            a = col.a
+
+    return r, g, b, a
 
 
 # def get_rgba(color):
