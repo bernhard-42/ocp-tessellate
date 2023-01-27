@@ -569,36 +569,37 @@ def get_point(vertex):
     return (p.X(), p.Y(), p.Z())
 
 
-def ocpColor(r, g, b, alpha=1.0):
+def ocp_color(r, g, b, alpha=1.0):
     return Quantity_ColorRGBA(r, g, b, alpha)
 
 
-def get_rgba(color, alpha=None):
-    if color is None:
-        color = get_default("default_color")
+def get_rgba(color, alpha=None, def_color=None):
+    color = def_color if color is None else color
 
-    a = alpha
-    if hasattr(color, "wrapped") or isinstance(color, Quantity_ColorRGBA):
-        if hasattr(color, "wrapped"):
-            color = color.wrapped
+    if hasattr(color, "toTuple"):  # CadQery Color
+        *rgb, a = color.toTuple()
 
-        rgb = color.GetRGB()
-        if a is None:
-            a = color.Alpha()
-        r, g, b = rgb.Red(), rgb.Green(), rgb.Blue()
-    else:
+    elif hasattr(color, "percentage"):  # Alg123d Color
+        rgb, a = color.percentage, color.a
+
+    elif hasattr(color, "to_tuple"):  # Build123d
+        *rgb, a = color.to_tuple()
+
+    elif isinstance(color, Quantity_ColorRGBA):  # OCP
+        ocp_rgb = color.GetRGB()
+        rgb = (ocp_rgb.Red(), ocp_rgb.Green(), ocp_rgb.Blue())
+        a = color.Alpha()
+
+    elif isinstance(color, str) or isinstance(color, (tuple, list)):
         col = Color(color)
-        r, g, b = col.percentage
-        if a is None:
-            a = col.a
+        rgb, a = col.percentage, col.a
+    else:
+        raise ValueError(f"Unknown color input {color} ({type(color)}")
 
-    return r, g, b, a
+    if alpha is not None:
+        a = alpha
 
-
-def webcol_to_cq(col):
-    color = [c / 255.0 for c in hex_to_rgb(col[:7])]
-    alpha = 1.0 if len(col) == 7 else int(col[7:9], 16) / 255
-    return ocpColor(*color, alpha)
+    return (*rgb, a)
 
 
 def tq_to_loc(t, q):

@@ -22,9 +22,10 @@ from .defaults import get_default, preset
 from .mp_tessellator import get_mp_result, is_apply_result
 from .ocp_utils import (
     BoundingBox,
-    ocpColor,
+    ocp_color,
     get_rgba,
     downcast,
+    get_edges,
     get_downcasted_shape,
     is_cadquery,
     is_cadquery_assembly,
@@ -61,7 +62,7 @@ def _debug(msg):
 
 def web_color(name):
     wc = Color(name)
-    return ocpColor(*wc.percentage)
+    return ocp_color(*wc.percentage)
 
 
 def tessellate_group(group, kwargs=None, progress=None, timeit=False):
@@ -152,11 +153,7 @@ def get_normal_len(render_normals, shapes, deviation):
 
 
 def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
-    def getcol(color, def_color, alpha):
-        if color is None:
-            return get_color(color, def_color, alpha)
-        else:
-            return get_rgba(color, obj_alpha)
+    default_color = get_default("default_color")
 
     if obj_name is None and hasattr(cad_obj, "label") and cad_obj.label != "":
         obj_name = cad_obj.label
@@ -216,27 +213,47 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
 
     if is_solid_list(cad_objs):
         name = f"{obj_name if obj_name is not None else 'Solid'}_{obj_id}"
-        return Part(cad_objs, name=name, color=get_rgba(obj_color, obj_alpha))
+        return Part(
+            cad_objs,
+            name=name,
+            color=get_rgba(obj_color, obj_alpha, Color(default_color)),
+        )
 
     elif is_face_list(cad_objs):
         name = f"{obj_name if obj_name is not None else 'Face'}_{obj_id}"
         return Faces(
-            cad_objs, name=name, color=getcol(obj_color, FACE_COLOR, obj_alpha)
+            cad_objs, name=name, color=get_rgba(obj_color, obj_alpha, Color(FACE_COLOR))
         )
 
-    elif is_wire_list(cad_objs) or is_edge_list(cad_objs):
+    elif is_wire_list(cad_objs):
+        edges = []
+        for wire in cad_objs:
+            edges.extend(get_edges(wire))
+
+        name = f"{obj_name if obj_name is not None else 'Wire'}_{obj_id}"
+        return Edges(
+            edges,
+            name=name,
+            color=get_rgba(obj_color, 1.0, Color(THICK_EDGE_COLOR)),
+            width=2,
+        )
+
+    elif is_edge_list(cad_objs):
         name = f"{obj_name if obj_name is not None else 'Edge'}_{obj_id}"
         return Edges(
             cad_objs,
             name=name,
-            color=getcol(obj_color, THICK_EDGE_COLOR, 1.0),
+            color=get_rgba(obj_color, 1.0, THICK_EDGE_COLOR),
             width=2,
         )
 
     elif is_vertex_list(cad_objs):
         name = f"{obj_name if obj_name is not None else 'Vertex'}_{obj_id}"
         return Vertices(
-            cad_objs, name=name, color=getcol(obj_color, THICK_EDGE_COLOR, 1.0), size=6
+            cad_objs,
+            name=name,
+            color=get_rgba(obj_color, 1.0, THICK_EDGE_COLOR),
+            size=6,
         )
 
     else:
@@ -251,20 +268,32 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
                 name = (
                     f"{cad_obj.label}_{ind}" if cad_obj.label != "" else f"Solid_{ind}"
                 )
-                part = Part(cad_obj, name=name, color=get_rgba(obj_color, obj_alpha))
+                part = Part(
+                    cad_obj,
+                    name=name,
+                    color=get_rgba(obj_color, obj_alpha, Color(default_color)),
+                )
 
             elif is_face_list([cad_obj]):
                 part = Faces(
                     [cad_obj],
                     name=f"Face_{ind}",
-                    color=getcol(obj_color, FACE_COLOR, obj_alpha),
+                    color=get_rgba(obj_color, obj_alpha, Color(FACE_COLOR)),
                 )
 
             elif is_edge_list([cad_obj]):
                 part = Edges(
                     [cad_obj],
                     name=f"Edge_{ind}",
-                    color=getcol(obj_color, THICK_EDGE_COLOR, 1.0),
+                    color=get_rgba(obj_color, 1.0, Color(THICK_EDGE_COLOR)),
+                    width=2,
+                )
+
+            elif is_wire_list([cad_obj]):
+                part = Edges(
+                    get_edges(cad_obj),
+                    name=f"Wire_{ind}",
+                    color=get_rgba(obj_color, 1.0, Color(THICK_EDGE_COLOR)),
                     width=2,
                 )
 
@@ -272,14 +301,14 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
                 part = Vertices(
                     [cad_obj],
                     name=f"Vertex_{ind}",
-                    color=getcol(obj_color, THICK_EDGE_COLOR, 1.0),
+                    color=get_rgba(obj_color, 1.0, Color(THICK_EDGE_COLOR)),
                     size=6,
                 )
             else:
                 part = Part(
                     cad_objs,
                     name=name,
-                    color=get_rgba(obj_color, obj_alpha),
+                    color=get_rgba(obj_color, obj_alpha, Color(default_color)),
                 )
             pg.add(part)
             ind += 1
@@ -306,7 +335,7 @@ def to_assembly(
         colors = [None] * len(cad_objs)
 
     if alphas is None:
-        alphas = [1.0] * len(cad_objs)
+        alphas = [None] * len(cad_objs)
 
     default_color = (
         get_default("default_color") if default_color is None else default_color
@@ -325,13 +354,10 @@ def to_assembly(
             pg.loc = loc
 
             if cad_obj.color is None:
-                if obj_color is None:
-                    r, g, b = default_color
-                    a = 1.0 if obj_alpha is None else obj_alpha
-                else:
-                    r, g, b, a = get_rgba(obj_color)
+                *rgb, a = get_rgba(obj_color, obj_alpha, Color(default_color))
+
             else:
-                r, g, b, a = get_rgba(cad_obj.color)
+                *rgb, a = get_rgba(cad_obj.color, obj_alpha, Color(default_color))
 
             if cad_obj.obj is not None:
                 pg.add(
@@ -339,7 +365,7 @@ def to_assembly(
                         cad_obj.obj,
                         obj_id,
                         pg.name,
-                        (r, g, b),
+                        rgb,
                         a,
                     ),
                 )
@@ -359,15 +385,9 @@ def to_assembly(
                 pg.add(to_assembly(child, loc=loc, grp_id=grp_id))
 
         else:
-            rgb, a = None, None
-            if obj_color is None:
-                if hasattr(cad_obj, "color") and cad_obj.color is not None:
-                    *rgb, a = Color(cad_obj.color).rgba
-
-                if obj_alpha is not None:
-                    a = obj_alpha
-
-                pg.add(conv(cad_obj, obj_id, obj_name, rgb, a))
+            if hasattr(cad_obj, "color") and cad_obj.color is not None:
+                *color, alpha = get_rgba(cad_obj.color, obj_alpha, Color(default_color))
+                pg.add(conv(cad_obj, obj_id, obj_name, color, alpha))
             else:
                 pg.add(conv(cad_obj, obj_id, obj_name, obj_color, obj_alpha))
 
