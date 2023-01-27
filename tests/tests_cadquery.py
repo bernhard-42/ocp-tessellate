@@ -11,9 +11,11 @@ show(b)
 # %%
 show(b.faces())
 # %%
-show(b.edges())
+show(b.faces(), show_parent=True)
 # %%
-show(b.vertices())
+show(b.edges(), show_parent=True)
+# %%
+show(b.vertices(), show_parent=True)
 # %%
 show(b.faces(), b.edges(), b.vertices())
 # %%
@@ -23,7 +25,7 @@ show(b.faces().vals())
 # %%
 show(*b.faces().vals())
 # %%
-show(b.faces().vals()[23])
+show(b.faces("|Z"), show_parent=True)
 # %%
 show(b.faces().vals()[7].wrapped)
 # %%
@@ -73,3 +75,9 @@ c_ass = (
 )
 
 show(c_ass)
+
+# %%
+
+show(box1.vertices(), show_parent=True)
+
+# %%

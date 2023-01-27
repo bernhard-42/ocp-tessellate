@@ -257,6 +257,8 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
         )
 
     else:
+        # Mixed compound, analyse every obj separately
+
         name = f"{obj_name if obj_name is not None else 'Compound'}_{obj_id}"
 
         pg = PartGroup([], name=name)
@@ -324,7 +326,7 @@ def to_assembly(
     render_mates=None,
     mate_scale=1,
     default_color=None,
-    show_parent=True,
+    show_parent=False,
     loc=None,
     grp_id=0,
 ):
@@ -385,6 +387,10 @@ def to_assembly(
                 pg.add(to_assembly(child, loc=loc, grp_id=grp_id))
 
         else:
+            if show_parent and hasattr(cad_obj, "parent"):
+                pg.add(conv(cad_obj.parent, obj_id, "parent", None, None))
+                pg.objects[0].state_faces = 0
+
             if hasattr(cad_obj, "color") and cad_obj.color is not None:
                 *color, alpha = get_rgba(cad_obj.color, obj_alpha, Color(default_color))
                 pg.add(conv(cad_obj, obj_id, obj_name, color, alpha))

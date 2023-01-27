@@ -141,7 +141,7 @@ class Defaults:
             "ambient_intensity": 0.75,
             "direct_intensity": 0.15,
             "reset_camera": True,
-            "show_parent": True,
+            "show_parent": False,
             "show_bbox": False,
             "position": None,
             "quaternion": None,
