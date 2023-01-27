@@ -31,14 +31,12 @@ from OCP.BRep import BRep_Tool
 from OCP.BRepAdaptor import BRepAdaptor_CompCurve, BRepAdaptor_Curve
 from OCP.BRepBndLib import BRepBndLib
 from OCP.BRepGProp import BRepGProp
-from OCP.BRepMesh import BRepMesh_IncrementalMesh
 from OCP.BRepTools import BRepTools
 from OCP.GCPnts import GCPnts_AbscissaPoint
 from OCP.GeomAbs import GeomAbs_CurveType
 from OCP.gp import gp_Quaternion, gp_Trsf, gp_Vec
 from OCP.GProp import GProp_GProps
 from OCP.Quantity import Quantity_ColorRGBA
-from OCP.StlAPI import StlAPI_Writer
 from OCP.TopAbs import (
     TopAbs_COMPOUND,
     TopAbs_COMPSOLID,
@@ -65,10 +63,9 @@ from OCP.TopoDS import (
     TopoDS_Vertex,
 )
 from quaternion import rotate_vectors
-from webcolors import hex_to_rgb
 
 from .utils import distance, Color
-from .defaults import get_default
+
 
 MAX_HASH_KEY = 2147483647
 
