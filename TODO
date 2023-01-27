@@ -1,5 +1,3 @@
-Assemblies
-- cq.Assembly: add Location
-- build123d assemblies
-mpp_get_result
-test parallel
+Parallel tessellation
+- mpp_get_result
+- test parallel
