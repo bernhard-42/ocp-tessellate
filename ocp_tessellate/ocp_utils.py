@@ -605,6 +605,15 @@ def get_point(vertex):
     return (p.X(), p.Y(), p.Z())
 
 
+def get_tuple(obj):
+    if hasattr(obj, "to_tuple"):
+        return obj.to_tuple()
+    elif hasattr(obj, "toTuple"):
+        return obj.toTuple()
+    else:
+        raise RuntimeError(f"Cannot convert {type(obj)} to tuple")
+
+
 def ocp_color(r, g, b, alpha=1.0):
     return Quantity_ColorRGBA(r, g, b, alpha)
 
