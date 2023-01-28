@@ -153,6 +153,15 @@ def get_normal_len(render_normals, shapes, deviation):
 
 
 def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
+
+    if isinstance(cad_obj, PartGroup):
+        return cad_obj
+
+    elif isinstance(cad_obj, (Faces, Edges, Vertices)):
+        pg = PartGroup()
+        pg.add(cad_obj)
+        return pg
+
     default_color = get_default("default_color")
 
     if obj_name is None and hasattr(cad_obj, "label") and cad_obj.label != "":
