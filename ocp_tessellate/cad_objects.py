@@ -394,22 +394,3 @@ class PartGroup(CADObject):
         return Compound._makeCompound(
             self.compounds()
         )  # pylint: disable=protected-access
-
-
-# def insert_bbox(bbox, shapes, states):
-#     # derive the top level states path part
-#     prefix = list(states)[0].split("/")[1]
-
-#     bbox = {
-#         "id": f"/{prefix}/BoundingBox",
-#         "type": "edges",
-#         "name": "BoundingBox",
-#         "shape": bbox_edges(bbox),
-#         "color": "#FF00FF",
-#         "width": 1,
-#         "bb": bbox,
-#     }
-#     # inject bounding box into shapes
-#     shapes["parts"].insert(0, bbox)
-#     # and states
-#     states[f"/{prefix}/BoundingBox"] = [3, 1]
