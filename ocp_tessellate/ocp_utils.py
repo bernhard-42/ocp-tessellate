@@ -30,7 +30,7 @@ from OCP.Bnd import Bnd_Box
 from OCP.BRep import BRep_Tool
 from OCP.BRepAdaptor import BRepAdaptor_CompCurve, BRepAdaptor_Curve
 from OCP.BRepBndLib import BRepBndLib
-from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeVertex
+from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeVertex, BRepBuilderAPI_MakeEdge
 from OCP.BRepGProp import BRepGProp
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
 from OCP.BRepTools import BRepTools
@@ -645,6 +645,10 @@ def vertex(obj):
         x, y, z = obj
 
     return downcast(BRepBuilderAPI_MakeVertex(gp_Pnt(x, y, z)).Vertex())
+
+
+def line(start, end):
+    return downcast(BRepBuilderAPI_MakeEdge(gp_Pnt(*start), gp_Pnt(*end)).Edge())
 
 
 def tq_to_loc(t, q):

@@ -26,6 +26,7 @@ from .ocp_utils import (
     get_location,
     np_bbox,
     is_line,
+    line,
 )
 from .tessellator import discretize_edge, tessellate, compute_quality
 from .mp_tessellator import (
@@ -394,3 +395,12 @@ class OCP_PartGroup(CADObject):
         return Compound._makeCompound(
             self.compounds()
         )  # pylint: disable=protected-access
+
+
+class CoordSystem(OCP_Edges):
+    def __init__(self, name, origin, x_dir, y_dir, z_dir, length):
+        x_edge = line(origin, [o + v * length for o, v in zip(origin, x_dir)])
+        y_edge = line(origin, [o + v * length for o, v in zip(origin, y_dir)])
+        z_edge = line(origin, [o + v * length for o, v in zip(origin, z_dir)])
+        colors = (Color("red"), Color("green"), Color("blue"))
+        super().__init__([x_edge, y_edge, z_edge], name, colors, width=3)
