@@ -28,7 +28,8 @@ from .defaults import (
     set_defaults,
 )
 from .ocp_utils import occt_version
-from .utils import warn
+from .utils import warn, Color
+from .serialize import serialize, deserialize
 
 
 def versions():

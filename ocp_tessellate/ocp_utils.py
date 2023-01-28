@@ -14,13 +14,13 @@
 # limitations under the License.
 #
 
-from collections import Iterable
 import io
 import itertools
 import os
 import platform
 import sys
 import tempfile
+from collections.abc import Iterable
 from glob import glob
 
 import numpy as np
@@ -30,13 +30,16 @@ from OCP.Bnd import Bnd_Box
 from OCP.BRep import BRep_Tool
 from OCP.BRepAdaptor import BRepAdaptor_CompCurve, BRepAdaptor_Curve
 from OCP.BRepBndLib import BRepBndLib
+from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeVertex
 from OCP.BRepGProp import BRepGProp
+from OCP.BRepMesh import BRepMesh_IncrementalMesh
 from OCP.BRepTools import BRepTools
 from OCP.GCPnts import GCPnts_AbscissaPoint
 from OCP.GeomAbs import GeomAbs_CurveType
-from OCP.gp import gp_Quaternion, gp_Trsf, gp_Vec
+from OCP.gp import gp_Pnt, gp_Quaternion, gp_Trsf, gp_Vec
 from OCP.GProp import GProp_GProps
 from OCP.Quantity import Quantity_ColorRGBA
+from OCP.StlAPI import StlAPI_Writer
 from OCP.TopAbs import (
     TopAbs_COMPOUND,
     TopAbs_COMPSOLID,
@@ -55,17 +58,16 @@ from OCP.TopoDS import (
     TopoDS,
     TopoDS_Builder,
     TopoDS_Compound,
-    TopoDS_Solid,
-    TopoDS_Shape,
-    TopoDS_Face,
-    TopoDS_Wire,
     TopoDS_Edge,
+    TopoDS_Face,
+    TopoDS_Shape,
+    TopoDS_Solid,
     TopoDS_Vertex,
+    TopoDS_Wire,
 )
 from quaternion import rotate_vectors
 
-from .utils import distance, Color
-
+from .utils import Color, distance
 
 MAX_HASH_KEY = 2147483647
 
@@ -107,6 +109,15 @@ def is_cadquery(obj):
 
 def is_cadquery_assembly(obj):
     return _has(obj, ["obj", "loc", "name", "children"])
+
+
+def is_cadquery_sketch(obj):
+    return (
+        hasattr(obj, "_faces")
+        and hasattr(obj, "_edges")
+        and hasattr(obj, "_wires")
+        and hasattr(obj, "_selection")
+    )
 
 
 def is_massembly(obj):
@@ -375,6 +386,26 @@ def length(edge_or_wire):
     return GCPnts_AbscissaPoint.Length_s(c)
 
 
+# Export STL
+
+
+def write_stl_file(compound, filename, tolerance=None, angular_tolerance=None):
+
+    # Remove previous mesh data
+    BRepTools.Clean_s(compound)
+
+    mesh = BRepMesh_IncrementalMesh(compound, tolerance, True, angular_tolerance)
+    mesh.Perform()
+
+    writer = StlAPI_Writer()
+
+    result = writer.Write(compound, filename)
+
+    # Remove the mesh data again
+    BRepTools.Clean_s(compound)
+    return result
+
+
 # OCP serialisation
 
 
@@ -411,6 +442,10 @@ def deserialize(buffer):
 
 
 # OCP types and accessors
+
+
+def is_vector(obj):
+    return isinstance(obj, gp_Vec)
 
 
 def is_line(topods_edge):
@@ -501,6 +536,10 @@ def is_topods_edge(topods_shape):
 
 def is_topods_vertex(topods_shape):
     return isinstance(topods_shape, TopoDS_Vertex)
+
+
+def is_toploc_location(obj):
+    return isinstance(obj, TopLoc_Location)
 
 
 # Check compounds for containing same types only

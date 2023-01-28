@@ -19,7 +19,7 @@ import pickle
 import cadquery as cq
 
 from .ocp_utils import loc_to_tq, tq_to_loc, serialize, deserialize
-from .cad_objects import tessellate_group, combined_bb
+from .convert import tessellate_group, combined_bb
 from .convert import to_assembly, PartGroup
 from .utils import numpy_to_json
 
