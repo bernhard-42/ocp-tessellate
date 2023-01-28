@@ -254,7 +254,7 @@ for name in leg_names:
     hexapod.mate(f"{name}/lower?{lower}", name=f"leg_{name}_lower_hole", origin=True)
 
 show(hexapod, render_mates=True)
-
+# %%
 hexapod.relocate()
 
 # Assemble the parts
