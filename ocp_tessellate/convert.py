@@ -19,7 +19,6 @@ from collections.abc import Iterable
 from .cad_objects import OCP_Edges, OCP_Faces, OCP_Part, OCP_PartGroup, OCP_Vertices
 from .defaults import get_default, preset
 from .mp_tessellator import get_mp_result, is_apply_result
-from .tessellator import bbox_edges
 
 from .ocp_utils import (
     BoundingBox,
