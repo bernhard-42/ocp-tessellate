@@ -69,7 +69,7 @@ class CADObject(object):
         raise NotImplementedError("not implemented yet")
 
 
-class Part(CADObject):
+class OCP_Part(CADObject):
     def __init__(
         self, shape, name="Part", color=None, show_faces=True, show_edges=True
     ):
@@ -90,7 +90,7 @@ class Part(CADObject):
         return [self.state_faces, self.state_edges]
 
     def to_assembly(self):
-        return PartGroup([self])
+        return OCP_PartGroup([self])
 
     def collect_shapes(
         self,
@@ -165,7 +165,7 @@ class Part(CADObject):
         return [self.compound()]
 
 
-class Faces(Part):
+class OCP_Faces(OCP_Part):
     def __init__(
         self, faces, name="Faces", color=None, show_faces=True, show_edges=True
     ):
@@ -176,7 +176,7 @@ class Faces(Part):
         self.renderback = True
 
 
-class Edges(CADObject):
+class OCP_Edges(CADObject):
     def __init__(self, edges, name="Edges", color=None, width=1):
         super().__init__()
         self.shape = edges
@@ -196,7 +196,7 @@ class Edges(CADObject):
         return [EMPTY, SELECTED]
 
     def to_assembly(self):
-        return PartGroup([self])
+        return OCP_PartGroup([self])
 
     def collect_shapes(
         self,
@@ -248,7 +248,7 @@ class Edges(CADObject):
         }
 
 
-class Vertices(CADObject):
+class OCP_Vertices(CADObject):
     def __init__(self, vertices, name="Vertices", color=None, size=1):
         super().__init__()
         self.shape = vertices
@@ -261,7 +261,7 @@ class Vertices(CADObject):
         return [EMPTY, SELECTED]
 
     def to_assembly(self):
-        return PartGroup([self])
+        return OCP_PartGroup([self])
 
     def collect_shapes(
         self,
@@ -293,7 +293,7 @@ class Vertices(CADObject):
         }
 
 
-class PartGroup(CADObject):
+class OCP_PartGroup(CADObject):
     def __init__(self, objects, name="Group", loc=None):
         super().__init__()
         self.objects = objects
@@ -365,7 +365,7 @@ class PartGroup(CADObject):
         parents = parents or ()
         result = {}
         for i, obj in enumerate(self.objects):
-            if isinstance(obj, PartGroup):
+            if isinstance(obj, OCP_PartGroup):
                 for k, v in obj.to_state((*parents, i)).items():
                     result[k] = v
             else:
@@ -376,7 +376,7 @@ class PartGroup(CADObject):
         def c(pg):
             count = 0
             for p in pg.objects:
-                if isinstance(p, PartGroup):
+                if isinstance(p, OCP_PartGroup):
                     count += c(p)
                 else:
                     count += 1

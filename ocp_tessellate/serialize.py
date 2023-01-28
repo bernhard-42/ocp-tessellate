@@ -19,8 +19,8 @@ import pickle
 import cadquery as cq
 
 from .ocp_utils import loc_to_tq, tq_to_loc, serialize, deserialize
-from .convert import tessellate_group, combined_bb
-from .convert import to_assembly, PartGroup
+from .convert import tessellate_group, combined_bb, to_assembly
+from .cad_objects import OCP_PartGroup
 from .utils import numpy_to_json
 
 try:
@@ -134,7 +134,7 @@ def load_binary(filename, assembly_name=None):
 
 def exportJson(cad_obj, filename):
     assembly = to_assembly(cad_obj)
-    if len(assembly.objects) == 1 and isinstance(assembly.objects[0], PartGroup):
+    if len(assembly.objects) == 1 and isinstance(assembly.objects[0], OCP_PartGroup):
         assembly = assembly.objects[0]
     shapes, states = tessellate_group(assembly)
     bb = combined_bb(shapes).to_dict()

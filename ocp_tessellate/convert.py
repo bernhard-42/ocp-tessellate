@@ -16,8 +16,7 @@
 
 from collections.abc import Iterable
 
-from .cad_objects import Edges, Faces, Part, PartGroup, Vertices
-from .convert import Edges, Faces, Part, PartGroup, Vertices
+from .cad_objects import OCP_Edges, OCP_Faces, OCP_Part, OCP_PartGroup, OCP_Vertices
 from .defaults import get_default, preset
 from .mp_tessellator import get_mp_result, is_apply_result
 from .tessellator import bbox_edges
@@ -202,11 +201,11 @@ def conv_sketch(cad_obj):
 
 def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
 
-    if isinstance(cad_obj, PartGroup):
+    if isinstance(cad_obj, OCP_PartGroup):
         return cad_obj
 
-    elif isinstance(cad_obj, (Faces, Edges, Vertices)):
-        pg = PartGroup()
+    elif isinstance(cad_obj, (OCP_Faces, OCP_Edges, OCP_Vertices)):
+        pg = OCP_PartGroup()
         pg.add(cad_obj)
         return pg
 
@@ -284,7 +283,7 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
 
     if is_solid_list(cad_objs):
         name = f"{obj_name if obj_name is not None else 'Solid'}_{obj_id}"
-        return Part(
+        return OCP_Part(
             cad_objs,
             name=name,
             color=get_rgba(obj_color, obj_alpha, Color(default_color)),
@@ -292,7 +291,7 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
 
     elif is_face_list(cad_objs):
         name = f"{obj_name if obj_name is not None else 'Face'}_{obj_id}"
-        return Faces(
+        return OCP_Faces(
             cad_objs, name=name, color=get_rgba(obj_color, obj_alpha, Color(FACE_COLOR))
         )
 
@@ -302,7 +301,7 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
             edges.extend(get_edges(wire))
 
         name = f"{obj_name if obj_name is not None else 'Wire'}_{obj_id}"
-        return Edges(
+        return OCP_Edges(
             edges,
             name=name,
             color=get_rgba(obj_color, 1.0, Color(THICK_EDGE_COLOR)),
@@ -311,7 +310,7 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
 
     elif is_edge_list(cad_objs):
         name = f"{obj_name if obj_name is not None else 'Edge'}_{obj_id}"
-        return Edges(
+        return OCP_Edges(
             cad_objs,
             name=name,
             color=get_rgba(obj_color, 1.0, THICK_EDGE_COLOR),
@@ -320,7 +319,7 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
 
     elif is_vertex_list(cad_objs):
         name = f"{obj_name if obj_name is not None else 'Vertex'}_{obj_id}"
-        return Vertices(
+        return OCP_Vertices(
             cad_objs,
             name=name,
             color=get_rgba(obj_color, 1.0, THICK_EDGE_COLOR),
@@ -332,7 +331,7 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
 
         name = f"{obj_name if obj_name is not None else 'Compound'}_{obj_id}"
 
-        pg = PartGroup([], name=name)
+        pg = OCP_PartGroup([], name=name)
         pg.loc = identity_location()
 
         ind = 0
@@ -341,21 +340,21 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
                 name = (
                     f"{cad_obj.label}_{ind}" if cad_obj.label != "" else f"Solid_{ind}"
                 )
-                part = Part(
+                part = OCP_Part(
                     cad_obj,
                     name=name,
                     color=get_rgba(obj_color, obj_alpha, Color(default_color)),
                 )
 
             elif is_face_list([cad_obj]):
-                part = Faces(
+                part = OCP_Faces(
                     [cad_obj],
                     name=f"Face_{ind}",
                     color=get_rgba(obj_color, obj_alpha, Color(FACE_COLOR)),
                 )
 
             elif is_edge_list([cad_obj]):
-                part = Edges(
+                part = OCP_Edges(
                     [cad_obj],
                     name=f"Edge_{ind}",
                     color=get_rgba(obj_color, 1.0, Color(THICK_EDGE_COLOR)),
@@ -363,7 +362,7 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
                 )
 
             elif is_wire_list([cad_obj]):
-                part = Edges(
+                part = OCP_Edges(
                     get_edges(cad_obj),
                     name=f"Wire_{ind}",
                     color=get_rgba(obj_color, 1.0, Color(THICK_EDGE_COLOR)),
@@ -371,7 +370,7 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
                 )
 
             elif is_vertex_list([cad_obj]):
-                part = Vertices(
+                part = OCP_Vertices(
                     [cad_obj],
                     name=f"Vertex_{ind}",
                     color=get_rgba(obj_color, 1.0, Color(THICK_EDGE_COLOR)),
@@ -383,7 +382,7 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
                 obj_id += 1
 
             else:
-                part = Part(
+                part = OCP_Part(
                     cad_objs,
                     name=name,
                     color=get_rgba(obj_color, obj_alpha, Color(default_color)),
@@ -419,7 +418,7 @@ def to_assembly(
         get_default("default_color") if default_color is None else default_color
     )
 
-    pg = PartGroup([], f"{name}_{grp_id}")
+    pg = OCP_PartGroup([], f"{name}_{grp_id}")
 
     obj_id = 0
 
@@ -478,7 +477,7 @@ def to_assembly(
 
         obj_id += 1
 
-    if len(pg.objects) == 1 and isinstance(pg.objects[0], PartGroup):
+    if len(pg.objects) == 1 and isinstance(pg.objects[0], OCP_PartGroup):
         pg = pg.objects[0]
 
     return pg
