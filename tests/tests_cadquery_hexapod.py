@@ -1,7 +1,9 @@
 import cadquery as cq
 import numpy as np
 from cadquery_massembly import MAssembly
-from cq_vscode import show, Animation
+from cq_vscode import show, Animation, set_defaults
+
+set_defaults(mate_scale=5)
 
 from ocp_tessellate import web_color
 
@@ -251,7 +253,8 @@ for name in leg_names:
     )
     hexapod.mate(f"{name}/lower?{lower}", name=f"leg_{name}_lower_hole", origin=True)
 
-# show(hexapod, reset_camera=False)
+show(hexapod, render_mates=True)
+
 hexapod.relocate()
 
 # Assemble the parts
