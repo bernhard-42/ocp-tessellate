@@ -3,6 +3,25 @@ from cq_vscode import show
 
 # %%
 
+c = (
+    cq.Sketch()
+    .segment((0.0, 0), (2.0, 0.0))
+    .segment((0.0, 2))
+    .close()
+    .arc((0.6, 0.6), 0.4, 0.0, 360.0)
+    .assemble(tag="face")
+    .edges("%LINE", tag="face")
+    #    .vertices()
+)
+
+show(c)
+# %%
+
+from ocp_tessellate.ocp_utils import make_compound
+
+show(make_compound([f.wrapped for f in edges.objects]))
+
+# %%
 # BASIC TESTS
 
 b = cq.Workplane().box(1, 2, 3).fillet(0.1)
@@ -79,5 +98,13 @@ show(c_ass)
 # %%
 
 show(box1.vertices(), show_parent=True)
+
+
+# %%
+
+v1 = cq.Vector()
+v2 = cq.Vector(1, 2, 3)
+
+show(v1, v2)
 
 # %%
