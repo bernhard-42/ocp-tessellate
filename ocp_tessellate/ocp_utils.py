@@ -599,6 +599,15 @@ def get_rgba(color, alpha=None, def_color=None):
     return (*rgb, a)
 
 
+def vertex(obj):
+    if isinstance(obj, gp_Vec):
+        x, y, z = obj.X(), obj.Y(), obj.Z()
+    else:
+        x, y, z = obj
+
+    return downcast(BRepBuilderAPI_MakeVertex(gp_Pnt(x, y, z)).Vertex())
+
+
 def tq_to_loc(t, q):
     T = gp_Trsf()
     Q = gp_Quaternion(*q)
