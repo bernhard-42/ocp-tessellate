@@ -14,12 +14,14 @@
 # limitations under the License.
 #
 
-from collections import Iterable
+from collections.abc import Iterable
 
 from .cad_objects import Edges, Faces, Part, PartGroup, Vertices
 from .convert import Edges, Faces, Part, PartGroup, Vertices
 from .defaults import get_default, preset
 from .mp_tessellator import get_mp_result, is_apply_result
+from .tessellator import bbox_edges
+
 from .ocp_utils import (
     BoundingBox,
     ocp_color,
@@ -29,6 +31,7 @@ from .ocp_utils import (
     get_downcasted_shape,
     is_cadquery,
     is_cadquery_assembly,
+    is_cadquery_sketch,
     is_build123d,
     is_build123d_assembly,
     is_build123d_compound,
@@ -38,12 +41,16 @@ from .ocp_utils import (
     is_solid_list,
     is_topods_compound,
     is_topods_shape,
+    is_toploc_location,
     is_vertex_list,
     is_wire_list,
     is_wrapped,
+    is_vector,
     np_bbox,
     identity_location,
     get_location,
+    vertex,
+    make_compound,
 )
 from .utils import Color, get_color
 
@@ -152,6 +159,47 @@ def get_normal_len(render_normals, shapes, deviation):
     return normal_len
 
 
+def conv_sketch(cad_obj):
+    cad_objs = []
+    if cad_obj._faces:
+        if not isinstance(cad_obj._faces, Iterable):
+            faces = [cad_obj._faces]
+        else:
+            faces = cad_obj._faces
+        cad_objs.extend([f.moved(loc).wrapped for f in faces for loc in cad_obj.locs])
+
+    if cad_obj._wires:
+        cad_objs.extend(
+            [w.moved(loc).wrapped for w in cad_obj._wires for loc in cad_obj.locs]
+        )
+
+    if cad_obj._edges:
+        cad_objs.extend(
+            [e.moved(loc).wrapped for e in cad_obj._edges for loc in cad_obj.locs]
+        )
+
+    if cad_obj._selection:
+        if is_toploc_location(cad_obj._selection[0].wrapped):
+            objs = [
+                make_compound(
+                    [vertex((0, 0, 0)).Moved(loc.wrapped) for loc in cad_obj._selection]
+                )
+            ]
+        else:
+            objs = [
+                make_compound(
+                    [
+                        e.moved(loc).wrapped
+                        for e in cad_obj._selection
+                        for loc in cad_obj.locs
+                    ]
+                )
+            ]
+        cad_objs.extend(objs)
+
+    return cad_objs
+
+
 def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
 
     if isinstance(cad_obj, PartGroup):
@@ -190,6 +238,29 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
         _debug(f"build123d Shape {obj_id}: {type(cad_obj)}")
         cad_objs = [downcast(cad_obj.wrapped)]
 
+    elif is_cadquery_sketch(cad_obj):
+        cad_objs = conv_sketch(cad_obj)
+
+    elif is_cadquery(cad_obj):
+        cad_objs = []
+        for v in cad_obj.vals():
+            if is_cadquery_sketch(v):
+                obj = conv_sketch(v)
+
+            elif is_vector(v.wrapped):
+                obj = [vertex(v.wrapped)]
+
+            else:
+                obj = get_downcasted_shape(v.wrapped)
+
+            cad_objs.extend(obj)
+
+    elif is_wrapped(cad_obj):
+        if is_vector(cad_obj.wrapped):
+            cad_objs = [vertex(cad_obj.wrapped)]
+        else:
+            cad_objs = [cad_obj.wrapped]
+
     elif isinstance(cad_obj, Iterable):
         objs = list(cad_obj)
         if len(objs) > 0 and is_wrapped(objs[0]):
@@ -198,15 +269,6 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
             cad_objs = [downcast(obj.wrapped) for obj in objs]
         else:
             raise ValueError("Empty list cannot be tessellated")
-
-    elif is_cadquery(cad_obj):
-        cad_objs = []
-        for v in cad_obj.vals():
-            obj = get_downcasted_shape(v.wrapped)
-            cad_objs.extend(obj)
-
-    elif is_wrapped(cad_obj):
-        cad_objs = [cad_obj.wrapped]
 
     elif is_topods_compound(cad_obj):
         _debug(f"CAD Obj {obj_id}: TopoDS Compound")
@@ -315,6 +377,8 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
                     color=get_rgba(obj_color, 1.0, Color(THICK_EDGE_COLOR)),
                     size=6,
                 )
+            elif is_topods_compound(cad_obj):
+                part = conv(cad_obj, ind, "Compound")
             else:
                 part = Part(
                     cad_objs,
