@@ -16,7 +16,14 @@
 
 from collections.abc import Iterable
 
-from .cad_objects import OCP_Edges, OCP_Faces, OCP_Part, OCP_PartGroup, OCP_Vertices
+from .cad_objects import (
+    OCP_Edges,
+    OCP_Faces,
+    OCP_Part,
+    OCP_PartGroup,
+    OCP_Vertices,
+    CoordSystem,
+)
 from .defaults import get_default, preset
 from .mp_tessellator import get_mp_result, is_apply_result
 
@@ -27,6 +34,7 @@ from .ocp_utils import (
     downcast,
     get_edges,
     get_downcasted_shape,
+    get_tuple,
     is_cadquery,
     is_cadquery_assembly,
     is_cadquery_sketch,
@@ -204,8 +212,7 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
         return cad_obj
 
     elif isinstance(cad_obj, (OCP_Faces, OCP_Edges, OCP_Vertices)):
-        pg = OCP_PartGroup()
-        pg.add(cad_obj)
+        pg = OCP_PartGroup([cad_obj])
         return pg
 
     default_color = get_default("default_color")
@@ -403,6 +410,7 @@ def to_assembly(
     show_parent=False,
     loc=None,
     grp_id=0,
+    mates=None,
 ):
     if names is None:
         names = [None] * len(cad_objs)
@@ -413,9 +421,10 @@ def to_assembly(
     if alphas is None:
         alphas = [None] * len(cad_objs)
 
-    default_color = (
-        get_default("default_color") if default_color is None else default_color
-    )
+    if default_color is None:
+        default_color = (
+            get_default("default_color") if default_color is None else default_color
+        )
 
     pg = OCP_PartGroup([], f"{name}_{grp_id}")
 
@@ -446,9 +455,41 @@ def to_assembly(
                     ),
                 )
 
+            top_level_mates = None
+            if render_mates and hasattr(cad_obj, "mates") and cad_obj.mates is not None:
+                top_level_mates = cad_obj.mates if mates is None else mates
+                pg2 = OCP_PartGroup(
+                    [
+                        CoordSystem(
+                            name,
+                            get_tuple(mate_def.mate.origin),
+                            get_tuple(mate_def.mate.x_dir),
+                            get_tuple(mate_def.mate.y_dir),
+                            get_tuple(mate_def.mate.z_dir),
+                            mate_scale,
+                        )
+                        for name, mate_def in top_level_mates.items()
+                        if mate_def.assembly == cad_obj
+                    ],
+                    name="mates",
+                    loc=identity_location(),  # mates inherit the parent location, so actually add a no-op
+                )
+                if pg2.objects:
+                    pg.add(pg2)
+
             for child in cad_obj.children:
                 grp_id += 1
-                pg.add(to_assembly(child, loc=loc, grp_id=grp_id))
+                pg.add(
+                    to_assembly(
+                        child,
+                        loc=loc,
+                        grp_id=grp_id,
+                        default_color=default_color,
+                        mates=top_level_mates,
+                        render_mates=render_mates,
+                        mate_scale=mate_scale,
+                    ),
+                )
 
         elif is_build123d_assembly(cad_obj):
             pg.name = cad_obj.label
@@ -458,7 +499,16 @@ def to_assembly(
 
             for child in cad_obj.children:
                 grp_id += 1
-                pg.add(to_assembly(child, loc=loc, grp_id=grp_id))
+                pg.add(
+                    to_assembly(
+                        child,
+                        loc=loc,
+                        grp_id=grp_id,
+                        default_color=default_color,
+                        render_mates=render_mates,
+                        mate_scale=mate_scale,
+                    )
+                )
 
         else:
             if show_parent and hasattr(cad_obj, "parent"):
