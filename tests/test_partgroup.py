@@ -1,6 +1,6 @@
 import cadquery as cq
 from cq_vscode import show
-from jupyter_cadquery import Part, PartGroup
+from ocp_tessellate import Part, PartGroup
 
 
 def ring(inner_radius, outer_radius, width):
