@@ -16,6 +16,7 @@
 
 from .tessellator import cache, make_key
 import multiprocessing
+import multiprocessing.pool
 from multiprocessing import shared_memory
 from cachetools import cached
 from .mp_tess import mp_tess
