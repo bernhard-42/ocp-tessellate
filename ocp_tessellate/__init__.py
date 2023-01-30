@@ -28,7 +28,6 @@ from .defaults import (
     set_defaults,
 )
 from .ocp_utils import is_cadquery, occt_version
-from .serialize import deserialize, serialize
 from .utils import Color, warn
 
 
