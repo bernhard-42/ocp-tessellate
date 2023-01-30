@@ -16,8 +16,6 @@
 
 import numpy as np
 
-from cadquery import Compound, __version__
-
 from .utils import Color, Timer
 from .ocp_utils import (
     bounding_box,
@@ -27,14 +25,11 @@ from .ocp_utils import (
     np_bbox,
     is_line,
     line,
+    make_compound,
 )
 from .tessellator import discretize_edge, tessellate, compute_quality
-from .mp_tessellator import (
-    is_apply_result,
-    mp_tessellate,
-)
+from .mp_tessellator import is_apply_result, mp_tessellate, init_pool, keymap
 from .defaults import get_default
-
 
 UNSELECTED = 0
 SELECTED = 1
@@ -160,7 +155,7 @@ class OCP_Part(CADObject):
         }
 
     def compound(self):
-        return Compound._makeCompound(self.shape)
+        return make_compound(self.shape)
 
     def compounds(self):
         return [self.compound()]
@@ -392,9 +387,7 @@ class OCP_PartGroup(CADObject):
         return result
 
     def compound(self):
-        return Compound._makeCompound(
-            self.compounds()
-        )  # pylint: disable=protected-access
+        return make_compound(self.compounds())
 
 
 class CoordSystem(OCP_Edges):
