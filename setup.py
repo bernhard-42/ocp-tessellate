@@ -18,7 +18,7 @@ LONG_DESCRIPTION = (
 
 setup_args = {
     "name": "ocp_tessellate",
-    "version": "1.0.0rc3",
+    "version": "1.0.0rc4",
     "description": "Tessellate OCP objects",
     "long_description": LONG_DESCRIPTION,
     "include_package_data": True,
