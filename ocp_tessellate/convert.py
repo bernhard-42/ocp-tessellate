@@ -384,7 +384,7 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
                 )
 
             elif is_topods_compound(cad_obj):
-                part = conv(cad_obj, obj_id, "Compound")
+                part = conv(cad_obj, obj_id, "Compound", obj_color, obj_alpha)
                 obj_id += 1
 
             else:
