@@ -23,7 +23,14 @@ from .tessellator import tessellate
 
 
 def mp_tess(
-    name, deviation, quality, angular_tolerance, compute_faces, compute_edges, debug
+    name,
+    deviation,
+    quality,
+    angular_tolerance,
+    compute_faces,
+    compute_edges,
+    debug,
+    progress,
 ):
     """This function will be pickled by multiprocessing"""
     sm = shared_memory.SharedMemory(name)
@@ -36,6 +43,7 @@ def mp_tess(
         compute_faces,
         compute_edges,
         debug,
+        progress,
     )
     sm.close()
     sm.unlink()

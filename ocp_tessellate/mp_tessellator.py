@@ -95,8 +95,8 @@ def mp_tessellate(
     compute_faces=True,
     compute_edges=True,
     debug=False,
+    progress=None,
 ):
-
     shape = shapes[0]
 
     key = make_key(
@@ -125,6 +125,7 @@ def mp_tessellate(
             compute_faces,
             compute_edges,
             debug,
+            progress,
         ),
     )
 

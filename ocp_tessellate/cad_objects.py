@@ -118,6 +118,7 @@ class OCP_Part(CADObject):
                 angular_tolerance=angular_tolerance,
                 debug=timeit,
                 compute_edges=render_edges,
+                progress=progress,
             )
 
             t.info = (
@@ -132,7 +133,7 @@ class OCP_Part(CADObject):
                 mesh = result
                 bb = np_bbox(result["vertices"], t, q)
 
-        if progress is not None:
+        if progress == "without_cache":
             progress.update()
 
         if isinstance(self.color, tuple):
@@ -326,7 +327,6 @@ class OCP_PartGroup(CADObject):
         progress=None,
         timeit=False,
     ):
-
         self.id = f"{path}/{self.name}"
 
         if loc is None and self.loc is None:

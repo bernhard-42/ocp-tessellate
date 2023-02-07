@@ -61,6 +61,7 @@ def make_key(
     compute_edges=True,
     compute_faces=True,
     debug=False,
+    progress=False,
 ):  # pylint: disable=unused-argument
     # quality is a measure of bounding box and deviation, hence can be ignored (and should due to accuracy issues
     # of non optimal bounding boxes. debug and progress are also irrelevant for tessellation results)
@@ -122,7 +123,6 @@ class Tessellator:
         compute_edges=True,
         debug=False,
     ):
-
         self.shape = shape
 
         count = self.number_solids(shape)
@@ -278,7 +278,11 @@ def tessellate(
     compute_faces=True,
     compute_edges=True,
     debug=False,
+    progress=None,
 ):
+    if progress == "with_cache":
+        print(".", flush=True)
+
     compound = (
         make_compound(shapes) if len(shapes) > 1 else shapes[0]
     )  # pylint: disable=protected-access
