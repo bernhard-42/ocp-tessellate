@@ -399,6 +399,13 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
         return pg
 
 
+def _get_tshape(obj):
+    if hasattr(obj, "val"):
+        return obj.val().wrapped.TShape()
+    else:
+        return obj.wrapped.TShape()
+
+
 def _to_assembly(
     *cad_objs,
     names=None,
@@ -451,7 +458,7 @@ def _to_assembly(
             is_instance = False
             if cad_obj.obj is not None:
                 for i, ref in enumerate(instances):
-                    if ref[0] == cad_obj.obj.val().wrapped.TShape():
+                    if ref[0] == _get_tshape(cad_obj.obj):
                         pg.add(
                             OCP_Part(
                                 {"ref": i},
@@ -476,9 +483,8 @@ def _to_assembly(
                             part.color,
                         )
                     )
-                    instances.append(
-                        (cad_obj.obj.val().wrapped.TShape(), part.shape[0])
-                    )
+
+                    instances.append((_get_tshape(cad_obj.obj), part.shape[0]))
 
             top_level_mates = None
             if render_mates and hasattr(cad_obj, "mates") and cad_obj.mates is not None:
@@ -547,7 +553,11 @@ def _to_assembly(
 
             is_instance = False
             if cad_obj is not None:
-                loc = get_location(cad_obj.location, as_none=False)
+                if hasattr(cad_obj, "location"):
+                    loc = get_location(cad_obj.location, as_none=False)
+                else:
+                    loc = identity_location()
+
                 for i, ref in enumerate(instances):
                     if ref[0] == cad_obj.wrapped.TShape():
                         pg.add(
