@@ -524,16 +524,16 @@ def _to_assembly(
 
             for child in cad_obj.children:
                 grp_id += 1
-                pg.add(
-                    _to_assembly(
-                        child,
-                        loc=loc,
-                        grp_id=grp_id,
-                        default_color=default_color,
-                        render_mates=render_mates,
-                        mate_scale=mate_scale,
-                    )
+                part, instances = _to_assembly(
+                    child,
+                    loc=loc,
+                    grp_id=grp_id,
+                    default_color=default_color,
+                    render_mates=render_mates,
+                    mate_scale=mate_scale,
+                    instances=instances,
                 )
+                pg.add(part)
 
         else:
             if show_parent and hasattr(cad_obj, "parent"):
@@ -542,9 +542,35 @@ def _to_assembly(
 
             if hasattr(cad_obj, "color") and cad_obj.color is not None:
                 *color, alpha = get_rgba(cad_obj.color, obj_alpha, Color(default_color))
-                pg.add(conv(cad_obj, obj_id, obj_name, color, alpha))
             else:
-                pg.add(conv(cad_obj, obj_id, obj_name, obj_color, obj_alpha))
+                color, alpha = obj_color, obj_alpha
+
+            is_instance = False
+            if cad_obj is not None:
+                loc = get_location(cad_obj.location, as_none=False)
+                for i, ref in enumerate(instances):
+                    if ref[0] == cad_obj.wrapped.TShape():
+                        pg.add(
+                            OCP_Part(
+                                {"ref": i},
+                                f"{pg.name}_{obj_id}",
+                                get_rgba(color, alpha, Color(default_color)),
+                            )
+                        )
+                        pg.loc = loc
+                        is_instance = True
+
+                if not is_instance:
+                    part = conv(cad_obj, obj_id, pg.name, color, alpha)
+                    pg.add(
+                        OCP_Part(
+                            {"ref": len(instances)},
+                            part.name,
+                            part.color,
+                        )
+                    )
+                    pg.loc = loc
+                    instances.append((cad_obj.wrapped.TShape(), part.shape[0]))
 
         if pg.loc is None:
             pg.loc = identity_location()
