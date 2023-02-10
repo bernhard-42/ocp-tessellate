@@ -127,7 +127,11 @@ class Tessellator:
 
         count = self.number_solids(shape)
         with Timer(
-            debug, "", f"mesh incrementally {'(parallel)' if count > 1 else ''}", 3
+            debug,
+            "",
+            f"mesh incrementally {'(parallel)' if count > 1 else ''}",
+            3,
+            debug,
         ):
             # Remove previous mesh data
             BRepTools.Clean_s(shape)
@@ -281,7 +285,7 @@ def tessellate(
     progress=None,
 ):
     if progress == "with_cache":
-        print(".", flush=True)
+        print(".", end="", flush=True)
 
     compound = (
         make_compound(shapes) if len(shapes) > 1 else shapes[0]
