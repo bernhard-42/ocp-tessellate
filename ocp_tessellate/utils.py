@@ -93,6 +93,34 @@ def flatten(nested_list):
     return [y for x in nested_list for y in x]
 
 
+def numpy_to_buffer_json(value, indent=None):
+    def walk(obj):
+        if isinstance(obj, np.ndarray):
+            if str(obj.dtype) in ("int32", "int64", "uint64"):
+                return obj.tolist()
+
+            if not obj.flags["C_CONTIGUOUS"]:
+                obj = np.ascontiguousarray(obj)
+
+            obj = obj.ravel()
+            return {
+                "shape": obj.shape,
+                "dtype": str(obj.dtype),
+                "buffer": memoryview(obj).hex(),
+            }
+        elif isinstance(obj, (tuple, list)):
+            return [walk(el) for el in obj]
+        elif isinstance(obj, dict):
+            rv = {}
+            for k, v in obj.items():
+                rv[k] = walk(v)
+            return rv
+        else:
+            return obj
+
+    return walk(value)
+
+
 def numpy_to_json(obj, indent=None):
     class NumpyArrayEncoder(json.JSONEncoder):
         def default(self, o):

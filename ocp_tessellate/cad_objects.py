@@ -40,6 +40,25 @@ EMPTY = 3
 #
 
 
+class Instance:
+    def __init__(self, shape):
+        self.shape = shape
+        self.mesh = None
+        self.quality = None
+
+
+INSTANCES = []
+
+
+def get_instances():
+    return [instance.mesh for instance in INSTANCES]
+
+
+def set_instances(instances):
+    global INSTANCES
+    INSTANCES = [Instance(instance) for instance in instances]
+
+
 class CADObject(object):
     def __init__(self):
         self.color = Color(get_default("default_color"))
@@ -102,36 +121,52 @@ class OCP_Part(CADObject):
     ):
         self.id = f"{path}/{self.name}"
 
-        # A first rough estimate of the bounding box.
-        # Will be too large, but is sufficient for computing the quality
-        with Timer(timeit, self.name, "compute quality:", 2) as t:
-            bb = bounding_box(self.shape, loc=get_location(loc), optimal=False)
-            quality = compute_quality(bb, deviation=deviation)
-            t.info = str(bb)
+        if isinstance(self.shape, dict):
+            ind = self.shape["ref"]
+            shape = [INSTANCES[ind].shape]
+            mesh = INSTANCES[ind].mesh
+            quality = INSTANCES[ind].quality
+        else:
+            ind = None
+            shape = self.shape
+            mesh = None
 
-        with Timer(timeit, self.name, "tessellate:     ", 2) as t:
-            func = mp_tessellate if parallel else tessellate
-            result = func(
-                self.shape,
-                deviation=deviation,
-                quality=quality,
-                angular_tolerance=angular_tolerance,
-                debug=timeit,
-                compute_edges=render_edges,
-                progress=progress,
-            )
+        if mesh is None:
+            with Timer(timeit, self.name, "compute quality:", 2) as t:
+                # A first rough estimate of the bounding box.
+                # Will be too large, but is sufficient for computing the quality
+                bb = bounding_box(shape, loc=get_location(loc), optimal=False)
+                quality = compute_quality(bb, deviation=deviation)
+                t.info = str(bb)
 
-            t.info = (
-                f"{{quality:{quality:.4f}, angular_tolerance:{angular_tolerance:.2f}}}"
-            )
+            with Timer(timeit, self.name, "tessellate:     ", 2) as t:
+                func = mp_tessellate if parallel else tessellate
+                mesh = func(
+                    shape,
+                    deviation=deviation,
+                    quality=quality,
+                    angular_tolerance=angular_tolerance,
+                    debug=timeit,
+                    compute_edges=render_edges,
+                    progress=progress,
+                )
 
+                t.info = f"{{quality:{quality:.4f}, angular_tolerance:{angular_tolerance:.2f}}}"
+
+        with Timer(timeit, self.name, "bounding box:   ", 2):
             t, q = loc_to_tq(get_location(loc))
-            if parallel and is_apply_result(result):
-                mesh = {"result": result, "t": t, "q": q}
+            if parallel and is_apply_result(mesh):
+                mesh = {"result": mesh, "t": t, "q": q}
                 bb = {}
             else:
-                mesh = result
-                bb = np_bbox(result["vertices"], t, q)
+                bb = np_bbox(mesh["vertices"], t, q)
+                # store the instance mesh
+                if ind is not None and INSTANCES[ind].mesh is None:
+                    INSTANCES[ind].mesh = mesh
+                    INSTANCES[ind].quality = quality
+
+                if isinstance(self.shape, dict):
+                    mesh = self.shape  # return the instance id
 
         if progress == "without_cache":
             progress.update()

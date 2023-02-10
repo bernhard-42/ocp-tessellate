@@ -23,6 +23,8 @@ from .cad_objects import (
     OCP_PartGroup,
     OCP_Vertices,
     CoordSystem,
+    get_instances,
+    set_instances,
 )
 from .defaults import get_default, preset
 from .mp_tessellator import get_mp_result, is_apply_result
@@ -95,7 +97,7 @@ def tessellate_group(group, kwargs=None, progress=None, timeit=False):
     )
     states = group.to_state()
 
-    return shapes, states
+    return get_instances(), shapes, states
 
 
 def combined_bb(shapes):
@@ -207,7 +209,6 @@ def conv_sketch(cad_obj):
 
 
 def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
-
     if isinstance(cad_obj, OCP_PartGroup):
         return cad_obj
 
@@ -398,7 +399,7 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
         return pg
 
 
-def to_assembly(
+def _to_assembly(
     *cad_objs,
     names=None,
     colors=None,
@@ -411,6 +412,7 @@ def to_assembly(
     loc=None,
     grp_id=0,
     mates=None,
+    instances=None,
 ):
     if names is None:
         names = [None] * len(cad_objs)
@@ -426,12 +428,14 @@ def to_assembly(
             get_default("default_color") if default_color is None else default_color
         )
 
+    if instances == None:
+        instances = []
+
     pg = OCP_PartGroup([], f"{name}_{grp_id}")
 
     obj_id = 0
 
     for obj_name, obj_color, obj_alpha, cad_obj in zip(names, colors, alphas, cad_objs):
-
         if is_cadquery_assembly(cad_obj):
             pg.name = cad_obj.name
 
@@ -444,16 +448,37 @@ def to_assembly(
             else:
                 *rgb, a = get_rgba(cad_obj.color, obj_alpha, Color(default_color))
 
+            is_instance = False
             if cad_obj.obj is not None:
-                pg.add(
-                    conv(
+                for i, ref in enumerate(instances):
+                    if ref[0] == cad_obj.obj.val().wrapped.TShape():
+                        pg.add(
+                            OCP_Part(
+                                {"ref": i},
+                                f"{pg.name}_{obj_id}",
+                                get_rgba(rgb, a, Color(default_color)),
+                            )
+                        )
+                        is_instance = True
+
+                if not is_instance:
+                    part = conv(
                         cad_obj.obj,
                         obj_id,
                         pg.name,
                         rgb,
                         a,
-                    ),
-                )
+                    )
+                    pg.add(
+                        OCP_Part(
+                            {"ref": len(instances)},
+                            part.name,
+                            part.color,
+                        )
+                    )
+                    instances.append(
+                        (cad_obj.obj.val().wrapped.TShape(), part.shape[0])
+                    )
 
             top_level_mates = None
             if render_mates and hasattr(cad_obj, "mates") and cad_obj.mates is not None:
@@ -479,17 +504,17 @@ def to_assembly(
 
             for child in cad_obj.children:
                 grp_id += 1
-                pg.add(
-                    to_assembly(
-                        child,
-                        loc=loc,
-                        grp_id=grp_id,
-                        default_color=default_color,
-                        mates=top_level_mates,
-                        render_mates=render_mates,
-                        mate_scale=mate_scale,
-                    ),
+                part, instances = _to_assembly(
+                    child,
+                    loc=loc,
+                    grp_id=grp_id,
+                    default_color=default_color,
+                    mates=top_level_mates,
+                    render_mates=render_mates,
+                    mate_scale=mate_scale,
+                    instances=instances,
                 )
+                pg.add(part)
 
         elif is_build123d_assembly(cad_obj):
             pg.name = cad_obj.label
@@ -500,7 +525,7 @@ def to_assembly(
             for child in cad_obj.children:
                 grp_id += 1
                 pg.add(
-                    to_assembly(
+                    _to_assembly(
                         child,
                         loc=loc,
                         grp_id=grp_id,
@@ -529,4 +554,38 @@ def to_assembly(
     if len(pg.objects) == 1 and isinstance(pg.objects[0], OCP_PartGroup):
         pg = pg.objects[0]
 
+    return pg, instances
+
+
+def to_assembly(
+    *cad_objs,
+    names=None,
+    colors=None,
+    alphas=None,
+    name="Group",
+    render_mates=None,
+    mate_scale=1,
+    default_color=None,
+    show_parent=False,
+    loc=None,
+    grp_id=0,
+    mates=None,
+    instances=None,
+):
+    pg, instances = _to_assembly(
+        *cad_objs,
+        names=names,
+        colors=colors,
+        alphas=alphas,
+        name=name,
+        render_mates=render_mates,
+        mate_scale=mate_scale,
+        default_color=default_color,
+        show_parent=show_parent,
+        loc=loc,
+        grp_id=grp_id,
+        mates=mates,
+        instances=instances,
+    )
+    set_instances([instance[1] for instance in instances])
     return pg
