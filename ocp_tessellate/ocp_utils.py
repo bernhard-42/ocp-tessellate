@@ -150,10 +150,11 @@ def is_build123d_assembly(obj):
         (is_build123d_compound(obj) or is_build123d_shape(obj))
         and hasattr(obj, "children")
         and isinstance(obj.children, (list, tuple))
-        and (
-            (len(obj.children) == 0 and obj.parent is not None)
-            or (len(obj.children) > 0 and obj.parent is None)
-        )
+        and len(obj.children) > 0
+        # and (
+        #     (len(obj.children) == 0 and obj.parent is not None)
+        #     or (len(obj.children) > 0 and obj.parent is None)
+        # )
     )
 
 

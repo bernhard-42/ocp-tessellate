@@ -533,26 +533,17 @@ def _to_assembly(
             if cad_obj.label != "":
                 pg.name = cad_obj.label
 
-            if len(cad_obj.children) == 0:
-                # Handle assembly leave
-
-                part = get_instance(cad_obj, obj_id, pg.name, rgba, instances)
+            for child in cad_obj.children:
+                grp_id += 1
+                part, instances = _to_assembly(
+                    child,
+                    grp_id=grp_id,
+                    default_color=default_color,
+                    render_mates=render_mates,
+                    mate_scale=mate_scale,
+                    instances=instances,
+                )
                 pg.add(part)
-
-            else:
-                # Handle assembly children
-
-                for child in cad_obj.children:
-                    grp_id += 1
-                    part, instances = _to_assembly(
-                        child,
-                        grp_id=grp_id,
-                        default_color=default_color,
-                        render_mates=render_mates,
-                        mate_scale=mate_scale,
-                        instances=instances,
-                    )
-                    pg.add(part)
 
         else:
 
@@ -567,12 +558,14 @@ def _to_assembly(
                 pg.objects[0].state_faces = 0
 
             if loc is not None:
-                part = get_instance(cad_obj, 0, f"{obj_name}_{obj_id}", rgba, instances)
-
                 # create a partgroup and move part location into it
-                name = f"{obj_name}_{obj_id}"
-                pg2 = OCP_PartGroup([part], name=name, loc=loc)
+                name = f"{'part' if obj_name is None else obj_name}_{grp_id}"
+                grp_id += 1
+                pg2 = OCP_PartGroup([], name=name, loc=loc)
+                part = get_instance(cad_obj, 0, name, rgba, instances)
                 pg.loc = identity_location()
+                pg2.add(part)
+
                 # add additional partgroup
                 pg.add(pg2)
 

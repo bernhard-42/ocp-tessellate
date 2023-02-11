@@ -1,3 +1,7 @@
+Fix parent handling
+TShape handling for Compounds
+Remove explicit leaf handling for build123d assemblies
+
 Parallel tessellation
 - mpp_get_result
 - test parallel
