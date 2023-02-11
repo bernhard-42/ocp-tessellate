@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+import copy
 from collections.abc import Iterable
 
 from .cad_objects import (
@@ -56,9 +57,11 @@ from .ocp_utils import (
     is_vector,
     np_bbox,
     identity_location,
-    get_location,
     vertex,
     make_compound,
+    get_location,
+    get_tshape,
+    copy_shape,
 )
 from .utils import Color, get_color
 
@@ -399,11 +402,43 @@ def conv(cad_obj, obj_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
         return pg
 
 
-def _get_tshape(obj):
-    if hasattr(obj, "val"):
-        return obj.val().wrapped.TShape()
-    else:
-        return obj.wrapped.TShape()
+def get_instance(obj, obj_id, name, rgba, instances):
+    is_instance = False
+    part = None
+    for i, ref in enumerate(instances):
+        if ref[0] == get_tshape(obj):
+            part = OCP_Part(
+                {"ref": i},
+                f"{name}_{obj_id}",
+                rgba,
+            )
+            is_instance = True
+
+    if not is_instance:
+        part = conv(obj, obj_id, name, rgba[:3], rgba[3])
+        if not isinstance(part, OCP_PartGroup):
+            instances.append((get_tshape(obj), part.shape[0]))
+            part = OCP_Part(
+                {"ref": len(instances) - 1},
+                part.name,
+                part.color,
+            )
+
+    return part
+
+
+def relocate(obj):
+    loc = get_location(obj)
+
+    if loc is None or not hasattr(obj, "wrapped"):
+        return None, obj
+
+    obj = copy_shape(obj)
+
+    tshape = get_tshape(obj)
+    obj.wrapped.Move(loc.Inverted())
+    obj.wrapped.TShape(tshape)
+    return obj, loc
 
 
 def _to_assembly(
@@ -435,56 +470,28 @@ def _to_assembly(
             get_default("default_color") if default_color is None else default_color
         )
 
-    if instances == None:
+    if instances is None:
         instances = []
 
-    pg = OCP_PartGroup([], f"{name}_{grp_id}")
+    pg = OCP_PartGroup([], f"{name}_{grp_id}", identity_location())
 
     obj_id = 0
 
     for obj_name, obj_color, obj_alpha, cad_obj in zip(names, colors, alphas, cad_objs):
+
+        if hasattr(cad_obj, "color") and cad_obj.color is not None:
+            *color, alpha = get_rgba(cad_obj.color, obj_alpha, Color(default_color))
+        else:
+            color, alpha = obj_color, obj_alpha
+        rgba = get_rgba(color, alpha, Color(default_color))
+
         if is_cadquery_assembly(cad_obj):
             pg.name = cad_obj.name
+            pg.loc = get_location(cad_obj, as_none=False)
 
-            loc = get_location(cad_obj.loc, as_none=False)
-            pg.loc = loc
-
-            if cad_obj.color is None:
-                *rgb, a = get_rgba(obj_color, obj_alpha, Color(default_color))
-
-            else:
-                *rgb, a = get_rgba(cad_obj.color, obj_alpha, Color(default_color))
-
-            is_instance = False
             if cad_obj.obj is not None:
-                for i, ref in enumerate(instances):
-                    if ref[0] == _get_tshape(cad_obj.obj):
-                        pg.add(
-                            OCP_Part(
-                                {"ref": i},
-                                f"{pg.name}_{obj_id}",
-                                get_rgba(rgb, a, Color(default_color)),
-                            )
-                        )
-                        is_instance = True
-
-                if not is_instance:
-                    part = conv(
-                        cad_obj.obj,
-                        obj_id,
-                        pg.name,
-                        rgb,
-                        a,
-                    )
-                    pg.add(
-                        OCP_Part(
-                            {"ref": len(instances)},
-                            part.name,
-                            part.color,
-                        )
-                    )
-
-                    instances.append((_get_tshape(cad_obj.obj), part.shape[0]))
+                part = get_instance(cad_obj.obj, obj_id, pg.name, rgba, instances)
+                pg.add(part)
 
             top_level_mates = None
             if render_mates and hasattr(cad_obj, "mates") and cad_obj.mates is not None:
@@ -523,67 +530,59 @@ def _to_assembly(
                 pg.add(part)
 
         elif is_build123d_assembly(cad_obj):
-            pg.name = cad_obj.label
+            if cad_obj.label != "":
+                pg.name = cad_obj.label
 
-            loc = get_location(cad_obj.location, as_none=False)
-            pg.loc = loc
+            if len(cad_obj.children) == 0:
+                # Handle assembly leave
 
-            for child in cad_obj.children:
-                grp_id += 1
-                part, instances = _to_assembly(
-                    child,
-                    loc=loc,
-                    grp_id=grp_id,
-                    default_color=default_color,
-                    render_mates=render_mates,
-                    mate_scale=mate_scale,
-                    instances=instances,
-                )
+                part = get_instance(cad_obj, obj_id, pg.name, rgba, instances)
                 pg.add(part)
 
+            else:
+                # Handle assembly children
+
+                for child in cad_obj.children:
+                    grp_id += 1
+                    part, instances = _to_assembly(
+                        child,
+                        grp_id=grp_id,
+                        default_color=default_color,
+                        render_mates=render_mates,
+                        mate_scale=mate_scale,
+                        instances=instances,
+                    )
+                    pg.add(part)
+
         else:
+
+            if hasattr(cad_obj, "obj"):
+                cad_obj = cad_obj.obj
+
+            cad_obj, loc = relocate(cad_obj)
+
+            # TODO Fix parent
             if show_parent and hasattr(cad_obj, "parent"):
                 pg.add(conv(cad_obj.parent, obj_id, "parent", None, None))
                 pg.objects[0].state_faces = 0
 
-            if hasattr(cad_obj, "color") and cad_obj.color is not None:
-                *color, alpha = get_rgba(cad_obj.color, obj_alpha, Color(default_color))
+            if loc is not None:
+                part = get_instance(cad_obj, 0, f"{obj_name}_{obj_id}", rgba, instances)
+
+                # create a partgroup and move part location into it
+                name = f"{obj_name}_{obj_id}"
+                pg2 = OCP_PartGroup([part], name=name, loc=loc)
+                pg.loc = identity_location()
+                # add additional partgroup
+                pg.add(pg2)
+
             else:
-                color, alpha = obj_color, obj_alpha
-
-            is_instance = False
-            if cad_obj is not None:
-                if hasattr(cad_obj, "location"):
-                    loc = get_location(cad_obj.location, as_none=False)
-                else:
-                    loc = identity_location()
-
-                for i, ref in enumerate(instances):
-                    if ref[0] == cad_obj.wrapped.TShape():
-                        pg.add(
-                            OCP_Part(
-                                {"ref": i},
-                                f"{pg.name}_{obj_id}",
-                                get_rgba(color, alpha, Color(default_color)),
-                            )
-                        )
-                        pg.loc = loc
-                        is_instance = True
-
-                if not is_instance:
-                    part = conv(cad_obj, obj_id, pg.name, color, alpha)
-                    pg.add(
-                        OCP_Part(
-                            {"ref": len(instances)},
-                            part.name,
-                            part.color,
-                        )
-                    )
-                    pg.loc = loc
-                    instances.append((cad_obj.wrapped.TShape(), part.shape[0]))
+                part = conv(cad_obj, obj_id, obj_name, color, alpha)
+                pg.add(part)  # no clear way to relocated
 
         if pg.loc is None:
-            pg.loc = identity_location()
+            raise RuntimeError("location is None")
+            # pg.loc = identity_location()
 
         obj_id += 1
 

@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+import copy
 import io
 import itertools
 import os
@@ -30,7 +31,11 @@ from OCP.Bnd import Bnd_Box
 from OCP.BRep import BRep_Tool
 from OCP.BRepAdaptor import BRepAdaptor_CompCurve, BRepAdaptor_Curve
 from OCP.BRepBndLib import BRepBndLib
-from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeVertex, BRepBuilderAPI_MakeEdge
+from OCP.BRepBuilderAPI import (
+    BRepBuilderAPI_MakeVertex,
+    BRepBuilderAPI_MakeEdge,
+    BRepBuilderAPI_Copy,
+)
 from OCP.BRepGProp import BRepGProp
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
 from OCP.BRepTools import BRepTools
@@ -141,7 +146,15 @@ def is_build123d_compound(obj):
 
 
 def is_build123d_assembly(obj):
-    return is_build123d_compound(obj) and len(obj.children) > 0
+    return (
+        (is_build123d_compound(obj) or is_build123d_shape(obj))
+        and hasattr(obj, "children")
+        and isinstance(obj.children, (list, tuple))
+        and (
+            (len(obj.children) == 0 and obj.parent is not None)
+            or (len(obj.children) > 0 and obj.parent is None)
+        )
+    )
 
 
 def is_alg123d(obj):
@@ -682,15 +695,49 @@ def identity_location():
     return TopLoc_Location(gp_Trsf())
 
 
+# def get_location(obj, as_none=True):
+#     if obj is None:
+#         return None if as_none else identity_location()
+#     elif hasattr(obj, "wrapped"):
+#         return obj.wrapped
+#     elif isinstance(obj, TopLoc_Location):
+#         return obj
+#     else:
+#         raise TypeError(f"Unknown location typ {type(obj)}")
+
+
 def get_location(obj, as_none=True):
     if obj is None:
-        if as_none:
-            return None
-        else:
-            return identity_location()
-    elif hasattr(obj, "wrapped"):
-        return obj.wrapped
-    elif isinstance(obj, TopLoc_Location):
-        return obj
+        return None if as_none else identity_location()
     else:
-        raise TypeError(f"Unknown location typ {type(obj)}")
+        if hasattr(obj, "loc"):
+            loc = obj.loc
+        elif hasattr(obj, "location"):
+            loc = obj.location
+        else:
+            return None if as_none else identity_location()
+
+    if hasattr(loc, "wrapped"):
+        return loc.wrapped
+    elif isinstance(loc, TopLoc_Location):
+        return loc
+    else:
+        raise TypeError(f"Unknown location typ {type(loc)}")
+
+
+def copy_shape(obj):
+    cls = obj.__class__
+    result = cls.__new__(cls)
+    result.wrapped = downcast(BRepBuilderAPI_Copy(obj.wrapped).Shape())
+    for key, value in obj.__dict__.items():
+        if key != "wrapped":
+            setattr(result, key, copy.deepcopy(value))
+    result.wrapped.TShape(obj.wrapped.TShape())
+    return result
+
+
+def get_tshape(obj):
+    if hasattr(obj, "val"):
+        return obj.val().wrapped.TShape()
+    else:
+        return obj.wrapped.TShape()

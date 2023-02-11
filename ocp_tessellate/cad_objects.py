@@ -260,7 +260,7 @@ class OCP_Edges(CADObject):
                 edges.extend(d)
             edges = np.asarray(edges)
 
-        if progress:
+        if progress is not None and not isinstance(progress, str):
             progress.update()
 
         color = (
@@ -311,7 +311,7 @@ class OCP_Vertices(CADObject):
 
         bb = bounding_box(self.shape, loc=get_location(loc))
 
-        if progress is not None:
+        if progress is not None and not isinstance(progress, str):
             progress.update()
 
         return {
