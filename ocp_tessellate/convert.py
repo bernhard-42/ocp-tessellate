@@ -548,6 +548,7 @@ def _to_assembly(
                 pg.add(part)
 
                 grp_id += 1
+
         else:
             #
             # Render non iterable objects
