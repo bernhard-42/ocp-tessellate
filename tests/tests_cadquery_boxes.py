@@ -104,7 +104,7 @@ show(assy, render_mates=True)
 
 
 assy.relocate()
-show(assy, render_mates=True)
+show(assy, render_mates=False)
 
 
 # %%
@@ -117,7 +117,7 @@ assy.assemble("box2_m1", "cyl2_m1")
 assy.assemble("cyl3_m0", "box2_m0")
 assy.assemble("box3_m1", "cyl3_m1")
 
-d = show(assy, render_mates=True)
+d = show(assy, render_mates=False)
 
 
 # %%

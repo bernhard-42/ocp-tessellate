@@ -1,4 +1,3 @@
-from OCP.Quantity import Quantity_ColorRGBA
 import cadquery as cq
 import build123d as bd
 import alg123d as ad

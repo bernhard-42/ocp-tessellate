@@ -27,7 +27,7 @@ show(*b.faces().vals())
 # %%
 show(b.faces("|Z"), show_parent=True)
 # %%
-show(b.faces().vals()[7].wrapped)
+show(b.faces().vals()[7].wrapped, b.edges())
 # %%
 
 # ASSEMBLY TEST W/O LOCATION

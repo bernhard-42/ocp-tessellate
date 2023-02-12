@@ -14,7 +14,7 @@ W = 200
 D = 350
 
 PROFILE = cq.importers.importDXF(
-    expanduser("~/Development/cadquery/vslot-2020_1.dxf")
+    expanduser("~/Development/vslot-2020_1.dxf")
 ).wires()
 
 SLOT_D = 6

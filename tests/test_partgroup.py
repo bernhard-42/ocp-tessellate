@@ -29,6 +29,7 @@ outer = outer_ring.cut(torus, clean=False)
 
 show(
     PartGroup(
-        [Part(ball, "ball"), Part(inner, "inner"), Part(outer, "outer")], "bearing"
+        [Part(ball, "ball", color="black"), Part(inner, "inner"), Part(outer, "outer")],
+        "bearing",
     )
 )

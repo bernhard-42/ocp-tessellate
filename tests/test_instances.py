@@ -12,15 +12,14 @@ from cq_vscode import (
 
 Workplanes(Plane.XY).__enter__()
 
-locs = HexLocations(6, 3, 3).local_locations
+locs = HexLocations(6, 32, 32).local_locations
 
-box = Solid.make_sphere(6)
+box = Solid.make_sphere(5)
 box_references = [copy.copy(box).locate(loc) for loc in locs]
 assembly = Compound(children=box_references)
 
-# %%
 
-show(assembly, timeit=True)
+show(assembly, timeit=False)
 
 # %%
 
@@ -54,7 +53,9 @@ show(
 )
 
 # %%
-show(b)
+
+show(b, timeit=True)
+
 # %%
 
 show(b @ ad.Pos(x=1.5), b @ ad.Pos(x=-1.5), timeit=True)

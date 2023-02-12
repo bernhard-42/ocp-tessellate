@@ -14,17 +14,15 @@
 # limitations under the License.
 #
 
-import copy
 import io
 import itertools
-import os
 import platform
 import sys
 import tempfile
 from collections.abc import Iterable
-from glob import glob
 
 import numpy as np
+import OCP
 from cachetools import LRUCache, cached
 from OCP.BinTools import BinTools
 from OCP.Bnd import Bnd_Box
@@ -32,9 +30,9 @@ from OCP.BRep import BRep_Tool
 from OCP.BRepAdaptor import BRepAdaptor_CompCurve, BRepAdaptor_Curve
 from OCP.BRepBndLib import BRepBndLib
 from OCP.BRepBuilderAPI import (
-    BRepBuilderAPI_MakeVertex,
-    BRepBuilderAPI_MakeEdge,
     BRepBuilderAPI_Copy,
+    BRepBuilderAPI_MakeEdge,
+    BRepBuilderAPI_MakeVertex,
 )
 from OCP.BRepGProp import BRepGProp
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
@@ -76,6 +74,19 @@ from .utils import Color, distance
 
 MAX_HASH_KEY = 2147483647
 
+#
+# Version
+#
+
+
+def occt_version():
+    return OCP.__version__
+
+
+#
+# helpers
+#
+
 downcast_LUT = {
     TopAbs_VERTEX: TopoDS.Vertex_s,
     TopAbs_EDGE: TopoDS.Edge_s,
@@ -102,6 +113,11 @@ def make_compound(objs):
         builder.Add(comp, obj)
 
     return comp
+
+
+#
+# Library identifiers
+#
 
 
 def _has(obj, attrs):
@@ -163,7 +179,7 @@ def is_alg123d(obj):
 
 
 #
-# Caching helpers
+# Caching helpers for bounding box
 #
 
 
@@ -186,18 +202,6 @@ def get_size(obj):
 
 
 cache = LRUCache(maxsize=16 * 1024 * 1024, getsizeof=get_size)
-
-#
-# Version
-#
-
-
-def occt_version():
-    try:
-        lib = glob(f"{os.environ['CONDA_PREFIX']}/lib/libTKBRep.*.*.*")[0]
-        return lib.split(".so.")[-1]
-    except:
-        return "(cannot retrieve Open CASCADE version)"
 
 
 #
@@ -404,7 +408,6 @@ def length(edge_or_wire):
 
 
 def write_stl_file(compound, filename, tolerance=None, angular_tolerance=None):
-
     # Remove previous mesh data
     BRepTools.Clean_s(compound)
 
@@ -521,6 +524,13 @@ def get_downcasted_shape(shape):
     return [downcast(obj) for obj in objs]
 
 
+# Check TopLoc_Location
+
+
+def is_toploc_location(obj):
+    return isinstance(obj, TopLoc_Location)
+
+
 # Check TopoDS shapes
 
 
@@ -552,66 +562,66 @@ def is_topods_vertex(topods_shape):
     return isinstance(topods_shape, TopoDS_Vertex)
 
 
-def is_toploc_location(obj):
-    return isinstance(obj, TopLoc_Location)
+def is_solid_list(topods_list):
+    return all([is_topods_solid(obj) for obj in topods_list])
+
+
+def is_face_list(topods_list):
+    return all([is_topods_face(obj) for obj in topods_list])
+
+
+def is_wire_list(topods_list):
+    return all([is_topods_wire(obj) for obj in topods_list])
+
+
+def is_edge_list(topods_list):
+    return all([is_topods_edge(obj) for obj in topods_list])
+
+
+def is_vertex_list(topods_list):
+    return all([is_topods_vertex(obj) for obj in topods_list])
+
+
+def is_compound(obj):
+    return hasattr(obj, "wrapped") and is_topods_compound(obj.wrapped)
 
 
 # Check compounds for containing same types only
 
 
-def is_solids_compound(topods_shape):
-    if isinstance(topods_shape, TopoDS_Compound):
-        e = get_solids(topods_shape)
-        return next(e, None) is not None
-    return False
+# def is_solids_compound(topods_shape):
+#     if isinstance(topods_shape, TopoDS_Compound):
+#         e = get_solids(topods_shape)
+#         return next(e, None) is not None
+#     return False
 
 
-def is_faces_compound(topods_shape):
-    if isinstance(topods_shape, TopoDS_Compound):
-        e = get_faces(topods_shape)
-        return next(e, None) is not None
-    return False
+# def is_faces_compound(topods_shape):
+#     if isinstance(topods_shape, TopoDS_Compound):
+#         e = get_faces(topods_shape)
+#         return next(e, None) is not None
+#     return False
 
 
-def is_wires_compound(topods_shape):
-    if isinstance(topods_shape, TopoDS_Compound):
-        e = get_wires(topods_shape)
-        return next(e, None) is not None
-    return False
+# def is_wires_compound(topods_shape):
+#     if isinstance(topods_shape, TopoDS_Compound):
+#         e = get_wires(topods_shape)
+#         return next(e, None) is not None
+#     return False
 
 
-def is_edges_compound(topods_shape):
-    if isinstance(topods_shape, TopoDS_Compound):
-        e = get_edges(topods_shape)
-        return next(e, None) is not None
-    return False
+# def is_edges_compound(topods_shape):
+#     if isinstance(topods_shape, TopoDS_Compound):
+#         e = get_edges(topods_shape)
+#         return next(e, None) is not None
+#     return False
 
 
-def is_vertices_compound(topods_shape):
-    if isinstance(topods_shape, TopoDS_Compound):
-        e = get_vertices(topods_shape)
-        return next(e, None) is not None
-    return False
-
-
-def is_solid_list(topods_list):
-    return all([isinstance(obj, TopoDS_Solid) for obj in topods_list])
-
-
-def is_face_list(topods_list):
-    return all([isinstance(obj, TopoDS_Face) for obj in topods_list])
-
-
-def is_wire_list(topods_list):
-    return all([isinstance(obj, TopoDS_Wire) for obj in topods_list])
-
-
-def is_edge_list(topods_list):
-    return all([isinstance(obj, TopoDS_Edge) for obj in topods_list])
-
-
-def is_vertex_list(topods_list):
-    return all([isinstance(obj, TopoDS_Vertex) for obj in topods_list])
+# def is_vertices_compound(topods_shape):
+#     if isinstance(topods_shape, TopoDS_Compound):
+#         e = get_vertices(topods_shape)
+#         return next(e, None) is not None
+#     return False
 
 
 def get_point(vertex):
@@ -711,7 +721,7 @@ def get_location(obj, as_none=True):
     if obj is None:
         return None if as_none else identity_location()
     else:
-        if hasattr(obj, "loc"):
+        if hasattr(obj, "loc") and obj.loc is not None:
             loc = obj.loc
         elif hasattr(obj, "location"):
             loc = obj.location
@@ -730,9 +740,6 @@ def copy_shape(obj):
     cls = obj.__class__
     result = cls.__new__(cls)
     result.wrapped = downcast(BRepBuilderAPI_Copy(obj.wrapped).Shape())
-    for key, value in obj.__dict__.items():
-        if key != "wrapped":
-            setattr(result, key, copy.deepcopy(value))
     result.wrapped.TShape(obj.wrapped.TShape())
     return result
 

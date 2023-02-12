@@ -26,18 +26,25 @@ with BuildLine() as pline:
 # Parts
 
 show(box)
+
 # %%
+
 show(
     sphere.part, names=["sphere"], colors=["red"], alphas=[0.5], grid=(True, True, True)
 )
+
 # %%
+
 show(box.part.wrapped, transparent=True, grid=(True, True, True))
+
 # %%
 
 # Sketches
 
 show(circle)
+
 # %%
+
 show(
     circle,
     rect.sketch,
@@ -46,11 +53,18 @@ show(
     alphas=[0.5, 0.8],
     grid=(True, True, True),
 )
+
 # %%
+
 show(circle.sketch.wrapped, transparent=True, grid=(True, True, True))
+
 # %%
 
 # Lines
+
+show(line, colors=["blue"])
+
+# %%
 
 show(pline)
 # %%
@@ -65,15 +79,13 @@ show(box.edges(), colors=["black"])
 # %%
 show(box.faces())
 # %%
-show(box.vertices(), colors=[(0.0, 1.0, 1.0)])
-# %%
-show(*box.vertices(), colors=[(1.0, 0.0, 0.0)] * 4 + [(0.0, 0.0, 0.0)] * 4)
-# %%
-show(*box.edges())
-# %%
 show(*box.faces())
 # %%
-show(*box.vertices())
+show(box.vertices(), colors=[(0.0, 1.0, 1.0)])
+# %%
+show(*box.vertices().sort_by(Axis.X), colors=[(1.0, 0.0, 0.0)] * 4 + [(0.0, 0.0, 0.0)] * 4)
+# %%
+show(*box.edges(), *box.faces(), *box.vertices())
 # %%
 
 # Mixed Compounds
@@ -92,7 +104,7 @@ def axis_symbol(self, l=1) -> Edge:
 
 
 sym = axis_symbol(Axis.X)
-show(box, sym)
+show(box, sym, axes=False, transparent=True)
 
 # %%
 compound = Compound.make_compound([box.part, sphere.part])

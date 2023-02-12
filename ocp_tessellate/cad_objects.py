@@ -318,7 +318,7 @@ class OCP_Vertices(CADObject):
             "id": self.id,
             "type": "vertices",
             "name": self.name,
-            "shape": [get_point(vertex) for vertex in self.shape],
+            "shape": np.asarray([get_point(vertex) for vertex in self.shape], dtype="float32"),
             "color": self.color.web_color,
             "size": self.size,
             "bb": bb.to_dict(),
