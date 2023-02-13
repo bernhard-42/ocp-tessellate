@@ -60,20 +60,6 @@ show(circle.sketch.wrapped, colors=["green"], alphas=[0.6])
 
 # %%
 
-# Sketches
-
-show(circle, names=["circle"])
-
-# %%
-
-show(circle.sketch, names=["circle"], colors=["red"], alphas=[0.6])
-
-# %%
-
-show(circle.sketch.wrapped, names=["circle"], colors=["green"], alphas=[0.6])
-
-# %%
-
 show(
     circle,
     rect.sketch,
@@ -117,11 +103,15 @@ show(box.edges(), colors=["black"])
 
 # %%
 
+show(*box.edges())
+
+# %%
+
 show(box.faces())
 
 # %%
 
-show(*box.faces(), colors=["red"]*6, alphas=[0.4]*6, render_normals=True)
+show(*box.faces(), colors=["red"] * 6, alphas=[0.4] * 6, render_normals=True)
 
 # %%
 
@@ -191,6 +181,10 @@ for loc in PolarLocations(1.8, 12).local_locations:
     c = c.fuse(r_extruded)
 
 show(c, timeit=True)
+
+# %%
+
+show(r_located)
 
 # %%
 

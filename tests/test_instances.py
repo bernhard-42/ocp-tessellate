@@ -1,14 +1,7 @@
 import copy
 from build123d import *
 import alg123d as ad
-from cq_vscode import (
-    show,
-    show_object,
-    reset_show,
-    set_port,
-    set_defaults,
-    get_defaults,
-)
+from cq_vscode import show
 
 # %%
 
