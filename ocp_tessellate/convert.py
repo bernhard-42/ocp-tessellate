@@ -424,6 +424,7 @@ def _to_assembly(
 
     pg = OCP_PartGroup([], f"Group_{grp_id}", identity_location())
 
+    rename_top = True
     for obj_name, obj_color, obj_alpha, cad_obj in zip(names, colors, alphas, cad_objs):
         if not isinstance(cad_obj, (OCP_Faces, OCP_Edges, OCP_Vertices)):
             if hasattr(cad_obj, "color") and cad_obj.color is not None:
@@ -438,6 +439,7 @@ def _to_assembly(
             #
             # Iterate over CadQuery Assembly
             #
+            rename_top = False
 
             pg.name = cad_obj.name
             pg.loc = get_location(cad_obj, as_none=False)
@@ -614,7 +616,7 @@ def _to_assembly(
     if len(pg.objects) == 1 and isinstance(pg.objects[0], OCP_PartGroup):
         pg = pg.objects[0]
 
-    if len(pg.objects) == 1:
+    if len(pg.objects) == 1 and rename_top:
         pg.name = pg.objects[0].name
 
     return pg, instances, grp_id
