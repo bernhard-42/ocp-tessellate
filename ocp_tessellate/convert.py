@@ -50,7 +50,6 @@ from .ocp_utils import (
     is_edge_list,
     is_face_list,
     is_solid_list,
-    is_compound_list,
     is_toploc_location,
     is_topods_compound,
     is_topods_edge,
