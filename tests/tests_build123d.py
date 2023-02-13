@@ -2,6 +2,7 @@ from build123d import *
 from cadquery_massembly.build123d import BuildAssembly, Mates
 from cq_vscode import show
 
+
 # %%
 with BuildPart() as box:
     Box(1, 2, 3)
@@ -28,20 +29,48 @@ with BuildLine() as pline:
 show(box)
 
 # %%
+show(box.part, colors=["red"], alphas=[0.6])
 
-show(
-    sphere.part, names=["sphere"], colors=["red"], alphas=[0.5], grid=(True, True, True)
-)
+# %%
+show(box.part.wrapped, colors=["green"], alphas=[0.6])
 
 # %%
 
-show(box.part.wrapped, transparent=True, grid=(True, True, True))
+show(box, names=["box"])
+
+# %%
+show(box.part, names=["box"], colors=["red"], alphas=[0.6])
+
+# %%
+show(box.part.wrapped, names=["box"], colors=["green"], alphas=[0.6])
 
 # %%
 
 # Sketches
 
 show(circle)
+
+# %%
+
+show(circle.sketch, colors=["red"], alphas=[0.6])
+
+# %%
+
+show(circle.sketch.wrapped, colors=["green"], alphas=[0.6])
+
+# %%
+
+# Sketches
+
+show(circle, names=["circle"])
+
+# %%
+
+show(circle.sketch, names=["circle"], colors=["red"], alphas=[0.6])
+
+# %%
+
+show(circle.sketch.wrapped, names=["circle"], colors=["green"], alphas=[0.6])
 
 # %%
 
@@ -56,42 +85,66 @@ show(
 
 # %%
 
-show(circle.sketch.wrapped, transparent=True, grid=(True, True, True))
-
-# %%
-
 # Lines
 
-show(line, colors=["blue"])
+show(line, names=["line"])
 
 # %%
 
-show(pline)
+show(line.line, names=["line"], colors=["red"])
+
 # %%
-show(line.line, colors=["blue"])
+
+show(line.line.wrapped, names=["line"], colors=["green"])
+
 # %%
-show(pline.line.wrapped)
+
+show(line.line, pline, colors=["red", "cyan"])
+
+# %%
+
+show(line.line.wrapped, pline, colors=["green", "cyan"])
+
 # %%
 
 # ShapeList and Color tests
 
+show(box.edges())
+
+# %%
+
 show(box.edges(), colors=["black"])
+
 # %%
+
 show(box.faces())
+
 # %%
-show(*box.faces())
+
+show(*box.faces(), colors=["red"]*6, alphas=[0.4]*6, render_normals=True)
+
 # %%
-show(box.vertices(), colors=[(0.0, 1.0, 1.0)])
+
+show(box.vertices(), colors=[(0.0, 0.5, 1.0)])
+
 # %%
-show(*box.vertices().sort_by(Axis.X), colors=[(1.0, 0.0, 0.0)] * 4 + [(0.0, 0.0, 0.0)] * 4)
+
+show(
+    *box.vertices().sort_by(Axis.X),
+    colors=[(1.0, 0.0, 0.0)] * 4 + [(0.0, 0.0, 0.0)] * 4
+)
+
 # %%
+
 show(*box.edges(), *box.faces(), *box.vertices())
+
 # %%
 
 # Mixed Compounds
 
 mixed = Compound.make_compound(box.faces() + box.edges())
 show(sphere, mixed)
+
 # %%
 def axis_symbol(self, l=1) -> Edge:
     edge = Edge.make_line(self.position, self.position + self.direction * 0.95 * l)
@@ -113,4 +166,34 @@ show(compound)
 # %%
 
 show(*compound)
+# %%
+
+
+def cylinder(radius, height):
+    return Solid.make_cylinder(radius, height)
+
+
+def reg_poly(radius, count):
+    with BuildSketch() as s:
+        RegularPolygon(radius, count)
+    return s.sketch
+
+
+# %%
+
+c = cylinder(2, 0.1)
+p = Plane(c.faces().sort_by().last)
+r = reg_poly(0.1, 6)
+
+for loc in PolarLocations(1.8, 12).local_locations:
+    r_located = r.located(p.to_location() * loc)
+    r_extruded = Solid.extrude_linear(r_located, Vector(0, 0, 0.1))
+    c = c.fuse(r_extruded)
+
+show(c, timeit=True)
+
+# %%
+
+show(r_extruded)
+
 # %%

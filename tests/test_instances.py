@@ -10,6 +10,8 @@ from cq_vscode import (
     get_defaults,
 )
 
+# %%
+
 Workplanes(Plane.XY).__enter__()
 
 locs = HexLocations(6, 32, 32).local_locations
@@ -19,7 +21,7 @@ box_references = [copy.copy(box).locate(loc) for loc in locs]
 assembly = Compound(children=box_references)
 
 
-show(assembly, timeit=False)
+show(assembly, timeit=True)
 
 # %%
 
