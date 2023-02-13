@@ -301,6 +301,9 @@ def conv(cad_obj, grp_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
         _debug(f"CAD Obj {grp_id}: TopoDS Shape")
         cad_objs = [downcast(cad_obj)]
 
+    else:
+        raise RuntimeError(f"Cannot transform {cad_objs}({type(cad_objs)}) to OCP")
+
     # Convert to PartGroup
 
     if is_solid_list(cad_objs):
@@ -348,25 +351,35 @@ def conv(cad_obj, grp_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
             size=6,
         )
     else:
-        raise RuntimeError("You shouldn't get here!")
+        raise RuntimeError(
+            f"Cannot transform {cad_objs}, e.g. mixed Compounds not supported here?"
+        )
 
 
 def get_instance(obj, grp_id, name, rgba, instances):
     is_instance = False
     part = None
+
+    # check if the same instance is already available
     for i, ref in enumerate(instances):
         if ref[0] == get_tshape(obj):
+            # create a referential OCP_Part
             part = OCP_Part(
                 {"ref": i},
                 f"{name}_{grp_id}",
                 rgba,
             )
+            # and stop the loop
             is_instance = True
+            break
 
     if not is_instance:
+        # Transform the new instance to OCP
         part = conv(obj, grp_id, name, rgba[:3], rgba[3])
         if not isinstance(part, OCP_PartGroup):
+            # append the new instance
             instances.append((get_tshape(obj), part.shape[0]))
+            # and create a referential OCP_Part
             part = OCP_Part(
                 {"ref": len(instances) - 1},
                 part.name,
@@ -380,7 +393,7 @@ def relocate(obj):
     loc = get_location(obj)
 
     if loc is None or not hasattr(obj, "wrapped"):
-        return obj, None
+        return obj, identity_location()
 
     obj = copy_shape(obj)
 
@@ -389,6 +402,10 @@ def relocate(obj):
     obj.wrapped.TShape(tshape)
 
     return obj, loc
+
+
+def get_name(part, grp_id):
+    return f"{GROUP_NAME_LUT.get(part.__class__.__name__, 'Part')}_{grp_id}"
 
 
 def _to_assembly(
@@ -425,7 +442,14 @@ def _to_assembly(
     pg = OCP_PartGroup([], f"Group_{grp_id}", identity_location())
 
     rename_top = True
+
     for obj_name, obj_color, obj_alpha, cad_obj in zip(names, colors, alphas, cad_objs):
+        #
+        # Retrieve the provided color or get default color
+        # OCP_Faces, OCP_edges and OCP_Vertices bring their own color info
+        # TODO default color for shapes is used
+        #
+
         if not isinstance(cad_obj, (OCP_Faces, OCP_Edges, OCP_Vertices)):
             if hasattr(cad_obj, "color") and cad_obj.color is not None:
                 *color, alpha = get_rgba(cad_obj.color, obj_alpha, Color(default_color))
@@ -439,18 +463,22 @@ def _to_assembly(
             #
             # Iterate over CadQuery Assembly
             #
-            rename_top = False
+            rename_top = False  # CadQuery assembly names are unique in one hierarchy
 
             pg.name = cad_obj.name
             pg.loc = get_location(cad_obj, as_none=False)
 
             if cad_obj.obj is not None:
+                # Get an existing instance id or tessellate this object
                 part = get_instance(cad_obj.obj, grp_id, pg.name, rgba, instances)
                 pg.add(part)
 
+            # render mates
             top_level_mates = None
             if render_mates and hasattr(cad_obj, "mates") and cad_obj.mates is not None:
                 top_level_mates = cad_obj.mates if mates is None else mates
+
+                # create a new part group for mates
                 pg2 = OCP_PartGroup(
                     [
                         CoordSystem(
@@ -467,9 +495,12 @@ def _to_assembly(
                     name="mates",
                     loc=identity_location(),  # mates inherit the parent location, so actually add a no-op
                 )
+
+                # add mates partgroup
                 if pg2.objects:
                     pg.add(pg2)
 
+            # iterate recursively over all children
             for child in cad_obj.children:
                 part, instances, grp_id = _to_assembly(
                     child,
@@ -491,6 +522,7 @@ def _to_assembly(
             # Iterate over Compound (includes build123d assemblies)
             #
 
+            # use the build123d label info as name if exists
             if (
                 hasattr(cad_obj, "label")
                 and cad_obj.label is not None
@@ -500,29 +532,38 @@ def _to_assembly(
 
             done = False
             if not isinstance(cad_obj, Iterable):
+                # For non iterable compounds transform obj to OCP
                 part = conv(cad_obj, grp_id, obj_name, color, alpha)
+                # if obj_name is not given, get the name for the OCP_* type
                 if obj_name is None:
-                    part.name = f"{GROUP_NAME_LUT.get(part.__class__.__name__, 'Part')}_{grp_id}"
+                    part.name = get_name(part, grp_id)
                 pg.add(part)
                 done = True
+
             elif is_build123d_assembly(cad_obj):
+                # There is no top level shape, hence only get childern
                 children = cad_obj.children
+
             else:
+                # For an iterable compound, ...
                 children = list(cad_obj)
                 cw = [c.wrapped for c in children]
+                # ... check whether all elements have the same type
                 if (
                     is_face_list(cw)
                     or is_edge_list(cw)
                     or is_vertex_list(cw)
                     or is_wire_list(cw)
                 ):
-                    # Don't explode homogenous lists
+                    # If so, don't explode homogenous lists, e.g build123d ShapeLists
+                    # If this should be exploded, the user can provide "*shape_list"
                     part = conv(children, grp_id, obj_name, color, alpha)
                     if obj_name is None:
-                        part.name = f"{GROUP_NAME_LUT.get(part.__class__.__name__, 'Part')}_{grp_id}"
+                        part.name = get_name(part, grp_id)
                     pg.add(part)
                     done = True
 
+            # if not homogenous, iterate over all children
             if not done:
                 for child in children:
                     part, instances, grp_id = _to_assembly(
@@ -539,6 +580,10 @@ def _to_assembly(
                     pg.add(part)
 
         elif is_cadquery_sketch(cad_obj):
+            #
+            # Special treatment for cadquery sketches
+            #
+
             for child in conv_sketch(cad_obj):
                 part, instances, grp_id = _to_assembly(
                     child,
@@ -558,12 +603,15 @@ def _to_assembly(
             # Render non iterable objects
             #
 
+            # cad_obj.wrapped and cad_obj.obj.wrapped behave the same way
             if hasattr(cad_obj, "obj"):
                 cad_obj = cad_obj.obj
 
+            # Use the objects label as obj_name (build123d)
             if hasattr(cad_obj, "label") and cad_obj.label != "":
                 obj_name = cad_obj.label
 
+            # or its name attribute (cadquery)
             if hasattr(cad_obj, "name") and cad_obj.name != "":
                 obj_name = cad_obj.name
 
@@ -574,27 +622,31 @@ def _to_assembly(
                 # TODO: what to do with mixed compounds
                 is_solid = all([is_topods_solid(solid) for solid in solids])
 
+            # TODO Fix parent
             parent = None
             if show_parent and hasattr(cad_obj, "parent"):
                 parent = cad_obj.parent
 
-            loc = None
-            if is_solid:
-                cad_obj, loc = relocate(cad_obj)
-
-            # TODO Fix parent
             if parent is not None:
                 pg.add(conv(parent, grp_id, "parent", None, None))
                 pg.objects[0].state_faces = 0
 
-            if is_solid and loc is not None:
+            if is_solid:
+                # Split solids into a solid at the XY plane origin and the location
+                cad_obj, loc = relocate(cad_obj)
                 # create a partgroup and move part location into it
                 pg2 = OCP_PartGroup([], name=f"Group_{grp_id}", loc=loc)
+
+                # transform the olid to OCP
                 part = get_instance(cad_obj, 0, obj_name, rgba, instances)
+
                 if obj_name is None:
-                    part.name = f"{GROUP_NAME_LUT.get(part.__class__.__name__, 'Part')}_{grp_id}"
+                    part.name = get_name(part, grp_id)
+                # change part's location to identity, since location is in partgroup
                 pg.loc = identity_location()
+
                 pg2.add(part)
+
                 if len(pg2.objects) == 1:
                     pg2.name = pg2.objects[0].name
 
@@ -604,7 +656,7 @@ def _to_assembly(
             else:
                 part = conv(cad_obj, grp_id, obj_name, color, alpha)
                 if obj_name is None:
-                    part.name = f"{GROUP_NAME_LUT.get(part.__class__.__name__, 'Part')}_{grp_id}"
+                    part.name = get_name(part, grp_id)
                 pg.add(part)  # no clear way to relocated
 
             grp_id += 1
