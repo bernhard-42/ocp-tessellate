@@ -141,6 +141,10 @@ def is_cadquery_sketch(obj):
     )
 
 
+def is_vector(obj):
+    return hasattr(obj, "wrapped") and isinstance(obj.wrapped, gp_Vec)
+
+
 def is_massembly(obj):
     return _has(obj, ["obj", "loc", "name", "children", "mates"])
 
@@ -459,10 +463,6 @@ def deserialize(buffer):
 
 
 # OCP types and accessors
-
-
-def is_vector(obj):
-    return isinstance(obj, gp_Vec)
 
 
 def is_line(topods_edge):
