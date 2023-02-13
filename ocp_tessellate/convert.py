@@ -396,7 +396,6 @@ def _to_assembly(
     names=None,
     colors=None,
     alphas=None,
-    name="Group",
     render_mates=None,
     mate_scale=1,
     default_color=None,
@@ -423,7 +422,7 @@ def _to_assembly(
     if instances is None:
         instances = []
 
-    pg = OCP_PartGroup([], f"{name}_{grp_id}", identity_location())
+    pg = OCP_PartGroup([], f"Group_{grp_id}", identity_location())
 
     obj_id = 0
 
@@ -513,6 +512,8 @@ def _to_assembly(
                 ):
                     # Don't explode homogenous lists
                     part = conv(children, obj_id, obj_name, color, alpha)
+                    if obj_name is None:
+                        part.name = f"{GROUP_NAME_LUT.get(part.__class__.__name__, 'Part')}_{obj_id}"
                     pg.add(part)
                     done = True
 
@@ -582,10 +583,11 @@ def _to_assembly(
 
             if is_solid and loc is not None:
                 # create a partgroup and move part location into it
-                name = f"{'Solids' if obj_name is None else obj_name}_{grp_id}"
+                pg2 = OCP_PartGroup([], loc=loc)
+                part = get_instance(cad_obj, 0, obj_name, rgba, instances)
+                if obj_name is None:
+                    part.name = f"{GROUP_NAME_LUT.get(part.__class__.__name__, 'Part')}_{obj_id}"
                 grp_id += 1
-                pg2 = OCP_PartGroup([], name=name, loc=loc)
-                part = get_instance(cad_obj, 0, name, rgba, instances)
                 pg.loc = identity_location()
                 pg2.add(part)
 
@@ -594,7 +596,8 @@ def _to_assembly(
 
             else:
                 part = conv(cad_obj, obj_id, obj_name, color, alpha)
-
+                if obj_name is None:
+                    part.name = f"{GROUP_NAME_LUT.get(part.__class__.__name__, 'Part')}_{obj_id}"
                 pg.add(part)  # no clear way to relocated
 
         obj_id += 1
@@ -606,6 +609,9 @@ def _to_assembly(
     if len(pg.objects) == 1 and isinstance(pg.objects[0], OCP_PartGroup):
         pg = pg.objects[0]
 
+    if len(pg.objects) == 1:
+        pg.name = pg.objects[0].name
+
     return pg, instances
 
 
@@ -614,7 +620,6 @@ def to_assembly(
     names=None,
     colors=None,
     alphas=None,
-    name="Group",
     render_mates=None,
     mate_scale=1,
     default_color=None,
@@ -629,7 +634,6 @@ def to_assembly(
         names=names,
         colors=colors,
         alphas=alphas,
-        name=name,
         render_mates=render_mates,
         mate_scale=mate_scale,
         default_color=default_color,
