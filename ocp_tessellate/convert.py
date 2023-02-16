@@ -37,6 +37,7 @@ from .ocp_utils import (
     get_location,
     get_rgba,
     get_tshape,
+    get_tlocation,
     get_tuple,
     identity_location,
     is_build123d_assembly,
@@ -44,6 +45,7 @@ from .ocp_utils import (
     is_build123d_shape,
     is_build123d,
     is_cadquery_assembly,
+    is_cadquery_massembly,
     is_cadquery_sketch,
     is_cadquery,
     is_compound,
@@ -66,6 +68,7 @@ from .ocp_utils import (
     np_bbox,
     ocp_color,
     vertex,
+    loc_to_tq,
 )
 from .utils import Color
 
@@ -470,7 +473,14 @@ def _to_assembly(
 
             if cad_obj.obj is not None:
                 # Get an existing instance id or tessellate this object
-                part = get_instance(cad_obj.obj, grp_id, pg.name, rgba, instances)
+
+                if is_cadquery_massembly(cad_obj):
+                    # get_instance fails for MAssemblies when a mate is not at the
+                    # shape origin after relocation, see hexapod "top" object
+                    # workaround: do not handle TShapes
+                    part = conv(cad_obj.obj, grp_id, cad_obj.name, color, alpha)
+                else:
+                    part = get_instance(cad_obj.obj, grp_id, pg.name, rgba, instances)
                 pg.add(part)
 
             # render mates
