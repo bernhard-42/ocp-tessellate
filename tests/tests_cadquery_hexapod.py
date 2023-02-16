@@ -259,7 +259,7 @@ show(hexapod, render_mates=True)
 # %%
 hexapod.relocate()
 
-show(hexapod)
+show(hexapod, render_mates=True)
 
 # %%
 # Assemble the parts

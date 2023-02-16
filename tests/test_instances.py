@@ -7,7 +7,7 @@ from cq_vscode import show
 
 Workplanes(Plane.XY).__enter__()
 
-locs = HexLocations(6, 32, 32).local_locations
+locs = HexLocations(6, 10, 10).local_locations
 
 box = Solid.make_sphere(5)
 box_references = [copy.copy(box).locate(loc) for loc in locs]
