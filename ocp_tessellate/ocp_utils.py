@@ -132,6 +132,10 @@ def is_cadquery_assembly(obj):
     return _has(obj, ["obj", "loc", "name", "children"])
 
 
+def is_cadquery_massembly(obj):
+    return _has(obj, ["obj", "loc", "name", "children", "mates"])
+
+
 def is_cadquery_sketch(obj):
     return (
         hasattr(obj, "_faces")
@@ -747,5 +751,16 @@ def copy_shape(obj):
 def get_tshape(obj):
     if hasattr(obj, "val"):
         return obj.val().wrapped.TShape()
-    else:
+    elif hasattr(obj, "wrapped"):
         return obj.wrapped.TShape()
+    else:
+        return obj.TShape()
+
+
+def get_tlocation(obj):
+    if hasattr(obj, "val"):
+        return obj.val().wrapped.Location()
+    elif hasattr(obj, "wrapped"):
+        return obj.wrapped.Location()
+    else:
+        return obj.Location()
