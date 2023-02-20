@@ -1,5 +1,4 @@
 from build123d import *
-from cadquery_massembly.build123d import BuildAssembly, Mates
 from cq_vscode import show
 
 
