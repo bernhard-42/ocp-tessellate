@@ -11,13 +11,13 @@ show(b)
 # %%
 show(b.faces())
 # %%
-show(b.faces(), show_parent=True)
+show(b.faces("|Z"), show_parent=True)
 # %%
-show(b.edges(), show_parent=True)
+show(b.edges("|Z"), show_parent=True)
 # %%
 show(b.vertices(), show_parent=True)
 # %%
-show(b.faces(), b.edges(), b.vertices())
+show(b.faces("|Z"), b.edges("|Z"), b.vertices())
 # %%
 show(b, b.edges(), b.vertices())
 # %%

@@ -17,6 +17,24 @@ assembly = Compound(children=box_references)
 show(assembly, timeit=True)
 
 # %%
+
+s = ad.Sphere(1)
+b = ad.Box(1, 2, 3)
+b1 = b @ ad.Pos(x=3)
+b2 = b @ ad.Pos(x=-3)
+
+show(
+    s,
+    b1,
+    b2,
+    names=["s", "b1", "b2"],
+    colors=["red", "green", "blue"],
+    alphas=[0.8, 0.6, 0.4],
+    timeit=True,
+)
+
+# %%
+
 with ad.Copy():
     s = ad.Sphere(1)
     b = ad.Box(1, 2, 3)
