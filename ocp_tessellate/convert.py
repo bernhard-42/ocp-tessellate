@@ -570,6 +570,7 @@ def _to_assembly(
                     part = conv(children, grp_id, obj_name, color, alpha)
                     if obj_name is None:
                         part.name = get_name(part, grp_id)
+                        grp_id += 1
                     pg.add(part)
                     done = True
 
