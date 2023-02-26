@@ -207,6 +207,34 @@ class Tessellator:
 
                 offset += poly.NbNodes()
 
+    def _compute_missing_normals(self):
+        vertices = np.asarray(self.vertices).reshape(-1, 3)
+        triangles = np.asarray(self.triangles).reshape(-1, 3)
+        self.normals = np.zeros(len(self.vertices)).reshape(-1, 3)
+        for triangle in triangles:
+            c = vertices[triangle]
+            v1 = c[2] - c[1]
+            v2 = c[0] - c[1]
+            n = np.cross(v1, v2)
+
+            # extrpolate vertex normal by blending all face normals of a vertex
+            for i in triangle:
+                self.normals[i] += n
+
+        # and normalize later
+        for i in range(len(self.normals)):
+            norm = np.linalg.norm(self.normals[i])
+            self.normals[i] /= norm
+
+        print(self.normals)
+
+    def _compute_missing_edges(self):
+        vertices = np.asarray(self.vertices).reshape(-1, 3)
+        triangles = np.asarray(self.triangles).reshape(-1, 3)
+        for triangle in triangles:
+            c = vertices[triangle]
+            self.edges.extend([(c[0], c[1]), (c[1], c[2]), (c[2], c[0])])
+
     def compute_edges(self):
         edge_map = TopTools_IndexedMapOfShape()
         face_map = TopTools_IndexedDataMapOfShapeListOfShape()
@@ -247,6 +275,9 @@ class Tessellator:
                     self.edges.append((v1, v2))
                 v1 = v2
 
+        if len(self.edges) == 0:
+            self._compute_missing_edges()
+
     def get_vertices(self):
         return np.asarray(self.vertices, dtype=np.float32)
 
@@ -254,6 +285,8 @@ class Tessellator:
         return np.asarray(self.triangles, dtype=np.int32)
 
     def get_normals(self):
+        if len(self.normals) == 0:
+            self._compute_missing_normals()
         return np.asarray(self.normals, dtype=np.float32)
 
     def get_edges(self):
