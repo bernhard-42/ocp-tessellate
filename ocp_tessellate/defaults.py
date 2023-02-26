@@ -47,7 +47,7 @@ class Defaults:
         - deviation:          Shapes: Deviation from linear deflection value (default=0.1)
         - edge_accuracy:      Edges: Precision of edge discretization (default=None, i.e. mesh quality / 100)
         - default_color:      Default face color (default=(232, 176, 36))
-        - default_edge_color: Default edge color (default="#707070")
+        - default_edgecolor:  Default edge color (default="#707070")
         - optimal_bb:         Use optimal bounding box (default=False)
         - render_normals:     Render vertex normals(default=False)
         - render_edges:       Render edges  (default=True)
@@ -119,7 +119,7 @@ class Defaults:
             "deviation": 0.1,
             "edge_accuracy": None,
             "default_color": (232, 176, 36),
-            "default_edge_color": "#707070",
+            "default_edgecolor": "#707070",
             "optimal_bb": False,
             "render_normals": False,
             "render_edges": True,
@@ -245,7 +245,7 @@ def add_shape_args(config):
             "reset_camera",
             "ambient_intensity",
             "direct_intensity",
-            "default_edge_color",
+            "default_edgecolor",
             "zoom_speed",
             "pan_speed",
             "rotate_speed",
@@ -276,7 +276,7 @@ def tessellation_args(config):
             "deviation",
             "edge_accuracy",
             "default_color",
-            "default_edge_color",
+            "default_edgecolor",
             "optimal_bb",
             "render_normals",
             "render_edges",
