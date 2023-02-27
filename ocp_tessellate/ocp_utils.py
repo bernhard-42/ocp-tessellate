@@ -565,6 +565,8 @@ def is_topods_edge(topods_shape):
 def is_topods_vertex(topods_shape):
     return isinstance(topods_shape, TopoDS_Vertex)
 
+def is_compound_list(topods_list):
+    return all([is_topods_compound(obj) for obj in topods_list])
 
 def is_solid_list(topods_list):
     return all([is_topods_solid(obj) for obj in topods_list])

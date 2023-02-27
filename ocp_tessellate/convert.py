@@ -51,6 +51,7 @@ from .ocp_utils import (
     is_compound,
     is_edge_list,
     is_face_list,
+    is_compound_list,
     is_solid_list,
     is_toploc_location,
     is_topods_compound,
@@ -352,6 +353,13 @@ def conv(cad_obj, grp_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
             name=name,
             color=get_rgba(obj_color, 1.0, THICK_EDGE_COLOR),
             size=6,
+        )
+    elif is_compound_list(cad_objs):
+        name = f"{obj_name if obj_name is not None else 'Solid'}_{grp_id}"
+        return OCP_Part(
+            cad_objs,
+            name=name,
+            color=get_rgba(obj_color, obj_alpha, Color(default_color)),
         )
     else:
         raise RuntimeError(
