@@ -32,5 +32,6 @@ show(
     names=["s", "b1", "b2"],
     colors=["red", "green", "blue"],
     alphas=[0.8, 0.6, 0.4],
+    default_edgecolor="yellow",
     timeit=True,
 )
