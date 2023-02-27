@@ -75,10 +75,10 @@ show(b @ ad.Pos(x=1.5), b @ ad.Pos(x=-1.5), timeit=True)
 
 
 # %%
-
+b = ad.Box(0.1, 0.1, 1)
 c = ad.Cylinder(1, 0.5)
 p = ad.Plane(c.faces().max())
-b = [ad.Box(0.1, 0.1, 1) @ (p * loc) for loc in ad.PolarLocations(0.7, 12)]
+b = [b @ (p * loc) for loc in ad.PolarLocations(0.7, 12)]
 c = ad.Compound.make_compound(b + [c])
 
 show(c, timeit=True)
