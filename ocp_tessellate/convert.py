@@ -141,25 +141,28 @@ def combined_bb(shapes):
     return bb
 
 
-def mp_get_results(shapes, progress):
+def mp_get_results(instances, shapes, progress):
     def walk(shapes):
         for shape in shapes["parts"]:
             if shape.get("parts") is None:
                 if shape.get("type") == "shapes":
-                    if is_apply_result(shape["shape"].get("result")):
-                        mesh = get_mp_result(shape["shape"]["result"])
-                        t = shape["shape"]["t"]
-                        q = shape["shape"]["q"]
-                        shape["shape"] = mesh
-                        shape["bb"] = np_bbox(mesh["vertices"], t, q)
+                    mesh = instances[shape["shape"]["ref"]]
+                    t = shape["shape"]["t"]
+                    q = shape["shape"]["q"]
+                    shape["shape"] = {"ref": shape["shape"]["ref"]}  # remove t and q
+                    shape["bb"] = np_bbox(mesh["vertices"], t, q)
 
                     if progress is not None:
                         progress.update()
             else:
                 walk(shape)
 
+    for i in range(len(instances)):
+        instances[i] = get_mp_result(instances[i])
+
     walk(shapes)
-    return shapes
+
+    return instances, shapes
 
 
 def get_accuracies(shapes):

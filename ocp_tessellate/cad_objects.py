@@ -156,7 +156,11 @@ class OCP_Part(CADObject):
         with Timer(timeit, self.name, "bounding box:   ", 2):
             t, q = loc_to_tq(get_location(loc))
             if parallel and is_apply_result(mesh):
-                mesh = {"result": mesh, "t": t, "q": q}
+                # store the instance mesh
+                if ind is not None and INSTANCES[ind].mesh is None:
+                    INSTANCES[ind].mesh = mesh
+                    INSTANCES[ind].quality = quality
+                mesh = {"ref": ind, "t": t, "q": q}
                 bb = {}
             else:
                 bb = np_bbox(mesh["vertices"], t, q)
