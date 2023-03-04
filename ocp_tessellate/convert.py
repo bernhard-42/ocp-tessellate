@@ -659,8 +659,8 @@ def _to_assembly(
                 # create a partgroup and move part location into it
                 pg2 = OCP_PartGroup([], name=f"Group_{grp_id}", loc=loc)
 
-                # transform the olid to OCP
-                part = get_instance(cad_obj, 0, obj_name, rgba, instances)
+                # transform the solid to OCP
+                part = get_instance(cad_obj, grp_id, obj_name, rgba, instances)
 
                 if obj_name is None:
                     part.name = get_name(part, grp_id)
