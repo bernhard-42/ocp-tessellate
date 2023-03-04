@@ -319,6 +319,8 @@ def tessellate(
 ):
     if progress == "with_cache":
         print(".", end="", flush=True)
+    elif hasattr(progress, "update"):
+        progress.update()
 
     compound = (
         make_compound(shapes) if len(shapes) > 1 else shapes[0]
