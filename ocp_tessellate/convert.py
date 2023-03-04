@@ -571,7 +571,8 @@ def _to_assembly(
                 cw = [c.wrapped for c in children]
                 # ... check whether all elements have the same type
                 if (
-                    is_face_list(cw)
+                    is_solid_list(cw)
+                    or is_face_list(cw)
                     or is_edge_list(cw)
                     or is_vertex_list(cw)
                     or is_wire_list(cw)
