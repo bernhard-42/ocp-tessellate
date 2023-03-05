@@ -183,7 +183,7 @@ lower_leg = create_lower_leg()
 
 # %%
 
-show(base, stand, upper_leg, lower_leg, timeit=True)
+show(base, stand, upper_leg, lower_leg, timeit=False)
 
 # %%
 # Assembly
@@ -218,7 +218,9 @@ from collections import OrderedDict as odict
 
 hexapod = create_hexapod()
 
-show(hexapod, timeit=True)
+# %%
+
+show(hexapod, timeit=False)
 
 # %%
 hexapod.mate("bottom?top", name="bottom", origin=True)
@@ -259,6 +261,7 @@ show(hexapod, render_mates=True)
 # %%
 hexapod.relocate()
 
+# %%
 show(hexapod, render_mates=True)
 
 # %%
@@ -272,7 +275,7 @@ hexapod.assemble("top", "bottom")
 for stand_name in stand_names:
     hexapod.assemble(f"{stand_name}", f"{stand_name}_bottom")
 
-show(hexapod, render_mates=True, mate_scale=5, timeit=True)
+show(hexapod, render_mates=True, mate_scale=5, timeit=False)
 
 # %%
 
