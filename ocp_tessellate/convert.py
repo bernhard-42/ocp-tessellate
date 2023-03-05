@@ -153,7 +153,7 @@ def mp_get_results(instances, shapes, progress):
                     shape["bb"] = np_bbox(mesh["vertices"], t, q)
 
                     if progress is not None:
-                        progress.update()
+                        progress.update("r")
             else:
                 walk(shape)
 

@@ -172,8 +172,8 @@ class OCP_Part(CADObject):
                 if isinstance(self.shape, dict):
                     mesh = self.shape  # return the instance id
 
-        if progress == "without_cache":
-            progress.update()
+        if progress is not None:
+            progress.update("o")
 
         if isinstance(self.color, tuple):
             color = [c.web_color for c in self.color]  # pylint: disable=not-an-iterable
@@ -264,8 +264,8 @@ class OCP_Edges(CADObject):
                 edges.extend(d)
             edges = np.asarray(edges)
 
-        if progress is not None and not isinstance(progress, str):
-            progress.update()
+        if progress is not None:
+            progress.update("e")
 
         color = (
             [c.web_color for c in self.color]
@@ -315,8 +315,8 @@ class OCP_Vertices(CADObject):
 
         bb = bounding_box(self.shape, loc=get_location(loc))
 
-        if progress is not None and not isinstance(progress, str):
-            progress.update()
+        if progress is not None:
+            progress.update("v")
 
         return {
             "id": self.id,
