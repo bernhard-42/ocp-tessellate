@@ -75,6 +75,10 @@ def make_key(
         compute_edges,
         compute_faces,
     )
+
+    if progress is not None and cache.get(key) is not None:
+        progress.update("c")
+
     return key
 
 
