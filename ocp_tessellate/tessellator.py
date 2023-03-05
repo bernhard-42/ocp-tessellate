@@ -61,7 +61,7 @@ def make_key(
     compute_edges=True,
     compute_faces=True,
     debug=False,
-    progress=False,
+    progress=None,
 ):  # pylint: disable=unused-argument
     # quality is a measure of bounding box and deviation, hence can be ignored (and should due to accuracy issues
     # of non optimal bounding boxes. debug and progress are also irrelevant for tessellation results)
@@ -322,7 +322,7 @@ def tessellate(
     progress=None,
 ):
     if progress is not None:
-        progress.update(".")
+        progress.update("+")
 
     compound = (
         make_compound(shapes) if len(shapes) > 1 else shapes[0]
