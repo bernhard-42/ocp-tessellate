@@ -261,7 +261,7 @@ def conv(cad_obj, grp_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
         # build123d Compound
         else:
             _debug(f"build123d Compound {grp_id}: {type(cad_obj)}")
-            cad_objs = [downcast(obj.wrapped) for obj in cad_obj]
+            cad_objs = [cad_obj.wrapped]
 
     elif is_build123d_shape(cad_obj):
         _debug(f"build123d Shape {grp_id}: {type(cad_obj)}")
@@ -280,7 +280,7 @@ def conv(cad_obj, grp_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
                 obj = [vertex(v.wrapped)]
 
             else:
-                obj = get_downcasted_shape(v.wrapped)
+                obj = [v.wrapped]
 
             cad_objs.extend(obj)
 
@@ -303,7 +303,7 @@ def conv(cad_obj, grp_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
         _debug(f"CAD Obj {grp_id}: TopoDS Compound")
 
         # Get the highest level shape
-        cad_objs = get_downcasted_shape(cad_obj)
+        cad_objs = [cad_obj]
 
     elif is_topods_shape(cad_obj):
         _debug(f"CAD Obj {grp_id}: TopoDS Shape")
@@ -359,12 +359,46 @@ def conv(cad_obj, grp_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
             size=6,
         )
     elif is_compound_list(cad_objs):
-        name = f"{obj_name if obj_name is not None else 'Solid'}_{grp_id}"
-        return OCP_Part(
-            cad_objs,
-            name=name,
-            color=get_rgba(obj_color, obj_alpha, Color(default_color)),
-        )
+        obj_list = get_downcasted_shape(cad_objs[0])
+        if is_solid_list(obj_list):
+            name = f"{obj_name if obj_name is not None else 'Solids'}_{grp_id}"
+            return OCP_Part(
+                cad_objs,  # use compound
+                name=name,
+                color=get_rgba(obj_color, obj_alpha, Color(default_color)),
+            )
+        elif is_face_list(obj_list):
+            name = f"{obj_name if obj_name is not None else 'Faces'}_{grp_id}"
+            return OCP_Faces(
+                cad_objs,  # use compound
+                name=name,
+                color=get_rgba(obj_color, obj_alpha, Color(FACE_COLOR)),
+            )
+
+        elif is_edge_list(obj_list) or is_wire_list(obj_list):
+            if is_wire_list(obj_list):
+                edges = []
+                for wire in obj_list:
+                    edges.extend(get_edges(wire))
+                obj_list = edges
+
+            name = f"{obj_name if obj_name is not None else 'Edges'}_{grp_id}"
+            return OCP_Edges(
+                obj_list,  # use object list
+                name=name,
+                color=get_rgba(obj_color, 1.0, Color(THICK_EDGE_COLOR)),
+                width=2,
+            )
+
+        elif is_vertex_list(obj_list):
+            name = f"{obj_name if obj_name is not None else 'Vertices'}_{grp_id}"
+            return OCP_Vertices(
+                obj_list,  # use object list
+                name=name,
+                color=get_rgba(obj_color, 1.0, THICK_EDGE_COLOR),
+                size=6,
+            )
+
     else:
         raise RuntimeError(
             f"Cannot transform {cad_objs}, e.g. mixed Compounds not supported here?"
@@ -573,30 +607,6 @@ def _to_assembly(
             elif is_build123d_assembly(cad_obj):
                 # There is no top level shape, hence only get childern
                 children = cad_obj.children
-
-            else:
-                # For an iterable compound, ...
-                children = list(cad_obj)
-                cw = [c.wrapped for c in children]
-                # ... check whether all elements have the same type
-                if (
-                    is_solid_list(cw)
-                    or is_face_list(cw)
-                    or is_edge_list(cw)
-                    or is_vertex_list(cw)
-                    or is_wire_list(cw)
-                ):
-                    # If so, don't explode homogenous lists, e.g build123d ShapeLists
-                    # If this should be exploded, the user can provide "*shape_list"
-                    part = conv(children, grp_id, obj_name, color, alpha)
-                    if obj_name is None:
-                        part.name = get_name(part, grp_id)
-                        grp_id += 1
-                    pg.add(part)
-                    done = True
-
-            # if not homogenous, iterate over all children
-            if not done:
                 for child in children:
                     part, instances, grp_id = _to_assembly(
                         child,
@@ -611,6 +621,10 @@ def _to_assembly(
                         progress=progress,
                     )
                     pg.add(part)
+
+            else:
+                part = conv(cad_obj.wrapped, grp_id, obj_name, color, alpha)
+                pg.add(part)
 
         elif is_cadquery_sketch(cad_obj):
             #
