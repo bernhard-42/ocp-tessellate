@@ -370,7 +370,7 @@ def conv(cad_obj, grp_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
         )
 
 
-def get_instance(obj, grp_id, name, rgba, instances):
+def get_instance(obj, grp_id, name, rgba, instances, progress):
     is_instance = False
     part = None
 
@@ -385,6 +385,10 @@ def get_instance(obj, grp_id, name, rgba, instances):
             )
             # and stop the loop
             is_instance = True
+
+            if progress is not None:
+                progress.update("-")
+
             break
 
     if not is_instance:
@@ -435,6 +439,7 @@ def _to_assembly(
     grp_id=0,
     mates=None,
     instances=None,
+    progress=None,
 ):
     if names is None:
         names = [None] * len(cad_objs)
@@ -491,7 +496,9 @@ def _to_assembly(
                     # workaround: do not handle TShapes
                     part = conv(cad_obj.obj, grp_id, cad_obj.name, color, alpha)
                 else:
-                    part = get_instance(cad_obj.obj, grp_id, pg.name, rgba, instances)
+                    part = get_instance(
+                        cad_obj.obj, grp_id, pg.name, rgba, instances, progress
+                    )
                 pg.add(part)
 
             # render mates
@@ -535,6 +542,7 @@ def _to_assembly(
                     render_mates=render_mates,
                     mate_scale=mate_scale,
                     instances=instances,
+                    progress=progress,
                 )
                 pg.add(part)
 
@@ -618,6 +626,7 @@ def _to_assembly(
                     render_mates=render_mates,
                     mate_scale=mate_scale,
                     instances=instances,
+                    progress=progress,
                 )
                 pg.add(part)
 
@@ -661,7 +670,9 @@ def _to_assembly(
                 pg2 = OCP_PartGroup([], name=f"Group_{grp_id}", loc=loc)
 
                 # transform the solid to OCP
-                part = get_instance(cad_obj, grp_id, obj_name, rgba, instances)
+                part = get_instance(
+                    cad_obj, grp_id, obj_name, rgba, instances, progress
+                )
 
                 if obj_name is None:
                     part.name = get_name(part, grp_id)
@@ -710,6 +721,7 @@ def to_assembly(
     grp_id=0,
     mates=None,
     instances=None,
+    progress=None,
 ):
     pg, instances, _ = _to_assembly(
         *cad_objs,
@@ -724,6 +736,7 @@ def to_assembly(
         grp_id=grp_id,
         mates=mates,
         instances=instances,
+        progress=progress,
     )
     set_instances([instance[1] for instance in instances])
     return pg

@@ -172,9 +172,6 @@ class OCP_Part(CADObject):
                 if isinstance(self.shape, dict):
                     mesh = self.shape  # return the instance id
 
-        if progress is not None:
-            progress.update("o")
-
         if isinstance(self.color, tuple):
             color = [c.web_color for c in self.color]  # pylint: disable=not-an-iterable
             alpha = 1.0
