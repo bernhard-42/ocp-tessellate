@@ -608,6 +608,7 @@ def _to_assembly(
                         render_mates=render_mates,
                         mate_scale=mate_scale,
                         instances=instances,
+                        progress=progress,
                     )
                     pg.add(part)
 
