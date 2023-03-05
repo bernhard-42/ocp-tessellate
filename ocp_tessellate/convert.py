@@ -147,8 +147,8 @@ def mp_get_results(instances, shapes, progress):
             if shape.get("parts") is None:
                 if shape.get("type") == "shapes":
                     mesh = instances[shape["shape"]["ref"]]
-                    t = shape["shape"]["t"]
-                    q = shape["shape"]["q"]
+                    t = shape["shape"].get("t")
+                    q = shape["shape"].get("q")
                     shape["shape"] = {"ref": shape["shape"]["ref"]}  # remove t and q
                     shape["bb"] = np_bbox(mesh["vertices"], t, q)
 
