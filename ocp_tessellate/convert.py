@@ -158,7 +158,8 @@ def mp_get_results(instances, shapes, progress):
                 walk(shape)
 
     for i in range(len(instances)):
-        instances[i] = get_mp_result(instances[i])
+        if is_apply_result(instances[i]):
+            instances[i] = get_mp_result(instances[i])
 
     walk(shapes)
 
