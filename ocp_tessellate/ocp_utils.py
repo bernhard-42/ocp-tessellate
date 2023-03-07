@@ -565,8 +565,10 @@ def is_topods_edge(topods_shape):
 def is_topods_vertex(topods_shape):
     return isinstance(topods_shape, TopoDS_Vertex)
 
+
 def is_compound_list(topods_list):
     return all([is_topods_compound(obj) for obj in topods_list])
+
 
 def is_solid_list(topods_list):
     return all([is_topods_solid(obj) for obj in topods_list])
@@ -590,6 +592,21 @@ def is_vertex_list(topods_list):
 
 def is_compound(obj):
     return hasattr(obj, "wrapped") and is_topods_compound(obj.wrapped)
+
+
+def unroll_compound(compound):
+    result = []
+    for o in compound:
+        if is_compound(o):
+            result.extend(unroll_compound(o))
+        else:
+            result.extend(get_downcasted_shape(o.wrapped))
+    return result
+
+
+def is_mixed_compound(compound):
+    u_compound = unroll_compound(compound)
+    return len(set([o.__class__.__name__ for o in u_compound])) > 1
 
 
 # Check compounds for containing same types only

@@ -49,6 +49,7 @@ from .ocp_utils import (
     is_cadquery_sketch,
     is_cadquery,
     is_compound,
+    is_mixed_compound,
     is_edge_list,
     is_face_list,
     is_compound_list,
@@ -594,7 +595,6 @@ def _to_assembly(
             ):
                 pg.name = cad_obj.label
 
-            done = False
             if not isinstance(cad_obj, Iterable):
                 # For non iterable compounds transform obj to OCP
                 part = conv(cad_obj, grp_id, obj_name, color, alpha)
@@ -602,12 +602,10 @@ def _to_assembly(
                 if obj_name is None:
                     part.name = get_name(part, grp_id)
                 pg.add(part)
-                done = True
 
             elif is_build123d_assembly(cad_obj):
                 # There is no top level shape, hence only get childern
-                children = cad_obj.children
-                for child in children:
+                for child in cad_obj.children:
                     part, instances, grp_id = _to_assembly(
                         child,
                         grp_id=grp_id,
@@ -622,9 +620,17 @@ def _to_assembly(
                     )
                     pg.add(part)
 
+            elif is_mixed_compound(cad_obj):
+                for child in cad_obj:
+                    part = conv(child.wrapped, grp_id, obj_name, color, alpha)
+                    pg.add(part)
+                    grp_id += 1
+
             else:
                 part = conv(cad_obj.wrapped, grp_id, obj_name, color, alpha)
                 pg.add(part)
+
+            grp_id += 1
 
         elif is_cadquery_sketch(cad_obj):
             #
