@@ -1,9 +1,8 @@
 import cadquery as cq
 import build123d as bd
-import alg123d as ad
 from ocp_tessellate.utils import Color
 from ocp_tessellate.ocp_utils import get_rgba
-from cq_vscode import show, set_port
+from ocp_vscode import show, set_port
 
 set_port(3939)
 
@@ -12,7 +11,6 @@ set_port(3939)
 
 print(get_rgba(cq.Color("red")))
 print(get_rgba(cq.Color("green"), 0.5))
-print(get_rgba(ad.Color("red")))
 print(get_rgba(bd.Color("blue")))
 print(get_rgba(Color("red")))
 print(get_rgba(cq.Color("red").wrapped))
@@ -20,10 +18,10 @@ print(get_rgba("red"))
 
 # %%
 
-s = ad.Sphere(1)
-b = ad.Box(1, 2, 3)
-b1 = b @ ad.Pos(x=3)
-b2 = b @ ad.Pos(x=-3)
+s = bd.Sphere(1)
+b = bd.Box(1, 2, 3)
+b1 = bd.Pos(X=3) * b
+b2 = bd.Pos(X=-3) * b
 
 show(
     s,
@@ -35,3 +33,5 @@ show(
     default_edgecolor="yellow",
     timeit=True,
 )
+
+# %%

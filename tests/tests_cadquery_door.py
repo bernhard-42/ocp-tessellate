@@ -1,6 +1,6 @@
 from os.path import expanduser
 import cadquery as cq
-from cq_vscode import show
+from ocp_vscode import show
 
 # %%
 

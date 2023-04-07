@@ -1,5 +1,5 @@
 import cadquery as cq
-from cq_vscode import show
+from ocp_vscode import show
 from cadquery_massembly import MAssembly
 
 # %%
@@ -124,7 +124,7 @@ d = show(assy, render_mates=False)
 
 
 import numpy as np
-from cq_vscode.animation import Animation
+from ocp_vscode.animation import Animation
 
 animation = Animation(assy)
 animation.add_track(f"/box0/c", "rz", np.linspace(0, 6, 13), np.linspace(0, 360, 13))

@@ -1,5 +1,5 @@
 from build123d import *
-from cq_vscode import show
+from ocp_vscode import show
 
 
 # %%
@@ -38,10 +38,10 @@ show(box.part.wrapped, colors=["green"], alphas=[0.6])
 show(box, names=["box"])
 
 # %%
-show(box.part, names=["box"], colors=["red"], alphas=[0.6])
+show(box.part, names=["red"], colors=["red"], alphas=[0.6])
 
 # %%
-show(box.part.wrapped, names=["box"], colors=["green"], alphas=[0.6])
+show(box.part.wrapped, names=["green"], colors=["green"], alphas=[0.6])
 
 # %%
 
@@ -85,6 +85,10 @@ show(line.line.wrapped, names=["line"], colors=["green"])
 # %%
 
 show(line.line, pline, colors=["red", "cyan"])
+
+# %%
+
+show(line.line, pline, names=["red", "cyan"], colors=["red", "cyan"])
 
 # %%
 

@@ -1,7 +1,7 @@
 import cadquery as cq
 import numpy as np
 from cadquery_massembly import MAssembly
-from cq_vscode import show, Animation, set_defaults
+from ocp_vscode import show, Animation, set_defaults
 
 set_defaults(mate_scale=5)
 

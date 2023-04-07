@@ -1,30 +1,40 @@
 import copy
 from build123d import *
-import alg123d as ad
-from cq_vscode import show
+from ocp_vscode import show, show_object
+
+
+def reference(obj, label=None, loc=None):
+    new_obj = copy.copy(obj)
+    if label is not None:
+        new_obj.label = label
+    if loc is None:
+        return new_obj
+    else:
+        return new_obj.move(loc)
+
 
 # %%
-
-Workplanes(Plane.XY).__enter__()
 
 locs = HexLocations(6, 10, 10).local_locations
 
 box = Solid.make_sphere(5)
-box_references = [copy.copy(box).locate(loc) for loc in locs]
+box_references = [reference(box, loc=loc) for loc in locs]
 assembly = Compound(children=box_references)
 
+show(assembly)
 # %%
 
-show(assembly, timeit=False)
+box_references = [reference(box, loc=loc) for loc in locs]
+assembly = Compound(children=box_references)
+
+show(assembly)
 
 # %%
 
-s = ad.Sphere(1)
-b = ad.Box(1, 2, 3)
-b1 = b @ ad.Pos(x=3)
-b2 = b @ ad.Pos(x=-3)
-
-# %%
+s = Sphere(1)
+b = Box(1, 2, 3)
+b1 = Pos(X=3) * b
+b2 = Pos(X=-3) * b
 
 show(
     s,
@@ -38,12 +48,10 @@ show(
 
 # %%
 
-s = ad.Sphere(1)
-b = ad.Box(1, 2, 3)
-b1 = b @ ad.Pos(x=3)
-b2 = b @ ad.Pos(x=-3)
-
-# %%
+s = Sphere(1)
+b = Box(1, 2, 3)
+b1 = reference(b, loc=Pos(X=3))
+b2 = reference(b, loc=Pos(X=-3))
 
 show(
     s,
@@ -57,9 +65,7 @@ show(
 
 # %%
 
-b2 = b2 - ad.Box(5, 0.2, 0.2) @ ad.Pos(x=-3)
-
-# %%
+b2 = b2 - Pos(X=-3) * Box(5, 0.2, 0.2)
 
 show(
     s,
@@ -73,21 +79,16 @@ show(
 
 # %%
 
-show(b, timeit=False)
-
-# %%
-
-show(b @ ad.Pos(x=1.5), b @ ad.Pos(x=-1.5), timeit=False)
+show(Pos(X=1.5) * b, Pos(X=-1.5) * b, timeit=False)
 
 
 # %%
-b = ad.Box(0.1, 0.1, 1)
-c = ad.Cylinder(1, 0.5)
-p = ad.Plane(c.faces().max())
-b = [b @ (p * loc) for loc in ad.PolarLocations(0.7, 12)]
-c = ad.Compound.make_compound(b + [c])
 
-# %%
+b = Box(0.1, 0.1, 1)
+c = Cylinder(1, 0.5)
+p = Plane(c.faces().sort_by().last)
+b = [p * loc * b for loc in PolarLocations(0.7, 12)]
+c = Compound.make_compound(b + [c])
 
 show(c, timeit=False)
 
@@ -95,4 +96,18 @@ show(c, timeit=False)
 
 show(*c.solids(), timeit=False)
 
-## %%
+# %%
+
+b = Box(0.1, 0.1, 1)
+c = Cylinder(1, 0.5)
+p = Plane(c.faces().sort_by().last)
+b = [reference(b, "pillar", p.to_location() * loc) for loc in PolarLocations(0.7, 12)]
+
+show(*b)
+
+# %%
+
+c = Compound.make_compound(b + [c])
+show(*c.solids(), timeit=False)
+
+# %%
