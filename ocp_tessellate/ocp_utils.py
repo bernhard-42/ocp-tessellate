@@ -605,6 +605,8 @@ def unroll_compound(compound):
 
 
 def is_mixed_compound(compound):
+    if not isinstance(compound, Iterable):
+        return False
     u_compound = unroll_compound(compound)
     return len(set([o.__class__.__name__ for o in u_compound])) > 1
 
@@ -705,6 +707,13 @@ def vertex(obj):
 
 def line(start, end):
     return downcast(BRepBuilderAPI_MakeEdge(gp_Pnt(*start), gp_Pnt(*end)).Edge())
+
+
+def cross(v1, v2):
+    x = gp_Vec(*v1).Normalized()
+    z = gp_Vec(*v2).Normalized()
+    y = x.Crossed(z).Normalized()
+    return (y.X(), y.Y(), y.Z())
 
 
 def tq_to_loc(t, q):

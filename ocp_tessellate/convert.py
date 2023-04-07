@@ -72,7 +72,8 @@ from .ocp_utils import (
     vertex,
     loc_to_tq,
 )
-from .utils import Color
+
+from .utils import Color, make_unique
 
 EDGE_COLOR = "Silver"
 THICK_EDGE_COLOR = "MediumOrchid"
@@ -82,10 +83,10 @@ FACE_COLOR = "Violet"
 OBJECTS = {"objs": [], "names": [], "colors": [], "alphas": []}
 
 GROUP_NAME_LUT = {
-    "OCP_Part": "Solids",
-    "OCP_Faces": "Faces",
-    "OCP_Edges": "Edges",
-    "OCP_Vertices": "Vertices",
+    "OCP_Part": "Solid",
+    "OCP_Faces": "Face",
+    "OCP_Edges": "Edge",
+    "OCP_Vertices": "Vertex",
 }
 
 
@@ -231,14 +232,7 @@ def conv_sketch(cad_obj):
     return cad_objs
 
 
-def conv(cad_obj, grp_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
-    if isinstance(cad_obj, OCP_PartGroup):
-        return cad_obj
-
-    elif isinstance(cad_obj, (OCP_Faces, OCP_Edges, OCP_Vertices)):
-        cad_obj.name = f"{cad_obj.name}_{grp_id}"
-        pg = OCP_PartGroup([cad_obj], name=cad_obj.name)
-        return pg
+def conv(cad_obj, obj_name=None, obj_color=None, obj_alpha=1.0):
 
     default_color = get_default("default_color")
 
@@ -249,23 +243,15 @@ def conv(cad_obj, grp_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
 
     # BuildPart, BuildSketch, BuildLine
     if is_build123d(cad_obj):
-        _debug(f"build123d Builder {grp_id}: {type(cad_obj)}")
+        _debug(f"build123d Builder {type(cad_obj)}")
         cad_obj = getattr(cad_obj, cad_obj._obj_name)  # convert to direct API
 
     if is_build123d_compound(cad_obj):
-        # build123d assembly
-        if is_build123d_assembly(cad_obj):
-            _debug(f"build123d Assembly {grp_id}: {type(cad_obj)}")
-            cad_objs = []
-            raise NotImplemented("build123d assemblies not implemented yet")
-
-        # build123d Compound
-        else:
-            _debug(f"build123d Compound {grp_id}: {type(cad_obj)}")
-            cad_objs = [cad_obj.wrapped]
+        _debug(f"build123d Compound {type(cad_obj)}")
+        cad_objs = [cad_obj.wrapped]
 
     elif is_build123d_shape(cad_obj):
-        _debug(f"build123d Shape {grp_id}: {type(cad_obj)}")
+        _debug(f"build123d Shape {type(cad_obj)}")
         cad_objs = get_downcasted_shape(cad_obj.wrapped)
 
     elif is_cadquery_sketch(cad_obj):
@@ -295,38 +281,41 @@ def conv(cad_obj, grp_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
         objs = list(cad_obj)
         if len(objs) > 0 and is_wrapped(objs[0]):
             # ShapeList
-            _debug(f"build123d ShapeList {grp_id}: {type(cad_obj)}")
+            _debug(f"build123d ShapeList {type(cad_obj)}")
             cad_objs = [downcast(obj.wrapped) for obj in objs]
         else:
             raise ValueError("Empty list cannot be tessellated")
 
     elif is_topods_compound(cad_obj):
-        _debug(f"CAD Obj {grp_id}: TopoDS Compound")
+        _debug(f"CAD Obj TopoDS Compound")
 
         # Get the highest level shape
         cad_objs = [cad_obj]
 
     elif is_topods_shape(cad_obj):
-        _debug(f"CAD Obj {grp_id}: TopoDS Shape")
+        _debug(f"CAD Obj TopoDS Shape")
         cad_objs = [downcast(cad_obj)]
 
     else:
         raise RuntimeError(f"Cannot transform {cad_objs}({type(cad_objs)}) to OCP")
 
+    if is_compound_list(cad_objs):
+        cad_objs = get_downcasted_shape(cad_objs[0])
+
     # Convert to PartGroup
 
     if is_solid_list(cad_objs):
-        name = f"{obj_name if obj_name is not None else 'Solid'}_{grp_id}"
         return OCP_Part(
             cad_objs,
-            name=name,
+            name=get_name(obj_name, cad_objs, "Solid", "Solids"),
             color=get_rgba(obj_color, obj_alpha, Color(default_color)),
         )
 
     elif is_face_list(cad_objs):
-        name = f"{obj_name if obj_name is not None else 'Face'}_{grp_id}"
         return OCP_Faces(
-            cad_objs, name=name, color=get_rgba(obj_color, obj_alpha, Color(FACE_COLOR))
+            cad_objs,
+            name=get_name(obj_name, cad_objs, "Face", "Faces"),
+            color=get_rgba(obj_color, obj_alpha, Color(FACE_COLOR)),
         )
 
     elif is_wire_list(cad_objs):
@@ -334,71 +323,28 @@ def conv(cad_obj, grp_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
         for wire in cad_objs:
             edges.extend(get_edges(wire))
 
-        name = f"{obj_name if obj_name is not None else 'Wire'}_{grp_id}"
         return OCP_Edges(
             edges,
-            name=name,
+            name=get_name(obj_name, cad_objs, "Wire", "Wires"),
             color=get_rgba(obj_color, 1.0, Color(THICK_EDGE_COLOR)),
             width=2,
         )
 
     elif is_edge_list(cad_objs):
-        name = f"{obj_name if obj_name is not None else 'Edge'}_{grp_id}"
         return OCP_Edges(
             cad_objs,
-            name=name,
+            name=get_name(obj_name, cad_objs, "Edge", "Edges"),
             color=get_rgba(obj_color, 1.0, THICK_EDGE_COLOR),
             width=2,
         )
 
     elif is_vertex_list(cad_objs):
-        name = f"{obj_name if obj_name is not None else 'Vertex'}_{grp_id}"
         return OCP_Vertices(
             cad_objs,
-            name=name,
+            name=get_name(obj_name, cad_objs, "Vertex", "Vertices"),
             color=get_rgba(obj_color, 1.0, THICK_EDGE_COLOR),
             size=6,
         )
-    elif is_compound_list(cad_objs):
-        obj_list = get_downcasted_shape(cad_objs[0])
-        if is_solid_list(obj_list):
-            name = f"{obj_name if obj_name is not None else 'Solids'}_{grp_id}"
-            return OCP_Part(
-                cad_objs,  # use compound
-                name=name,
-                color=get_rgba(obj_color, obj_alpha, Color(default_color)),
-            )
-        elif is_face_list(obj_list):
-            name = f"{obj_name if obj_name is not None else 'Faces'}_{grp_id}"
-            return OCP_Faces(
-                cad_objs,  # use compound
-                name=name,
-                color=get_rgba(obj_color, obj_alpha, Color(FACE_COLOR)),
-            )
-
-        elif is_edge_list(obj_list) or is_wire_list(obj_list):
-            if is_wire_list(obj_list):
-                edges = []
-                for wire in obj_list:
-                    edges.extend(get_edges(wire))
-                obj_list = edges
-
-            name = f"{obj_name if obj_name is not None else 'Edges'}_{grp_id}"
-            return OCP_Edges(
-                obj_list,  # use object list
-                name=name,
-                color=get_rgba(obj_color, 1.0, Color(THICK_EDGE_COLOR)),
-                width=2,
-            )
-
-        elif is_vertex_list(obj_list):
-            name = f"{obj_name if obj_name is not None else 'Vertices'}_{grp_id}"
-            return OCP_Vertices(
-                obj_list,  # use object list
-                name=name,
-                color=get_rgba(obj_color, 1.0, THICK_EDGE_COLOR),
-                size=6,
-            )
 
     else:
         raise RuntimeError(
@@ -406,9 +352,11 @@ def conv(cad_obj, grp_id=1, obj_name=None, obj_color=None, obj_alpha=1.0):
         )
 
 
-def get_instance(obj, grp_id, name, rgba, instances, progress):
+def get_instance(obj, name, rgba, instances, progress):
     is_instance = False
     part = None
+
+    obj, loc = relocate(obj)
 
     # check if the same instance is already available
     for i, ref in enumerate(instances):
@@ -416,7 +364,7 @@ def get_instance(obj, grp_id, name, rgba, instances, progress):
             # create a referential OCP_Part
             part = OCP_Part(
                 {"ref": i},
-                f"{name}_{grp_id}",
+                name,
                 rgba,
             )
             # and stop the loop
@@ -429,7 +377,7 @@ def get_instance(obj, grp_id, name, rgba, instances, progress):
 
     if not is_instance:
         # Transform the new instance to OCP
-        part = conv(obj, grp_id, name, rgba[:3], rgba[3])
+        part = conv(obj, name, rgba[:3], rgba[3])
         if not isinstance(part, OCP_PartGroup):
             # append the new instance
             instances.append((get_tshape(obj), part.shape[0]))
@@ -439,6 +387,9 @@ def get_instance(obj, grp_id, name, rgba, instances, progress):
                 part.name,
                 rgba,
             )
+
+    part.loc = loc
+    part.loc_t = loc_to_tq(loc)
 
     return part
 
@@ -458,8 +409,14 @@ def relocate(obj):
     return obj, loc
 
 
-def get_name(part, grp_id):
-    return f"{GROUP_NAME_LUT.get(part.__class__.__name__, 'Part')}_{grp_id}"
+def get_object_name(part):
+    return GROUP_NAME_LUT.get(part.__class__.__name__, "Part")
+
+
+def get_name(name, obj, singular, plural):
+    if name is not None:
+        return name
+    return plural if len(obj) > 1 else singular
 
 
 def _to_assembly(
@@ -472,13 +429,15 @@ def _to_assembly(
     default_color=None,
     show_parent=False,
     loc=None,
-    grp_id=0,
     mates=None,
     instances=None,
     progress=None,
+    is_assembly=False,
 ):
     if names is None:
         names = [None] * len(cad_objs)
+    else:
+        names = make_unique(names)
 
     if colors is None:
         colors = [None] * len(cad_objs)
@@ -494,9 +453,7 @@ def _to_assembly(
     if instances is None:
         instances = []
 
-    pg = OCP_PartGroup([], f"Group_{grp_id}", identity_location())
-
-    rename_top = True
+    pg = OCP_PartGroup([], "Group", identity_location())
 
     for obj_name, obj_color, obj_alpha, cad_obj in zip(names, colors, alphas, cad_objs):
         #
@@ -514,11 +471,25 @@ def _to_assembly(
         else:
             color, alpha = None, None
 
+        if obj_name is None:
+            if (
+                hasattr(cad_obj, "label")
+                and cad_obj.label is not None
+                and cad_obj.label != ""
+            ):
+                obj_name = cad_obj.label
+            elif (
+                hasattr(cad_obj, "name")
+                and cad_obj.name is not None
+                and cad_obj.name != ""
+            ):
+                obj_name = cad_obj.name
+
         if is_cadquery_assembly(cad_obj):
             #
             # Iterate over CadQuery Assembly
             #
-            rename_top = False  # CadQuery assembly names are unique in one hierarchy
+            is_assembly = True
 
             pg.name = cad_obj.name
             pg.loc = get_location(cad_obj, as_none=False)
@@ -530,11 +501,9 @@ def _to_assembly(
                     # get_instance fails for MAssemblies when a mate is not at the
                     # shape origin after relocation, see hexapod "top" object
                     # workaround: do not handle TShapes
-                    part = conv(cad_obj.obj, grp_id, cad_obj.name, color, alpha)
+                    part = conv(cad_obj.obj, cad_obj.name, color, alpha)
                 else:
-                    part = get_instance(
-                        cad_obj.obj, grp_id, pg.name, rgba, instances, progress
-                    )
+                    part = get_instance(cad_obj.obj, pg.name, rgba, instances, progress)
                 pg.add(part)
 
             # render mates
@@ -549,7 +518,6 @@ def _to_assembly(
                             name,
                             get_tuple(mate_def.mate.origin),
                             get_tuple(mate_def.mate.x_dir),
-                            get_tuple(mate_def.mate.y_dir),
                             get_tuple(mate_def.mate.z_dir),
                             mate_scale,
                         )
@@ -566,10 +534,9 @@ def _to_assembly(
 
             # iterate recursively over all children
             for child in cad_obj.children:
-                part, instances, grp_id = _to_assembly(
+                part, instances = _to_assembly(
                     child,
                     loc=loc,
-                    grp_id=grp_id,
                     default_color=default_color,
                     names=[obj_name],
                     colors=[obj_color],
@@ -579,6 +546,7 @@ def _to_assembly(
                     mate_scale=mate_scale,
                     instances=instances,
                     progress=progress,
+                    is_assembly=is_assembly,
                 )
                 pg.add(part)
 
@@ -587,50 +555,45 @@ def _to_assembly(
             # Iterate over Compound (includes build123d assemblies)
             #
 
-            # use the build123d label info as name if exists
-            if (
-                hasattr(cad_obj, "label")
-                and cad_obj.label is not None
-                and cad_obj.label != ""
-            ):
-                pg.name = cad_obj.label
-
-            if not isinstance(cad_obj, Iterable):
-                # For non iterable compounds transform obj to OCP
-                part = conv(cad_obj, grp_id, obj_name, color, alpha)
-                # if obj_name is not given, get the name for the OCP_* type
-                if obj_name is None:
-                    part.name = get_name(part, grp_id)
-                pg.add(part)
-
-            elif is_build123d_assembly(cad_obj):
-                # There is no top level shape, hence only get childern
+            if is_build123d_assembly(cad_obj):
+                # There is no top level shape, hence only get children
+                is_assembly = True
+                pg.loc = get_location(cad_obj, as_none=False)
+                pg.name = "Assembly" if obj_name is None else obj_name
                 for child in cad_obj.children:
-                    part, instances, grp_id = _to_assembly(
+                    part, instances = _to_assembly(
                         child,
-                        grp_id=grp_id,
                         default_color=default_color,
-                        names=[obj_name],
+                        names=None,
                         colors=[obj_color],
                         alphas=[obj_alpha],
                         render_mates=render_mates,
                         mate_scale=mate_scale,
                         instances=instances,
                         progress=progress,
+                        is_assembly=is_assembly,
                     )
-                    pg.add(part)
+                    if len(part.objects) == 1:
+                        part.objects[0].loc = part.loc * part.objects[0].loc
+                        pg.add(part.objects[0])
+                    else:
+                        pg.add(part)
 
             elif is_mixed_compound(cad_obj):
                 for child in cad_obj:
-                    part = conv(child.wrapped, grp_id, obj_name, color, alpha)
+                    part = conv(child.wrapped, obj_name, color, alpha)
                     pg.add(part)
-                    grp_id += 1
 
             else:
-                part = conv(cad_obj.wrapped, grp_id, obj_name, color, alpha)
-                pg.add(part)
+                if hasattr(cad_obj, "_dim") and cad_obj._dim == 3:
+                    part = get_instance(cad_obj, obj_name, rgba, instances, progress)
+                else:
+                    part = conv(cad_obj.wrapped, obj_name, color, alpha)
 
-            grp_id += 1
+                if is_assembly and obj_name is not None:
+                    part.name = f"{obj_name}"
+
+                pg.add(part)
 
         elif is_cadquery_sketch(cad_obj):
             #
@@ -638,9 +601,8 @@ def _to_assembly(
             #
 
             for child in conv_sketch(cad_obj):
-                part, instances, grp_id = _to_assembly(
+                part, instances = _to_assembly(
                     child,
-                    grp_id=grp_id,
                     default_color=default_color,
                     names=[obj_name],
                     colors=[obj_color],
@@ -650,7 +612,10 @@ def _to_assembly(
                     instances=instances,
                     progress=progress,
                 )
-                pg.add(part)
+                if len(part.objects) == 1:
+                    pg.add(part.objects[0])
+                else:
+                    pg.add(part)
 
         else:
             #
@@ -661,19 +626,10 @@ def _to_assembly(
             if hasattr(cad_obj, "obj"):
                 cad_obj = cad_obj.obj
 
-            # Use the objects label as obj_name (build123d)
-            if hasattr(cad_obj, "label") and cad_obj.label != "":
-                obj_name = cad_obj.label
-
-            # or its name attribute (cadquery)
-            if hasattr(cad_obj, "name") and cad_obj.name != "":
-                obj_name = cad_obj.name
-
             is_solid = False
 
             if hasattr(cad_obj, "wrapped") and not is_vector(cad_obj):
                 solids = get_downcasted_shape(cad_obj.wrapped)
-                # TODO: what to do with mixed compounds
                 is_solid = all([is_topods_solid(solid) for solid in solids])
 
             # TODO Fix parent
@@ -682,52 +638,37 @@ def _to_assembly(
                 parent = cad_obj.parent
 
             if parent is not None:
-                pg.add(conv(parent, grp_id, "parent", None, None))
+                pg.add(conv(parent, "parent", None, None))
                 pg.objects[0].state_faces = 0
 
             if is_solid:
-                # Split solids into a solid at the XY plane origin and the location
-                cad_obj, loc = relocate(cad_obj)
-                # create a partgroup and move part location into it
-                pg2 = OCP_PartGroup([], name=f"Group_{grp_id}", loc=loc)
-
                 # transform the solid to OCP
-                part = get_instance(
-                    cad_obj, grp_id, obj_name, rgba, instances, progress
-                )
-
+                part = get_instance(cad_obj, obj_name, rgba, instances, progress)
                 if obj_name is None:
-                    part.name = get_name(part, grp_id)
-                # change part's location to identity, since location is in partgroup
-                pg.loc = identity_location()
+                    part.name = get_object_name(part)
 
-                pg2.add(part)
+                pg.add(part)
 
-                if len(pg2.objects) == 1:
-                    pg2.name = pg2.objects[0].name
+            elif isinstance(cad_obj, OCP_PartGroup):
+                pg = cad_obj
 
-                # add additional partgroup
-                pg.add(pg2)
+            elif isinstance(cad_obj, (OCP_Faces, OCP_Edges, OCP_Vertices)):
+                pg.add(cad_obj)
 
             else:
-                part = conv(cad_obj, grp_id, obj_name, color, alpha)
-                if obj_name is None:
-                    part.name = get_name(part, grp_id)
+                part = conv(cad_obj, obj_name, color, alpha)
+                if part.name is None:
+                    part.name = get_object_name(part)
                 pg.add(part)  # no clear way to relocated
 
-            grp_id += 1
-
         if pg.loc is None:
-            raise RuntimeError("location is None")
-            # pg.loc = identity_location()
+            pg.loc = identity_location()
 
-    if len(pg.objects) == 1 and isinstance(pg.objects[0], OCP_PartGroup):
-        pg = pg.objects[0]
+    names = make_unique([obj.name for obj in pg.objects])
+    for name, obj in zip(names, pg.objects):
+        obj.name = name
 
-    if len(pg.objects) == 1 and rename_top:
-        pg.name = pg.objects[0].name
-
-    return pg, instances, grp_id
+    return pg, instances
 
 
 def to_assembly(
@@ -740,12 +681,11 @@ def to_assembly(
     default_color=None,
     show_parent=False,
     loc=None,
-    grp_id=0,
     mates=None,
     instances=None,
     progress=None,
 ):
-    pg, instances, _ = _to_assembly(
+    pg, instances = _to_assembly(
         *cad_objs,
         names=names,
         colors=colors,
@@ -755,10 +695,10 @@ def to_assembly(
         default_color=default_color,
         show_parent=show_parent,
         loc=loc,
-        grp_id=grp_id,
         mates=mates,
         instances=instances,
         progress=progress,
     )
+
     set_instances([instance[1] for instance in instances])
     return pg

@@ -26,6 +26,8 @@ from .ocp_utils import (
     is_line,
     line,
     make_compound,
+    identity_location,
+    cross,
 )
 from .tessellator import discretize_edge, tessellate, compute_quality
 from .mp_tessellator import is_apply_result, mp_tessellate, init_pool, keymap
@@ -92,6 +94,7 @@ class OCP_Part(CADObject):
         self.name = name
         self.id = None
         self.color = Color(get_default("default_color") if color is None else color)
+        self.loc = identity_location()
 
         self.shape = shape
         self.set_states(show_faces, show_edges)
@@ -154,7 +157,10 @@ class OCP_Part(CADObject):
                 t.info = f"{{quality:{quality:.4f}, angular_tolerance:{angular_tolerance:.2f}}}"
 
         with Timer(timeit, self.name, "bounding box:   ", 2):
-            t, q = loc_to_tq(get_location(loc))
+            combined_loc = get_location(loc, False)
+            if self.loc is not None:
+                combined_loc = combined_loc * self.loc
+            t, q = loc_to_tq(combined_loc)
             if parallel and is_apply_result(mesh):
                 # store the instance mesh
                 if ind is not None and INSTANCES[ind].mesh is None:
@@ -186,6 +192,7 @@ class OCP_Part(CADObject):
             "shape": mesh,
             "color": color,
             "alpha": alpha,
+            "loc": None if self.loc is None else loc_to_tq(self.loc),
             "renderback": self.renderback,
             "accuracy": quality,
             "bb": bb,
@@ -206,6 +213,7 @@ class OCP_Faces(OCP_Part):
             faces, name, color, show_faces, show_edges
         )  # TODO combine faces
         self.color = Color(color or (238, 130, 238))
+        self.loc = None
         self.renderback = True
 
 
@@ -223,6 +231,7 @@ class OCP_Edges(CADObject):
                 self.color = color
             else:
                 self.color = Color(color)
+        self.loc = None
         self.width = width
 
     def to_state(self):
@@ -276,6 +285,7 @@ class OCP_Edges(CADObject):
             "name": self.name,
             "shape": edges,
             "color": color,
+            "loc": None if self.loc is None else loc_to_tq(self.loc),
             "width": self.width,
             "bb": bb.to_dict(),
         }
@@ -288,6 +298,7 @@ class OCP_Vertices(CADObject):
         self.name = name
         self.id = None
         self.color = Color(color or (148, 0, 211))
+        self.loc = None
         self.size = size
 
     def to_state(self):
@@ -323,6 +334,7 @@ class OCP_Vertices(CADObject):
                 [get_point(vertex) for vertex in self.shape], dtype="float32"
             ),
             "color": self.color.web_color,
+            "loc": None if self.loc is None else loc_to_tq(self.loc),
             "size": self.size,
             "bb": bb.to_dict(),
         }
@@ -333,7 +345,7 @@ class OCP_PartGroup(CADObject):
         super().__init__()
         self.objects = objects
         self.name = name
-        self.loc = loc
+        self.loc = identity_location() if loc is None else loc
         self.id = None
 
     def to_nav_dict(self):
@@ -378,6 +390,7 @@ class OCP_PartGroup(CADObject):
             "parts": [],
             "loc": None if self.loc is None else loc_to_tq(self.loc),
             "name": self.name,
+            "id": self.id,
         }
         for obj in self.objects:
             result["parts"].append(
@@ -429,9 +442,10 @@ class OCP_PartGroup(CADObject):
 
 
 class CoordSystem(OCP_Edges):
-    def __init__(self, name, origin, x_dir, y_dir, z_dir, length):
-        x_edge = line(origin, [o + v * length for o, v in zip(origin, x_dir)])
-        y_edge = line(origin, [o + v * length for o, v in zip(origin, y_dir)])
-        z_edge = line(origin, [o + v * length for o, v in zip(origin, z_dir)])
+    def __init__(self, name, origin, X, Z, size=1):
+        Y = cross(X, Z)
+        x_edge = line(origin, [o + v * size for o, v in zip(origin, X)])
+        y_edge = line(origin, [o + v * size for o, v in zip(origin, Y)])
+        z_edge = line(origin, [o + v * size for o, v in zip(origin, Z)])
         colors = (Color("red"), Color("green"), Color("blue"))
         super().__init__([x_edge, y_edge, z_edge], name, colors, width=3)

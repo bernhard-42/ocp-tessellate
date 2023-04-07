@@ -212,3 +212,16 @@ def warn(message, warning=RuntimeWarning, when="always"):
     warnings.warn(message + "\n", warning)
     warnings.formatwarning = warn_format
     warnings.simplefilter("ignore", warning)
+
+
+def make_unique(names):
+    found = {}
+    unique_names = []
+    for name in names:
+        if found.get(name) is None:
+            found[name] = 1
+            unique_names.append(name)
+        else:
+            found[name] += 1
+            unique_names.append(f"{name}({found[name]})")
+    return unique_names
