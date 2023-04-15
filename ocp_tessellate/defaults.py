@@ -120,6 +120,7 @@ class Defaults:
             "edge_accuracy": None,
             "default_color": (232, 176, 36),
             "default_edgecolor": "#707070",
+            "default_opacity": 0.5,
             "optimal_bb": False,
             "render_normals": False,
             "render_edges": True,
