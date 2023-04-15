@@ -260,7 +260,8 @@ class OCP_Edges(CADObject):
             deflection = quality / 100 if edge_accuracy is None else edge_accuracy
             t.info = str(bb)
 
-        with Timer(timeit, self.name, "discretize:  ", 2):
+        with Timer(timeit, self.name, "discretize:  ", 2) as t:
+            t.info = f"quality: {quality}, deflection: {deflection}"
             edges = []
             for edge in self.shape:
                 d = discretize_edge(edge, deflection)
