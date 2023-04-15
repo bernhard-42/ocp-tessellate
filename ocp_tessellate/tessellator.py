@@ -343,7 +343,7 @@ def tessellate(
 def discretize_edge(edge, deflection=0.1, num=None):
     curve_adaptator = BRepAdaptor_Curve(edge)
 
-    if num is not None:
+    if num is not None and num > 1:
         discretizer = GCPnts_QuasiUniformAbscissa()
         discretizer.Initialize(curve_adaptator, num)
     else:
