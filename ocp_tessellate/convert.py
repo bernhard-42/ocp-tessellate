@@ -574,7 +574,10 @@ def _to_assembly(
                         is_assembly=is_assembly,
                     )
                     if len(part.objects) == 1:
-                        part.objects[0].loc = part.loc * part.objects[0].loc
+                        if part.objects[0].loc is None:
+                            part.objects[0].loc = part.loc
+                        else:
+                            part.objects[0].loc = part.loc * part.objects[0].loc
                         pg.add(part.objects[0])
                     else:
                         pg.add(part)
