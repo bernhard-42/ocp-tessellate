@@ -799,5 +799,8 @@ def to_assembly(
         progress=progress,
     )
 
+    if len(pg.objects) == 1 and isinstance(pg.objects[0], OCP_PartGroup):
+        pg = pg.objects[0]
+
     set_instances([instance[1] for instance in instances])
     return pg
