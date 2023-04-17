@@ -52,6 +52,7 @@ class Defaults:
         - render_normals:     Render vertex normals(default=False)
         - render_edges:       Render edges  (default=True)
         - render_mates:       Render mates (for MAssemblies, default=False)
+        - render_joints:      Render build12d joints (default=False)
         - mate_scale:         Scale of rendered mates (for MAssemblies, default=1)
 
         VIEWER OPTIONS
@@ -125,6 +126,7 @@ class Defaults:
             "render_normals": False,
             "render_edges": True,
             "render_mates": False,
+            "render_joints": False,
             "parallel": False,
             "mate_scale": 1,
             #
@@ -282,6 +284,7 @@ def tessellation_args(config):
             "render_normals",
             "render_edges",
             "render_mates",
+            "render_joints",
             "mate_scale",
             "quality",
             "parallel",

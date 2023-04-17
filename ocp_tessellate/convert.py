@@ -425,6 +425,7 @@ def _to_assembly(
     colors=None,
     alphas=None,
     render_mates=None,
+    render_joints=None,
     mate_scale=1,
     default_color=None,
     show_parent=False,
@@ -543,6 +544,7 @@ def _to_assembly(
                     alphas=[obj_alpha],
                     mates=top_level_mates,
                     render_mates=render_mates,
+                    render_joints=render_joints,
                     mate_scale=mate_scale,
                     instances=instances,
                     progress=progress,
@@ -568,6 +570,7 @@ def _to_assembly(
                         colors=[obj_color],
                         alphas=[obj_alpha],
                         render_mates=render_mates,
+                        render_joints=render_joints,
                         mate_scale=mate_scale,
                         instances=instances,
                         progress=progress,
@@ -598,6 +601,29 @@ def _to_assembly(
 
                 pg.add(part)
 
+                if (
+                    render_joints
+                    and hasattr(cad_obj, "joints")
+                    and len(cad_obj.joints) > 0
+                ):
+                    _debug("    to_assembly: joints")
+                    pg.name = obj_name
+                    part.name = "shape"
+                    # create a new part group for mates
+                    pg2 = OCP_PartGroup(
+                        [
+                            conv(joint.symbol.wrapped, name)
+                            for name, joint in cad_obj.joints.items()
+                            if hasattr(joint, "symbol")
+                        ],
+                        name="joints",
+                        loc=identity_location(),  # mates inherit the parent location, so actually add a no-op
+                    )
+
+                    # add mates partgroup
+                    if pg2.objects:
+                        pg.add(pg2)
+
         elif is_cadquery_sketch(cad_obj):
             #
             # Special treatment for cadquery sketches
@@ -611,6 +637,7 @@ def _to_assembly(
                     colors=[obj_color],
                     alphas=[obj_alpha],
                     render_mates=render_mates,
+                    render_joints=render_joints,
                     mate_scale=mate_scale,
                     instances=instances,
                     progress=progress,
@@ -680,6 +707,7 @@ def to_assembly(
     colors=None,
     alphas=None,
     render_mates=None,
+    render_joints=None,
     mate_scale=1,
     default_color=None,
     show_parent=False,
@@ -694,6 +722,7 @@ def to_assembly(
         colors=colors,
         alphas=alphas,
         render_mates=render_mates,
+        render_joints=render_joints,
         mate_scale=mate_scale,
         default_color=default_color,
         show_parent=show_parent,
