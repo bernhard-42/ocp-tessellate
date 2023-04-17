@@ -641,8 +641,24 @@ def _to_assembly(
             else:
                 _debug("  to_assembly: generic case", obj_name)
                 if hasattr(cad_obj, "_dim") and cad_obj._dim == 3:
-                    part = get_instance(cad_obj, obj_name, rgba, instances, progress)
+                    if not isinstance(cad_obj, Iterable):
+                        _debug("    to_assembly: no iterable", obj_name)
+                        part = get_instance(
+                            cad_obj, obj_name, rgba, instances, progress
+                        )
+
+                    elif isinstance(cad_obj, Iterable) and len(cad_obj.solids()) == 1:
+                        _debug("    to_assembly: single solid", obj_name)
+                        part = get_instance(
+                            cad_obj.solids()[0], obj_name, rgba, instances, progress
+                        )
+
+                    else:
+                        _debug("    to_assembly: no iterable", obj_name)
+                        part = conv(cad_obj.wrapped, obj_name, color, alpha)
+
                 else:
+                    _debug("    to_assembly: everything else", obj_name)
                     part = conv(cad_obj.wrapped, obj_name, color, alpha)
 
                 if is_assembly and obj_name is not None:
