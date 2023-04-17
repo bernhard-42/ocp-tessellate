@@ -563,6 +563,36 @@ def _to_assembly(
                 )
                 pg.add(part)
 
+        # if Iterable but not a Compound and not a ShapeList
+        elif (
+            isinstance(cad_obj, Iterable)
+            and not hasattr(cad_obj, "wrapped")
+            and not hasattr(cad_obj, "first")
+            and not hasattr(cad_obj, "last")
+        ):
+            _debug(
+                "to_assembly: iterables other then Compounds and ShapeLists", obj_name
+            )
+
+            for child in cad_obj:
+                part, instances = _to_assembly(
+                    child,
+                    default_color=default_color,
+                    names=None,
+                    colors=[obj_color],
+                    alphas=[obj_alpha],
+                    render_mates=render_mates,
+                    render_joints=render_joints,
+                    mate_scale=mate_scale,
+                    instances=instances,
+                    progress=progress,
+                    is_assembly=is_assembly,
+                )
+                if isinstance(part, OCP_PartGroup) and len(part.objects) == 1:
+                    pg.add(part.objects[0])
+                else:
+                    pg.add(part)
+
         elif is_compound(cad_obj):
             _debug("to_assembly: compound")
 
