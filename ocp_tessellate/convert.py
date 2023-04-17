@@ -233,7 +233,6 @@ def conv_sketch(cad_obj):
 
 
 def conv(cad_obj, obj_name=None, obj_color=None, obj_alpha=1.0):
-
     default_color = get_default("default_color")
 
     if obj_name is None and hasattr(cad_obj, "label") and cad_obj.label != "":
