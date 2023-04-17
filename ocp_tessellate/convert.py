@@ -605,7 +605,8 @@ def _to_assembly(
                 # There is no top level shape, hence only get children
                 is_assembly = True
                 pg.loc = get_location(cad_obj, as_none=False)
-                pg.name = "Assembly" if obj_name is None else obj_name
+                name = "Assembly" if obj_name is None else obj_name
+                pg2 = OCP_PartGroup([], name, identity_location())
                 for child in cad_obj.children:
                     part, instances = _to_assembly(
                         child,
@@ -625,9 +626,11 @@ def _to_assembly(
                             part.objects[0].loc = part.loc
                         else:
                             part.objects[0].loc = part.loc * part.objects[0].loc
-                        pg.add(part.objects[0])
+                        pg2.add(part.objects[0])
                     else:
-                        pg.add(part)
+                        pg2.add(part)
+
+                pg.add(pg2)
 
             elif is_mixed_compound(cad_obj):
                 _debug("  to_assembly: mixed compound", obj_name)
