@@ -90,8 +90,8 @@ GROUP_NAME_LUT = {
 }
 
 
-def _debug(msg):
-    # print("DEBUG:", msg)
+def _debug(*msg):
+    # print("DEBUG:", *msg)
     pass
 
 
@@ -243,21 +243,23 @@ def conv(cad_obj, obj_name=None, obj_color=None, obj_alpha=1.0):
 
     # BuildPart, BuildSketch, BuildLine
     if is_build123d(cad_obj):
-        _debug(f"build123d Builder {type(cad_obj)}")
+        _debug(f"        conv: build123d Builder {type(cad_obj)}")
         cad_obj = getattr(cad_obj, cad_obj._obj_name)  # convert to direct API
 
     if is_build123d_compound(cad_obj):
-        _debug(f"build123d Compound {type(cad_obj)}")
+        _debug(f"        conv: build123d Compound {type(cad_obj)}")
         cad_objs = [cad_obj.wrapped]
 
     elif is_build123d_shape(cad_obj):
-        _debug(f"build123d Shape {type(cad_obj)}")
+        _debug(f"        conv: build123d Shape {type(cad_obj)}")
         cad_objs = get_downcasted_shape(cad_obj.wrapped)
 
     elif is_cadquery_sketch(cad_obj):
+        _debug("        conv: cadquery sketch")
         cad_objs = conv_sketch(cad_obj)
 
     elif is_cadquery(cad_obj):
+        _debug("        conv: cadquery")
         cad_objs = []
         for v in cad_obj.vals():
             if is_cadquery_sketch(v):
@@ -272,28 +274,30 @@ def conv(cad_obj, obj_name=None, obj_color=None, obj_alpha=1.0):
             cad_objs.extend(obj)
 
     elif is_wrapped(cad_obj):
+        _debug("        conv: wrapped object")
         if is_vector(cad_obj):
             cad_objs = [vertex(cad_obj.wrapped)]
         else:
             cad_objs = [cad_obj.wrapped]
 
     elif isinstance(cad_obj, Iterable):
+        _debug("        conv: iterable")
         objs = list(cad_obj)
         if len(objs) > 0 and is_wrapped(objs[0]):
             # ShapeList
-            _debug(f"build123d ShapeList {type(cad_obj)}")
+            _debug(f"        conv: build123d ShapeList {type(cad_obj)}")
             cad_objs = [downcast(obj.wrapped) for obj in objs]
         else:
             raise ValueError("Empty list cannot be tessellated")
 
     elif is_topods_compound(cad_obj):
-        _debug(f"CAD Obj TopoDS Compound")
+        _debug(f"        conv: CAD Obj TopoDS Compound")
 
         # Get the highest level shape
         cad_objs = [cad_obj]
 
     elif is_topods_shape(cad_obj):
-        _debug(f"CAD Obj TopoDS Shape")
+        _debug(f"        conv: CAD Obj TopoDS Shape")
         cad_objs = [downcast(cad_obj)]
 
     else:
@@ -305,6 +309,7 @@ def conv(cad_obj, obj_name=None, obj_color=None, obj_alpha=1.0):
     # Convert to PartGroup
 
     if is_solid_list(cad_objs):
+        _debug("          conv: solid_list")
         return OCP_Part(
             cad_objs,
             name=get_name(obj_name, cad_objs, "Solid", "Solids"),
@@ -312,6 +317,7 @@ def conv(cad_obj, obj_name=None, obj_color=None, obj_alpha=1.0):
         )
 
     elif is_face_list(cad_objs):
+        _debug("          conv: face_list")
         return OCP_Faces(
             cad_objs,
             name=get_name(obj_name, cad_objs, "Face", "Faces"),
@@ -319,6 +325,7 @@ def conv(cad_obj, obj_name=None, obj_color=None, obj_alpha=1.0):
         )
 
     elif is_wire_list(cad_objs):
+        _debug("          conv: wire_list")
         edges = []
         for wire in cad_objs:
             edges.extend(get_edges(wire))
@@ -331,6 +338,7 @@ def conv(cad_obj, obj_name=None, obj_color=None, obj_alpha=1.0):
         )
 
     elif is_edge_list(cad_objs):
+        _debug("          conv: edge_list")
         return OCP_Edges(
             cad_objs,
             name=get_name(obj_name, cad_objs, "Edge", "Edges"),
@@ -339,6 +347,7 @@ def conv(cad_obj, obj_name=None, obj_color=None, obj_alpha=1.0):
         )
 
     elif is_vertex_list(cad_objs):
+        _debug("          conv: vertex_list")
         return OCP_Vertices(
             cad_objs,
             name=get_name(obj_name, cad_objs, "Vertex", "Vertices"),
@@ -487,6 +496,8 @@ def _to_assembly(
                 obj_name = cad_obj.name
 
         if is_cadquery_assembly(cad_obj):
+            _debug("to_assembly: cadquery assembly", obj_name)
+
             #
             # Iterate over CadQuery Assembly
             #
@@ -553,11 +564,14 @@ def _to_assembly(
                 pg.add(part)
 
         elif is_compound(cad_obj):
+            _debug("to_assembly: compound")
+
             #
             # Iterate over Compound (includes build123d assemblies)
             #
 
             if is_build123d_assembly(cad_obj):
+                _debug("  to_assembly: build123d assembly", obj_name)
                 # There is no top level shape, hence only get children
                 is_assembly = True
                 pg.loc = get_location(cad_obj, as_none=False)
@@ -586,11 +600,13 @@ def _to_assembly(
                         pg.add(part)
 
             elif is_mixed_compound(cad_obj):
+                _debug("  to_assembly: mixed compound", obj_name)
                 for child in cad_obj:
                     part = conv(child.wrapped, obj_name, color, alpha)
                     pg.add(part)
 
             else:
+                _debug("  to_assembly: generic case", obj_name)
                 if hasattr(cad_obj, "_dim") and cad_obj._dim == 3:
                     part = get_instance(cad_obj, obj_name, rgba, instances, progress)
                 else:
@@ -625,6 +641,7 @@ def _to_assembly(
                         pg.add(pg2)
 
         elif is_cadquery_sketch(cad_obj):
+            _debug("to_assembly: cadquery sketch", obj_name)
             #
             # Special treatment for cadquery sketches
             #
@@ -648,6 +665,7 @@ def _to_assembly(
                     pg.add(part)
 
         else:
+            _debug("to_assembly: generic case", obj_name)
             #
             # Render non iterable objects
             #
