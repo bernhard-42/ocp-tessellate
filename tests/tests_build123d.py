@@ -24,7 +24,7 @@ with BuildLine() as pline:
 # %%
 
 # Parts
-
+box.label = "BOX"
 show(box)
 
 # %%
@@ -118,13 +118,13 @@ show(*box.faces(), colors=["red"] * 6, alphas=[0.4] * 6, render_normals=True)
 
 # %%
 
-show(box.vertices(), colors=[(0.0, 0.5, 1.0)])
+show(box.vertices(), colors=[(0.0, 0.5, 1.0)], show_parent=True)
 
 # %%
 
 show(
     *box.vertices().sort_by(Axis.X),
-    colors=[(1.0, 0.0, 0.0)] * 4 + [(0.0, 0.0, 0.0)] * 4
+    colors=[(1.0, 0.0, 0.0)] * 4 + [(0.0, 0.0, 0.0)] * 4,
 )
 
 # %%
@@ -190,5 +190,27 @@ show(r_located)
 # %%
 
 show(r_extruded)
+
+# %%
+
+r = Rectangle(1, 2)
+e = r.edges().filter_by(Axis.X)
+show(e, show_parent=True)
+
+# %%
+
+v = e[0].vertices()
+show(v, show_parent=True)
+
+# %%
+
+b = Box(1, 2, 3)
+f = b.faces().sort_by(Axis.Z).last
+e = f.edges().sort_by(Axis.X).last
+show(e.vertices(), show_parent=True)
+
+# %%
+
+show(b.vertices(), show_parent=True)
 
 # %%

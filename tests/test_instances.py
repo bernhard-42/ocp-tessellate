@@ -84,7 +84,6 @@ show(
 
 show(Pos(X=1.5) * b, Pos(X=-1.5) * b, timeit=False)
 
-
 # %%
 
 b = Box(0.1, 0.1, 1)
@@ -109,7 +108,15 @@ b = [reference(b, "pillar", p.to_location() * loc) for loc in PolarLocations(0.7
 show(*b)
 
 # %%
+b = Box(0.1, 0.1, 1)
+c = Cylinder(1, 0.5)
+p = Plane(c.faces().sort_by().last)
+b = [copy.copy(b).move(p.to_location() * loc) for loc in PolarLocations(0.7, 12)]
 
+show(*b, timeit=False)
+
+
+# %%
 c = Compound.make_compound(b + [c])
 show(*c.solids(), timeit=False)
 
