@@ -93,7 +93,7 @@ def get_size(obj):
     return size
 
 
-cache_size = os.environ.get("JCQ_CACHE_SIZE_MB")
+cache_size = os.environ.get("OCP_CACHE_SIZE_MB")
 if cache_size is None:
     cache_size = 128 * 1024 * 1024
 else:
