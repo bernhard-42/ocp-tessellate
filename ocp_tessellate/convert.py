@@ -730,8 +730,17 @@ def _to_assembly(
 
             # TODO Fix parent
             parent = None
-            if show_parent and hasattr(cad_obj, "parent"):
-                parent = cad_obj.parent
+            if show_parent:
+                if hasattr(cad_obj, "parent"):
+                    parent = cad_obj.parent
+                elif hasattr(cad_obj, "topo_parent"):
+                    parent = cad_obj.topo_parent
+                elif (
+                    isinstance(cad_obj, Iterable)
+                    and len(cad_obj) > 0
+                    and hasattr(cad_obj[0], "topo_parent")
+                ):
+                    parent = cad_obj[0].topo_parent
 
             if parent is not None:
                 pg.add(conv(parent, "parent", None, None))
@@ -799,6 +808,10 @@ def to_assembly(
     )
 
     if len(pg.objects) == 1 and isinstance(pg.objects[0], OCP_PartGroup):
+        if pg.objects[0].loc is None:
+            pg.objects[0].loc = pg.loc
+        elif pg.loc is not None:
+            pg.objects[0].loc = pg.loc * pg.objects[0].loc
         pg = pg.objects[0]
 
     set_instances([instance[1] for instance in instances])
