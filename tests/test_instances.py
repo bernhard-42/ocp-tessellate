@@ -3,7 +3,7 @@ from build123d import *
 from ocp_vscode import show, show_object
 
 
-def reference(obj, label=None, loc=None):
+def reference(obj, label, loc=None):
     new_obj = copy.copy(obj)
     if label is not None:
         new_obj.label = label
@@ -18,13 +18,17 @@ def reference(obj, label=None, loc=None):
 locs = HexLocations(6, 10, 10).local_locations
 
 box = Solid.make_sphere(5)
-box_references = [reference(box, loc=loc) for loc in locs]
+box_references = [
+    reference(box, label=f"Sphere_{i}", loc=loc) for i, loc in enumerate(locs)
+]
 assembly = Compound(children=box_references)
 
 show(assembly)
 # %%
 
-box_references = [reference(box, loc=loc) for loc in locs]
+box_references = [
+    reference(box, label=f"Sphere_{i}", loc=loc) for i, loc in enumerate(locs)
+]
 assembly = Compound(children=box_references)
 
 show(assembly)
@@ -50,14 +54,13 @@ show(
 
 s = Sphere(1)
 b = Box(1, 2, 3)
-b1 = reference(b, loc=Pos(X=3))
-b2 = reference(b, loc=Pos(X=-3))
+b1 = reference(b, label="b1", loc=Pos(X=3))
+b2 = reference(b, label="b2", loc=Pos(X=-3))
 
 show(
     s,
     b1,
     b2,
-    names=["s", "b1", "b2"],
     colors=["red", "green", "blue"],
     alphas=[0.8, 0.6, 0.4],
     timeit=False,

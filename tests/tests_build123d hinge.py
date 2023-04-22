@@ -1,7 +1,7 @@
 from build123d import *
-from ocp_vscode import show, reset_show, show_object
+from ocp_vscode import show_object
 
-
+# [Hinge Class]
 class Hinge(Compound):
     def __init__(
         self,
@@ -76,7 +76,7 @@ class Hinge(Compound):
             add(hinge_profile.part, rotation=(90, 0, 0), mode=Mode.INTERSECT)
 
             # Create holes for fasteners
-            with Workplanes(leaf_builder.part.faces().filter_by(Axis.Y)[-1]):
+            with Locations(leaf_builder.part.faces().filter_by(Axis.Y)[-1]):
                 with GridLocations(0, length / 3, 1, 3):
                     holes = CounterSinkHole(3 * MM, 5 * MM)
             # Add the hinge pin to the external leaf
@@ -126,8 +126,6 @@ class Hinge(Compound):
         # [Hinge Class]
 
 
-# %%
-
 # [Create instances of the two leaves of the hinge]
 hinge_inner = Hinge(
     width=5 * CM,
@@ -155,7 +153,7 @@ with BuildPart() as box_builder:
     with Locations((-15 * CM, 0, 5 * CM)):
         Box(2 * CM, 12 * CM, 4 * MM, mode=Mode.SUBTRACT)
     bbox = box.bounding_box()
-    with Workplanes(
+    with Locations(
         Plane(origin=(bbox.min.X, 0, bbox.max.Z - 30 * MM), z_dir=(-1, 0, 0))
     ):
         with GridLocations(0, 40 * MM, 1, 3):
@@ -169,6 +167,8 @@ with BuildPart() as box_builder:
 # [Demonstrate that objects with Joints can be moved and the joints follow]
 box = box_builder.part.moved(Location((0, 0, 5 * CM)))
 
+# %%
+
 # [The lid with a RigidJoint for the hinge]
 with BuildPart() as lid_builder:
     Box(30 * CM, 30 * CM, 1 * CM, align=(Align.MIN, Align.CENTER, Align.MIN))
@@ -181,7 +181,8 @@ with BuildPart() as lid_builder:
         Location((0, 0, 0), (0, 0, 180)),
     )
 lid = lid_builder.part
-lid.name = "lid"
+
+# %%
 
 # [A screw to attach the hinge to the box]
 m6_screw = import_step("tests/M6-1x12-countersunk-screw.step")
@@ -190,38 +191,57 @@ m6_joint = RigidJoint("head", m6_screw, Location((0, 0, 0), (0, 0, 0)))
 
 # [Connect Box to Outer Hinge]
 box.joints["hinge_attachment"].connect_to(hinge_outer.joints["leaf"])
-box.name = "box"
 
 # [Connect Hinge Leaves]
 hinge_outer.joints["hinge_axis"].connect_to(hinge_inner.joints["hinge_axis"], angle=120)
-hinge_outer.name = "hinge_outer"
 
 # [Connect Hinge to Lid]
 hinge_inner.joints["leaf"].connect_to(lid.joints["hinge_attachment"])
-hinge_inner.name = "hinge_inner"
 
 # [Connect Screw to Hole]
 hinge_outer.joints["hole2"].connect_to(m6_joint, position=5 * MM, angle=30)
+# [Connect Screw to Hole]
 
+# [Add labels]
+box.label = "box"
+lid.label = "lid"
+hinge_outer.label = "outer hinge"
+hinge_inner.label = "inner hinge"
+m6_screw.label = "M6 screw"
+
+# [Create assembly]
 box_assembly = Compound(label="assembly", children=[box, lid, hinge_inner, hinge_outer])
-
 # [Display assembly]
 print(box_assembly.show_topology())
 
+# [Add to the assembly by assigning the parent attribute of an object]
+m6_screw.parent = box_assembly
+print(box_assembly.show_topology())
+
+# [Check that the components in the assembly don't intersect]
+child_intersect, children, volume = box_assembly.do_children_intersect(
+    include_parent=False
+)
+print(f"do children intersect: {child_intersect}")
+if child_intersect:
+    print(f"{children} by {volume:0.3f} mm^3")
+
 if "show_object" in locals():
-    show_object(box_assembly, clear=True)
-    # show_object(box, name="box", options={"alpha": 0.8}, clear=True)
+    # show_object(box, name="box", options={"alpha": 0.8})
     # show_object(hinge_outer, name="hinge_outer")
     # show_object(lid, name="lid")
     # show_object(hinge_inner, name="hinge_inner")
+
     for hole in [0, 1, 2]:
         show_object(
             hinge_inner.joints["hole" + str(hole)].symbol,
             name="hinge_inner hole " + str(hole),
+            clear=True,
         )
         show_object(
             hinge_outer.joints["hole" + str(hole)].symbol,
             name="hinge_outer hole " + str(hole),
         )
-    show_object(m6_screw, name="m6 screw")
-    show_object(m6_joint.symbol, name="m6 screw symbol")
+    # show_object(m6_screw, name="m6 screw")
+    # show_object(m6_joint.symbol, name="m6 screw symbol")
+    show_object(box_assembly, name="box assembly")

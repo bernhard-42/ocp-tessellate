@@ -172,8 +172,6 @@ def reg_poly(radius, count):
     return s.sketch
 
 
-# %%
-
 c = cylinder(2, 0.1)
 p = Plane(c.faces().sort_by().last)
 r = reg_poly(0.1, 6)

@@ -2,10 +2,7 @@ import cadquery as cq
 import build123d as bd
 from ocp_tessellate.utils import Color
 from ocp_tessellate.ocp_utils import get_rgba
-from ocp_vscode import show, set_port
-
-set_port(3939)
-
+from ocp_vscode import show
 
 # %%
 

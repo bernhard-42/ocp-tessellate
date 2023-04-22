@@ -1,8 +1,9 @@
-from alg123d import *
+from build123d import *
 from ocp_tessellate.convert import to_assembly, tessellate_group
+from ocp_vscode import show
 
 b = Box(1, 1, 1)
-c = chamfer(b, b.edges(), 0.1)
+c = chamfer(b.edges(), 0.1)
 show(c, default_edgecolor=(255, 0, 0))
 stl_name = "chamfer_box.stl"
 c.export_stl(stl_name)
