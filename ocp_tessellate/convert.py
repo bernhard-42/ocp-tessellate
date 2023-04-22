@@ -372,7 +372,7 @@ def get_instance(obj, name, rgba, instances, progress):
             # create a referential OCP_Part
             part = OCP_Part(
                 {"ref": i},
-                name,
+                name if name is not None else "Solid",
                 rgba,
             )
             # and stop the loop
