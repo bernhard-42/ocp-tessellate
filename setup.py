@@ -28,7 +28,7 @@ setup_args = {
         "numpy",
         "numpy-quaternion",
         "cachetools~=5.2.0",
-        "cadquery_ocp>=7.6.3a0,<7.8",
+        # "cadquery_ocp>=7.6.3a0,<7.8",
     ],
     "extras_require": {
         "dev": {"twine", "bumpversion", "black", "pylint", "pyYaml"},
