@@ -733,18 +733,29 @@ def _to_assembly(
             if show_parent:
                 if hasattr(cad_obj, "parent"):
                     parent = cad_obj.parent
+                    topo = False
                 elif hasattr(cad_obj, "topo_parent"):
                     parent = cad_obj.topo_parent
+                    topo = True
                 elif (
                     isinstance(cad_obj, Iterable)
                     and len(cad_obj) > 0
                     and hasattr(cad_obj[0], "topo_parent")
                 ):
                     parent = cad_obj[0].topo_parent
+                    topo = True
 
-            if parent is not None:
-                pg.add(conv(parent, "parent", None, None))
-                pg.objects[0].state_faces = 0
+            ind = 0
+            parents = []
+            while parent is not None:
+                pname = "parent" if ind == 0 else f"parent({ind})"
+                parents.insert(0, conv(parent, pname, None, None))
+                parent = parent.topo_parent if topo else None
+                ind -= 1
+
+            for p in parents:
+                pg.add(p)
+                pg.objects[-1].state_faces = 0
 
             if is_solid:
                 # transform the solid to OCP
