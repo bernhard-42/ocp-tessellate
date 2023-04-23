@@ -629,9 +629,8 @@ def _to_assembly(
                 _debug("  to_assembly: build123d assembly", obj_name)
                 # There is no top level shape, hence only get children
                 is_assembly = True
-                pg.loc = get_location(cad_obj, as_none=False)
                 name = "Assembly" if obj_name is None else obj_name
-                pg2 = OCP_PartGroup([], name, identity_location())
+                pg2 = OCP_PartGroup([], name, get_location(cad_obj, as_none=False))
                 for child in cad_obj.children:
                     part, instances = _to_assembly(
                         child,
