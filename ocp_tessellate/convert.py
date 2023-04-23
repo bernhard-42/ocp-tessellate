@@ -16,6 +16,8 @@
 
 from collections.abc import Iterable
 
+import json
+
 from .cad_objects import (
     CoordSystem,
     OCP_Edges,
@@ -73,7 +75,7 @@ from .ocp_utils import (
     loc_to_tq,
 )
 
-from .utils import Color, make_unique
+from .utils import Color, make_unique, numpy_to_json
 
 EDGE_COLOR = "Silver"
 THICK_EDGE_COLOR = "MediumOrchid"
@@ -827,3 +829,36 @@ def to_assembly(
 
     set_instances([instance[1] for instance in instances])
     return pg
+
+
+def export_three_cad_viewer_json(obj, filename=None):
+    def decode(instances, shapes):
+        def walk(obj):
+            typ = None
+            for attr in obj.keys():
+                if attr == "parts":
+                    for part in obj["parts"]:
+                        walk(part)
+
+                elif attr == "type":
+                    typ = obj["type"]
+
+                elif attr == "shape":
+                    if typ == "shapes":
+                        if obj["shape"].get("ref") is not None:
+                            ind = obj["shape"]["ref"]
+                            obj["shape"] = instances[ind]
+
+        walk(shapes)
+
+    part_group = to_assembly(obj)
+    instances, shapes, states = tessellate_group(part_group)
+    decode(instances, shapes)
+
+    j = numpy_to_json([shapes, states])
+    if filename is None:
+        return j
+    else:
+        with open(filename, "w") as fd:
+            fd.write(j)
+        return json.dumps({"exported": filename})
