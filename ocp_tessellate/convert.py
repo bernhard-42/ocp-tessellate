@@ -664,6 +664,9 @@ def _to_assembly(
             else:
                 _debug("  to_assembly: generic case", obj_name)
                 if hasattr(cad_obj, "_dim") and cad_obj._dim == 3:
+                    if obj_name is None or obj_name == "":
+                        obj_name = "Solid"
+
                     if not isinstance(cad_obj, Iterable):
                         _debug("    to_assembly: no iterable", obj_name)
                         part = get_instance(
