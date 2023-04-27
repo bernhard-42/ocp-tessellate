@@ -302,7 +302,7 @@ def conv(cad_obj, obj_name=None, obj_color=None, obj_alpha=1.0):
         cad_objs = [downcast(cad_obj)]
 
     else:
-        raise RuntimeError(f"Cannot transform {cad_objs}({type(cad_objs)}) to OCP")
+        raise RuntimeError(f"Cannot transform {cad_obj}({type(cad_obj)}) to OCP")
 
     if is_compound_list(cad_objs):
         cad_objs = get_downcasted_shape(cad_objs[0])
