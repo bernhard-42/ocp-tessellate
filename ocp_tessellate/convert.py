@@ -833,7 +833,7 @@ def to_assembly(
     return pg
 
 
-def export_three_cad_viewer_json(obj, filename=None):
+def export_three_cad_viewer_json(*objs, filename=None):
     def decode(instances, shapes):
         def walk(obj):
             typ = None
@@ -853,7 +853,7 @@ def export_three_cad_viewer_json(obj, filename=None):
 
         walk(shapes)
 
-    part_group = to_assembly(obj)
+    part_group = to_assembly(*objs)
     instances, shapes, states = tessellate_group(part_group)
     decode(instances, shapes)
 
