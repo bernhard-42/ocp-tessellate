@@ -352,7 +352,7 @@ def conv(cad_obj, obj_name=None, obj_color=None, obj_alpha=1.0):
         return OCP_Vertices(
             cad_objs,
             name=get_name(obj_name, cad_objs, "Vertex", "Vertices"),
-            color=get_rgba(obj_color, 1.0, THICK_EDGE_COLOR),
+            color=get_rgba(obj_color, 1.0, VERTEX_COLOR),
             size=6,
         )
 
