@@ -699,7 +699,8 @@ def _to_assembly(
                     and len(cad_obj.joints) > 0
                 ):
                     _debug("    to_assembly: joints")
-                    pg.name = obj_name
+                    if obj_name is not None:
+                        pg.name = obj_name
                     part.name = "shape"
                     # create a new part group for mates
                     pg2 = OCP_PartGroup(
