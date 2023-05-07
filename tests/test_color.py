@@ -32,3 +32,17 @@ show(
 )
 
 # %%
+
+show(
+    bd.Pos(1,2,3) * b,
+    b.faces(),
+    b.edges(),
+    b.vertices(),
+    default_facecolor="yellow",
+    default_thickedgecolor=(0,0.2,0.8),
+    default_vertexcolor="red",
+    default_edgecolor="magenta",
+    default_color=(0,0,255)
+)
+
+# %%

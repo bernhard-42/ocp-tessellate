@@ -17,19 +17,20 @@ def reference(obj, label, loc=None):
 
 locs = HexLocations(6, 10, 10).local_locations
 
-box = Solid.make_sphere(5)
-box_references = [
-    reference(box, label=f"Sphere_{i}", loc=loc) for i, loc in enumerate(locs)
+sphere = Solid.make_sphere(5)
+sphere_references = [
+    reference(sphere, label=f"Sphere_{i}", loc=loc) for i, loc in enumerate(locs)
 ]
-assembly = Compound(children=box_references)
+assembly = Compound(children=sphere_references)
 
 show(assembly)
 # %%
 
-box_references = [
-    reference(box, label=f"Sphere_{i}", loc=loc) for i, loc in enumerate(locs)
+sphere = Solid.make_sphere(4)
+spheres = [
+    loc * sphere for i, loc in enumerate(locs)
 ]
-assembly = Compound(children=box_references)
+assembly = Compound(children=spheres)
 
 show(assembly)
 
