@@ -523,7 +523,7 @@ def get_downcasted_shape(shape):
         objs = get_vertices(shape)
 
     else:
-        raise NotImplementedError("Unknow TopoDS Compound")
+        raise ValueError("Compound is empty")
 
     return [downcast(obj) for obj in objs]
 
