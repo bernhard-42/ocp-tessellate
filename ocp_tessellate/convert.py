@@ -36,6 +36,7 @@ from .ocp_utils import (
     downcast,
     get_downcasted_shape,
     get_edges,
+    get_faces,
     get_location,
     get_rgba,
     get_tshape,
@@ -45,6 +46,7 @@ from .ocp_utils import (
     is_build123d_assembly,
     is_build123d_compound,
     is_build123d_shape,
+    is_build123d_shell,
     is_build123d,
     is_cadquery_assembly,
     is_cadquery_massembly,
@@ -56,12 +58,14 @@ from .ocp_utils import (
     is_face_list,
     is_compound_list,
     is_solid_list,
+    is_shell_list,
     is_toploc_location,
     is_topods_compound,
     is_topods_edge,
     is_topods_face,
     is_topods_shape,
     is_topods_solid,
+    is_topods_shell,
     is_topods_vertex,
     is_topods_wire,
     is_vector,
@@ -251,6 +255,13 @@ def conv(cad_obj, obj_name=None, obj_color=None, obj_alpha=1.0):
         _debug(f"        conv: build123d Compound {type(cad_obj)}")
         cad_objs = [cad_obj.wrapped]
 
+    elif is_build123d_shell(cad_obj):
+        _debug(f"        conv: build123d Shell {type(cad_obj)}")
+        cad_objs = []
+        obj_name = "Shell" if obj_name is None else obj_name
+        for obj in cad_obj.faces():
+            cad_objs += get_downcasted_shape(obj.wrapped)
+
     elif is_build123d_shape(cad_obj):
         _debug(f"        conv: build123d Shape {type(cad_obj)}")
         cad_objs = get_downcasted_shape(cad_obj.wrapped)
@@ -315,6 +326,17 @@ def conv(cad_obj, obj_name=None, obj_color=None, obj_alpha=1.0):
             cad_objs,
             name=get_name(obj_name, cad_objs, "Solid", "Solids"),
             color=get_rgba(obj_color, obj_alpha, Color(default_color)),
+        )
+
+    elif is_shell_list(cad_objs):
+        _debug("          conv: shell_list")
+        faces = []
+        for shell in cad_objs:
+            faces += list(get_faces(shell))
+        return OCP_Faces(
+            faces,
+            name=get_name(obj_name, cad_objs, "Shell", "Shells"),
+            color=get_rgba(obj_color, obj_alpha, Color(FACE_COLOR)),
         )
 
     elif is_face_list(cad_objs):

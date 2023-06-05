@@ -65,6 +65,7 @@ from OCP.TopoDS import (
     TopoDS_Face,
     TopoDS_Shape,
     TopoDS_Solid,
+    TopoDS_Shell,
     TopoDS_Vertex,
     TopoDS_Wire,
 )
@@ -163,6 +164,10 @@ def is_build123d(obj):
 
 def is_build123d_shape(obj):
     return _has(obj, ["wrapped", "children"])
+
+
+def is_build123d_shell(obj):
+    return hasattr(obj, "wrapped") and is_topods_shell(obj.wrapped)
 
 
 def is_build123d_compound(obj):
@@ -550,6 +555,10 @@ def is_topods_solid(topods_shape):
     return isinstance(topods_shape, TopoDS_Solid)
 
 
+def is_topods_shell(topods_shape):
+    return isinstance(topods_shape, TopoDS_Shell)
+
+
 def is_topods_face(topods_shape):
     return isinstance(topods_shape, TopoDS_Face)
 
@@ -572,6 +581,10 @@ def is_compound_list(topods_list):
 
 def is_solid_list(topods_list):
     return all([is_topods_solid(obj) for obj in topods_list])
+
+
+def is_shell_list(topods_list):
+    return all([is_topods_shell(obj) for obj in topods_list])
 
 
 def is_face_list(topods_list):
