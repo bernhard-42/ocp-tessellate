@@ -654,6 +654,9 @@ def _to_assembly(
                     else:
                         pg2.add(part)
 
+                names = make_unique([obj.name for obj in pg2.objects])
+                for name, obj in zip(names, pg2.objects):
+                    obj.name = name
                 pg.add(pg2)
 
             elif is_mixed_compound(cad_obj):
@@ -771,7 +774,10 @@ def _to_assembly(
                 pg.add(part)
 
             elif isinstance(cad_obj, OCP_PartGroup):
-                pg = cad_obj
+                names = make_unique([obj.name for obj in cad_obj.objects])
+                for name, obj in zip(names, cad_obj.objects):
+                    obj.name = name
+                pg.add(cad_obj)
 
             elif isinstance(cad_obj, (OCP_Faces, OCP_Edges, OCP_Vertices)):
                 pg.add(cad_obj)
