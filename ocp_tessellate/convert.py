@@ -736,9 +736,9 @@ def _to_assembly(
                     and len(cad_obj.joints) > 0
                 ):
                     _debug("    to_assembly: joints")
-                    if obj_name is not None:
-                        pg.name = obj_name
-                    part.name = "shape"
+                    # if obj_name is not None:
+                    #     pg.name = obj_name
+                    # part.name = "shape"
                     # create a new part group for mates
                     pg2 = OCP_PartGroup(
                         [
@@ -746,7 +746,7 @@ def _to_assembly(
                             for name, joint in cad_obj.joints.items()
                             if hasattr(joint, "symbol")
                         ],
-                        name="joints",
+                        name=f"{part.name}[joints]",
                         loc=identity_location(),  # mates inherit the parent location, so actually add a no-op
                     )
 
