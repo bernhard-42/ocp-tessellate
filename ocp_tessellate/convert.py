@@ -521,13 +521,22 @@ def _to_assembly(
         if is_cadquery_assembly(cad_obj):
             _debug("to_assembly: cadquery assembly", obj_name)
 
+            add_to_ass = False
+            if is_assembly:
+                ass = pg
+                ass.name = cad_obj.name
+                ass.loc = get_location(cad_obj, as_none=False)
+            else:
+                add_to_ass = True
+                ass = OCP_PartGroup(
+                    [],
+                    name="Group" if obj_name is None else obj_name,
+                    loc=get_location(cad_obj, as_none=False),
+                )
             #
             # Iterate over CadQuery Assembly
             #
             is_assembly = True
-
-            pg.name = cad_obj.name
-            pg.loc = get_location(cad_obj, as_none=False)
 
             if cad_obj.obj is not None:
                 # Get an existing instance id or tessellate this object
@@ -539,7 +548,7 @@ def _to_assembly(
                     part = conv(cad_obj.obj, cad_obj.name, color, alpha)
                 else:
                     part = get_instance(cad_obj.obj, pg.name, rgba, instances, progress)
-                pg.add(part)
+                ass.add(part)
 
             # render mates
             top_level_mates = None
@@ -565,7 +574,7 @@ def _to_assembly(
 
                 # add mates partgroup
                 if pg2.objects:
-                    pg.add(pg2)
+                    ass.add(pg2)
 
             # iterate recursively over all children
             for child in cad_obj.children:
@@ -584,7 +593,10 @@ def _to_assembly(
                     progress=progress,
                     is_assembly=is_assembly,
                 )
-                pg.add(part)
+                ass.add(part)
+
+            if add_to_ass:
+                pg.add(ass)
 
         elif is_cadquery_sketch(cad_obj):
             _debug("to_assembly: cadquery sketch", obj_name)
