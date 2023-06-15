@@ -170,7 +170,7 @@ def is_wrapped(obj):
 
 
 def is_build123d(obj):
-    return _has(obj, ["_obj", "_obj_name"])
+    return _has(obj, ["_obj", "_obj_name"]) and not isinstance(obj, type)
 
 
 def is_build123d_shape(obj):
