@@ -39,7 +39,18 @@ from OCP.BRepMesh import BRepMesh_IncrementalMesh
 from OCP.BRepTools import BRepTools
 from OCP.GCPnts import GCPnts_AbscissaPoint
 from OCP.GeomAbs import GeomAbs_CurveType
-from OCP.gp import gp_Pnt, gp_Quaternion, gp_Trsf, gp_Vec
+from OCP.gp import (
+    gp_Pnt,
+    gp_Quaternion,
+    gp_Trsf,
+    gp_Vec,
+    gp_Ax1,
+    gp_Ax2,
+    gp_Ax3,
+    gp_Dir,
+    gp_Pln,
+    gp_Circ,
+)
 from OCP.GProp import GProp_GProps
 from OCP.Quantity import Quantity_ColorRGBA
 from OCP.StlAPI import StlAPI_Writer
@@ -540,6 +551,20 @@ def is_toploc_location(obj):
     return isinstance(obj, TopLoc_Location)
 
 
+# Check gp_Pln
+
+
+def is_gp_plane(obj):
+    return isinstance(obj, gp_Pln)
+
+
+# Check gp_Ax1
+
+
+def is_gp_axis(obj):
+    return isinstance(obj, gp_Ax1)
+
+
 # Check TopoDS shapes
 
 
@@ -718,15 +743,73 @@ def vertex(obj):
     return downcast(BRepBuilderAPI_MakeVertex(gp_Pnt(x, y, z)).Vertex())
 
 
+def vector(xyz):
+    return gp_Vec(*xyz)
+
+
 def line(start, end):
-    return downcast(BRepBuilderAPI_MakeEdge(gp_Pnt(*start), gp_Pnt(*end)).Edge())
+    if isinstance(start, (list, tuple)):
+        start = gp_Pnt(*start)
+    if isinstance(end, (list, tuple)):
+        end = gp_Pnt(*end)
+    return downcast(
+        BRepBuilderAPI_MakeEdge(gp_Pnt(*start.Coord()), gp_Pnt(*end.Coord())).Edge()
+    )
+
+
+def circle(origin, z_dir, radius):
+    ax = gp_Ax2(gp_Pnt(*origin), gp_Dir(*z_dir))
+    circle_gp = gp_Circ(ax, radius)
+    return BRepBuilderAPI_MakeEdge(circle_gp).Edge()
+
+
+def axis_to_vecs(origin, z_dir):
+    ax3 = gp_Ax3(gp_Pnt(*origin), gp_Dir(*z_dir))
+    o = gp_Vec(ax3.Location().XYZ())
+    x = gp_Vec(ax3.XDirection().XYZ())
+    y = gp_Vec(ax3.YDirection().XYZ())
+    z = gp_Vec(ax3.Direction().XYZ())
+    return (o, x, y, z)
+
+
+def loc_to_vecs(origin, x_dir, z_dir):
+    ax3 = gp_Ax3(gp_Pnt(*origin), gp_Dir(*z_dir), gp_Dir(*x_dir))
+    o = gp_Vec(ax3.Location().XYZ())
+    x = gp_Vec(ax3.XDirection().XYZ())
+    y = gp_Vec(ax3.YDirection().XYZ())
+    z = gp_Vec(ax3.Direction().XYZ())
+    return (o, x, y, z)
+
+
+def is_same_plane(plane1, plane2):
+    coordSystem1 = plane1.Position()
+    coordSystem2 = plane2.Position()
+
+    return (
+        coordSystem1.Location().IsEqual(coordSystem2.Location(), 1e-6)
+        and coordSystem1.XDirection().IsEqual(coordSystem2.XDirection(), 1e-6)
+        and coordSystem1.YDirection().IsEqual(coordSystem2.YDirection(), 1e-6)
+        and coordSystem1.Direction().IsEqual(coordSystem2.Direction(), 1e-6)
+    )
+
+
+def is_plane_xy(plane):
+    return is_same_plane(
+        plane, gp_Pln(gp_Ax3(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1), gp_Dir(1, 0, 0)))
+    )
+
+
+def normalized(v):
+    if not isinstance(v, gp_Vec):
+        v = gp_Vec(*v)
+    return v.Normalized()
 
 
 def cross(v1, v2):
-    x = gp_Vec(*v1).Normalized()
-    z = gp_Vec(*v2).Normalized()
+    x = normalized(v1)
+    z = normalized(v2)
     y = x.Crossed(z).Normalized()
-    return (y.X(), y.Y(), y.Z())
+    return y.Coord()
 
 
 def tq_to_loc(t, q):
@@ -779,6 +862,31 @@ def get_location(obj, as_none=True):
         return loc
     else:
         raise TypeError(f"Unknown location typ {type(loc)}")
+
+
+def get_axis_coord(axis):
+    return {
+        "origin": axis.Location().Coord(),
+        "z_dir": axis.Direction().Coord(),
+    }
+
+
+def get_location_coord(loc):
+    trsf = loc.Transformation()
+
+    origin = trsf.TranslationPart()
+    q = trsf.GetRotation()
+
+    x_dir = q * gp_Vec(1, 0, 0)
+    y_dir = q * gp_Vec(0, 1, 0)
+    z_dir = q * gp_Vec(0, 0, 1)
+
+    return {
+        "origin": origin.Coord(),
+        "x_dir": x_dir.Coord(),
+        "y_dir": y_dir.Coord(),
+        "z_dir": z_dir.Coord(),
+    }
 
 
 def copy_shape(obj):
