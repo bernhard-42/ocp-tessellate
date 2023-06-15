@@ -25,9 +25,13 @@ from .ocp_utils import (
     np_bbox,
     is_line,
     line,
-    make_compound,
+    axis_to_vecs,
+    loc_to_vecs,
+    vertex,
     identity_location,
+    make_compound,
     cross,
+    normalized,
 )
 from .tessellator import discretize_edge, tessellate, compute_quality
 from .mp_tessellator import is_apply_result, mp_tessellate, init_pool, keymap
@@ -442,11 +446,25 @@ class OCP_PartGroup(CADObject):
         return make_compound(self.compounds())
 
 
+class CoordAxis(OCP_Edges):
+    def __init__(self, name, origin, z_dir, size=1):
+        o, x, y, z = axis_to_vecs(origin, z_dir)
+        edge = line(o, o + size * z)
+        a2 = line(o + size * z, o + size * 0.9 * z - 0.025 * x)
+        a3 = line(o + size * z, o + size * 0.9 * z + 0.025 * x)
+        a4 = line(o + size * z, o + size * 0.9 * z - 0.025 * y)
+        a5 = line(o + size * z, o + size * 0.9 * z + 0.025 * y)
+        # c = circle((o + size * 0.9 * z).Coord(), z_dir, 0.025)
+        colors = Color("black")
+        super().__init__([edge, a2, a3, a4, a5], name, colors, width=3)
+
+
 class CoordSystem(OCP_Edges):
-    def __init__(self, name, origin, X, Z, size=1):
-        Y = cross(X, Z)
-        x_edge = line(origin, [o + v * size for o, v in zip(origin, X)])
-        y_edge = line(origin, [o + v * size for o, v in zip(origin, Y)])
-        z_edge = line(origin, [o + v * size for o, v in zip(origin, Z)])
+    def __init__(self, name, origin, x_dir, z_dir, size=1):
+        o, x, y, z = loc_to_vecs(origin, x_dir, z_dir)
+        x_edge = line(o, o + size * x)
+        y_edge = line(o, o + size * y)
+        z_edge = line(o, o + size * z)
+
         colors = (Color("red"), Color("green"), Color("blue"))
         super().__init__([x_edge, y_edge, z_edge], name, colors, width=3)
