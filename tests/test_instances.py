@@ -1,3 +1,4 @@
+# %%
 import copy
 from build123d import *
 from ocp_vscode import show, show_object
@@ -18,18 +19,14 @@ def reference(obj, label, loc=None):
 locs = HexLocations(6, 10, 10).local_locations
 
 sphere = Solid.make_sphere(5)
-sphere_references = [
-    reference(sphere, label=f"Sphere_{i}", loc=loc) for i, loc in enumerate(locs)
-]
+sphere_references = [reference(sphere, label="Sphere", loc=loc) for loc in locs]
 assembly = Compound(children=sphere_references)
 
 show(assembly)
 # %%
 
 sphere = Solid.make_sphere(4)
-spheres = [
-    loc * sphere for i, loc in enumerate(locs)
-]
+spheres = [loc * sphere for loc in locs]
 assembly = Compound(children=spheres)
 
 show(assembly)

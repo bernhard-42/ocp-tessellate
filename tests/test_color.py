@@ -1,3 +1,4 @@
+# %%
 import cadquery as cq
 import build123d as bd
 from ocp_tessellate.utils import Color
@@ -34,15 +35,14 @@ show(
 # %%
 
 show(
-    bd.Pos(1,2,3) * b,
+    bd.Pos(1, 2, 3) * b,
     b.faces(),
     b.edges(),
     b.vertices(),
     default_facecolor="yellow",
-    default_thickedgecolor=(0,0.2,0.8),
+    default_thickedgecolor=(0, 0.2, 0.8),
     default_vertexcolor="red",
     default_edgecolor="magenta",
-    default_color=(0,0,255)
+    default_color=(0, 0, 255),
 )
-
 # %%

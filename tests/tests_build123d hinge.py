@@ -1,5 +1,11 @@
+# %%
 from build123d import *
-from ocp_vscode import show_object
+from ocp_vscode import show_object, set_defaults
+
+set_defaults(render_joints=True)
+
+# %%
+
 
 # [Hinge Class]
 class Hinge(Compound):
@@ -14,7 +20,7 @@ class Hinge(Compound):
     ):
         # The profile of the hinge used to create the tabs
         with BuildPart() as hinge_profile:
-            with BuildSketch():
+            with BuildSketch() as sk:
                 for i, loc in enumerate(
                     GridLocations(0, length / 5, 1, 5, align=(Align.MIN, Align.MIN))
                 ):
@@ -48,8 +54,8 @@ class Hinge(Compound):
 
         # Either the external and internal leaf with joints
         with BuildPart() as leaf_builder:
-            with BuildSketch():
-                with BuildLine():
+            with BuildSketch() as sk:
+                with BuildLine() as ln:
                     l1 = Line((0, 0), (width - barrel_diameter / 2, 0))
                     l2 = RadiusArc(
                         l1 @ 1,

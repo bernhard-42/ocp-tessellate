@@ -3,7 +3,7 @@ import numpy as np
 from cadquery_massembly import MAssembly
 from ocp_vscode import show, Animation, set_defaults
 
-set_defaults(mate_scale=5)
+set_defaults(render_mates=True, mate_scale=5)
 
 from ocp_tessellate import web_color
 
@@ -47,7 +47,6 @@ def create_base(rotate=False):
         .rect(thickness + 2 * tol, width / 2 + 2 * tol)
         .extrude(thickness)
     )
-    base
 
     # tag mating points
     if rotate:
