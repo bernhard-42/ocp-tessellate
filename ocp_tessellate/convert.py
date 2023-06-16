@@ -20,6 +20,7 @@ import json
 
 from .cad_objects import (
     CoordSystem,
+    CoordAxis,
     OCP_Edges,
     OCP_Faces,
     OCP_Part,
@@ -41,6 +42,8 @@ from .ocp_utils import (
     get_rgba,
     get_tshape,
     get_tlocation,
+    get_location_coord,
+    get_axis_coord,
     get_tuple,
     identity_location,
     is_build123d_assembly,
@@ -72,6 +75,9 @@ from .ocp_utils import (
     is_vertex_list,
     is_wire_list,
     is_wrapped,
+    is_gp_axis,
+    is_gp_plane,
+    is_plane_xy,
     make_compound,
     np_bbox,
     ocp_color,
@@ -622,6 +628,28 @@ def _to_assembly(
                 else:
                     pg.add(part)
 
+        elif (
+            is_build123d(cad_obj)
+            and hasattr(cad_obj, "sketch_local")
+            and not (
+                len(cad_obj.workplanes) == 1
+                and is_plane_xy(cad_obj.workplanes[0].wrapped)
+            )
+        ):
+            _debug("to_assembly: BuildSketch with plane != Plane.XY", obj_name)
+            obj = OCP_PartGroup(
+                [
+                    conv(cad_obj.sketch.faces(), obj_name="sketch"),
+                    conv(
+                        cad_obj.sketch_local.faces(),
+                        obj_name="sketch_local",
+                        obj_alpha=0.2,
+                    ),
+                ],
+                name="sketch" if obj_name is None else obj_name,
+            )
+            pg.add(obj)
+
         # if Iterable but not a Compound and not a ShapeList
         elif (
             isinstance(cad_obj, Iterable)
@@ -633,6 +661,7 @@ def _to_assembly(
                 "to_assembly: iterables other then Compounds and ShapeLists", obj_name
             )
 
+            pg2 = OCP_PartGroup([], name="List" if obj_name is None else obj_name)
             for child in cad_obj:
                 part, instances = _to_assembly(
                     child,
