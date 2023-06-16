@@ -524,6 +524,14 @@ def _to_assembly(
             ):
                 obj_name = cad_obj.name
 
+        if is_cadquery(cad_obj) and (
+            len(cad_obj.objects) == 0
+            or (len(cad_obj.objects) == 1 and is_vector(cad_obj.objects[0]))
+        ):  # Workplane:
+            cad_obj = cad_obj.plane.location
+            if obj_name is None:
+                obj_name = "workplane"
+
         if is_cadquery_assembly(cad_obj):
             _debug("to_assembly: cadquery assembly", obj_name)
 
