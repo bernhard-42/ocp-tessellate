@@ -21,7 +21,9 @@ show(ax, ay, az)
 # %%
 
 from build123d import *
+from ocp_vscode import set_defaults
 
+set_defaults(helper_scale=5)
 loc = Location((1, 2, 3), (10, 20, 30))
 
 ox = loc.x_axis.position.to_tuple()
@@ -41,6 +43,9 @@ show(c, ax, ay, az)
 # %%
 
 # %%
-p = Plane(Location((1, 2, 3), (10, 20, 30)))
+p = Plane(Location((1, 2, 3), (10, 20, 30)), helper_scale=1)
 show(p)
+# %%
+b = Box(1, 2, 3)
+show(b, Location())
 # %%

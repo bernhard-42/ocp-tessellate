@@ -464,7 +464,7 @@ def _to_assembly(
     alphas=None,
     render_mates=None,
     render_joints=None,
-    mate_scale=1,
+    helper_scale=1,
     default_color=None,
     show_parent=False,
     loc=None,
@@ -577,7 +577,7 @@ def _to_assembly(
                             get_tuple(mate_def.mate.origin),
                             get_tuple(mate_def.mate.x_dir),
                             get_tuple(mate_def.mate.z_dir),
-                            mate_scale,
+                            helper_scale,
                         )
                         for name, mate_def in top_level_mates.items()
                         if mate_def.assembly == cad_obj
@@ -602,7 +602,7 @@ def _to_assembly(
                     mates=top_level_mates,
                     render_mates=render_mates,
                     render_joints=render_joints,
-                    mate_scale=mate_scale,
+                    helper_scale=helper_scale,
                     instances=instances,
                     progress=progress,
                     is_assembly=is_assembly,
@@ -627,7 +627,7 @@ def _to_assembly(
                     alphas=[obj_alpha],
                     render_mates=render_mates,
                     render_joints=render_joints,
-                    mate_scale=mate_scale,
+                    helper_scale=helper_scale,
                     instances=instances,
                     progress=progress,
                 )
@@ -679,7 +679,7 @@ def _to_assembly(
                     alphas=[obj_alpha],
                     render_mates=render_mates,
                     render_joints=render_joints,
-                    mate_scale=mate_scale,
+                    helper_scale=helper_scale,
                     instances=instances,
                     progress=progress,
                     is_assembly=is_assembly,
@@ -706,6 +706,7 @@ def _to_assembly(
                 coord["origin"],
                 coord["x_dir"],
                 coord["z_dir"],
+                size=helper_scale,
             )
             pg.add(obj)
 
@@ -715,6 +716,7 @@ def _to_assembly(
                 "axis" if obj_name is None else obj_name,
                 coord["origin"],
                 coord["z_dir"],
+                size=helper_scale,
             )
             pg.add(obj)
 
@@ -740,7 +742,7 @@ def _to_assembly(
                         alphas=[obj_alpha],
                         render_mates=render_mates,
                         render_joints=render_joints,
-                        mate_scale=mate_scale,
+                        helper_scale=helper_scale,
                         instances=instances,
                         progress=progress,
                         is_assembly=is_assembly,
@@ -905,7 +907,7 @@ def to_assembly(
     alphas=None,
     render_mates=None,
     render_joints=None,
-    mate_scale=1,
+    helper_scale=1,
     default_color=None,
     show_parent=False,
     loc=None,
@@ -920,7 +922,7 @@ def to_assembly(
         alphas=alphas,
         render_mates=render_mates,
         render_joints=render_joints,
-        mate_scale=mate_scale,
+        helper_scale=helper_scale,
         default_color=default_color,
         show_parent=show_parent,
         loc=loc,

@@ -53,7 +53,7 @@ class Defaults:
         - render_edges:       Render edges  (default=True)
         - render_mates:       Render mates (for MAssemblies, default=False)
         - render_joints:      Render build12d joints (default=False)
-        - mate_scale:         Scale of rendered mates (for MAssemblies, default=1)
+        - helper_scale:         Scale of rendered mates (for MAssemblies, default=1)
 
         VIEWER OPTIONS
         - control:            Use trackball controls ('trackball') or orbit controls ('orbit') (default='trackball')
@@ -128,7 +128,7 @@ class Defaults:
             "render_mates": False,
             "render_joints": False,
             "parallel": False,
-            "mate_scale": 1,
+            "helper_scale": 1,
             #
             # viewer options
             #
@@ -285,7 +285,7 @@ def tessellation_args(config):
             "render_edges",
             "render_mates",
             "render_joints",
-            "mate_scale",
+            "helper_scale",
             "quality",
             "parallel",
         ]

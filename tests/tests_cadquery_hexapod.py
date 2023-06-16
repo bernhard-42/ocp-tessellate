@@ -1,9 +1,10 @@
+# %%
 import cadquery as cq
 import numpy as np
 from cadquery_massembly import MAssembly
 from ocp_vscode import show, Animation, set_defaults
 
-set_defaults(render_mates=True, mate_scale=5)
+set_defaults(render_mates=True, helper_scale=5)
 
 from ocp_tessellate import web_color
 
@@ -274,7 +275,7 @@ hexapod.assemble("top", "bottom")
 for stand_name in stand_names:
     hexapod.assemble(f"{stand_name}", f"{stand_name}_bottom")
 
-show(hexapod, render_mates=True, mate_scale=5, timeit=False)
+show(hexapod, render_mates=True, helper_scale=5, timeit=False)
 
 # %%
 
