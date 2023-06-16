@@ -677,9 +677,38 @@ def _to_assembly(
                     is_assembly=is_assembly,
                 )
                 if isinstance(part, OCP_PartGroup) and len(part.objects) == 1:
-                    pg.add(part.objects[0])
+                    pg2.add(part.objects[0])
                 else:
-                    pg.add(part)
+                    pg2.add(part)
+
+            names = make_unique([obj.name for obj in pg2.objects])
+            for name, obj in zip(names, pg2.objects):
+                obj.name = name
+            pg.add(pg2)
+
+        elif hasattr(cad_obj, "wrapped") and (
+            is_toploc_location(cad_obj.wrapped) or is_gp_plane(cad_obj.wrapped)
+        ):
+            if is_gp_plane(cad_obj.wrapped) and hasattr(cad_obj, "to_location"):
+                cad_obj = cad_obj.to_location()
+
+            coord = get_location_coord(cad_obj.wrapped)
+            obj = CoordSystem(
+                "location" if obj_name is None else obj_name,
+                coord["origin"],
+                coord["x_dir"],
+                coord["z_dir"],
+            )
+            pg.add(obj)
+
+        elif hasattr(cad_obj, "wrapped") and is_gp_axis(cad_obj.wrapped):
+            coord = get_axis_coord(cad_obj.wrapped)
+            obj = CoordAxis(
+                "axis" if obj_name is None else obj_name,
+                coord["origin"],
+                coord["z_dir"],
+            )
+            pg.add(obj)
 
         elif is_compound(cad_obj):
             _debug("to_assembly: compound")
