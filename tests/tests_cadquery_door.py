@@ -1,3 +1,4 @@
+# %%
 from os.path import expanduser
 import cadquery as cq
 from ocp_vscode import show
@@ -13,9 +14,7 @@ H = 400
 W = 200
 D = 350
 
-PROFILE = cq.importers.importDXF(
-    expanduser("~/Development/vslot-2020_1.dxf")
-).wires()
+PROFILE = cq.importers.importDXF(expanduser("~/Development/vslot-2020_1.dxf")).wires()
 
 SLOT_D = 6
 PANEL_T = 3
@@ -26,12 +25,10 @@ HANDLE_W = 4
 
 
 def make_vslot(l):
-
     return PROFILE.toPending().extrude(l)
 
 
 def make_connector():
-
     rv = (
         cq.Workplane()
         .box(20, 20, 20)
@@ -51,7 +48,6 @@ def make_connector():
 
 
 def make_panel(w, h, t, cutout):
-
     rv = (
         cq.Workplane("XZ")
         .rect(w, h)
@@ -74,7 +70,6 @@ def make_panel(w, h, t, cutout):
 
 
 def make_handle(w, h, r):
-
     pts = ((0, 0), (w, 0), (w, h), (0, h))
 
     path = cq.Workplane().polyline(pts)

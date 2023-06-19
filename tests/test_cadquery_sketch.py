@@ -1,3 +1,4 @@
+# %%
 import cadquery as cq
 from ocp_vscode import show, set_defaults
 

@@ -1,3 +1,4 @@
+# %%
 import cadquery as cq
 from ocp_vscode import show
 
@@ -103,4 +104,4 @@ c = (
     #    .vertices()
 )
 
-show(c)  # %%
+show(c)

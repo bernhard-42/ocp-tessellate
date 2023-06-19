@@ -1,3 +1,4 @@
+# %%
 from build123d import *
 from ocp_tessellate.convert import to_assembly, tessellate_group
 from ocp_vscode import show

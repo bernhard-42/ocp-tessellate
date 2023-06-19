@@ -1,3 +1,4 @@
+# %%
 from build123d import *
 from ocp_vscode import show
 
@@ -137,6 +138,7 @@ show(*box.edges(), *box.faces(), *box.vertices())
 
 mixed = Compound.make_compound(box.faces() + box.edges())
 show(sphere, mixed)
+
 
 # %%
 def axis_symbol(self, l=1) -> Edge:

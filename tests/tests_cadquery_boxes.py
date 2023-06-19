@@ -1,3 +1,4 @@
+# %%
 import cadquery as cq
 from ocp_vscode import show
 from cadquery_massembly import MAssembly

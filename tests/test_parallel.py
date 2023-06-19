@@ -1,3 +1,4 @@
+# %%
 import os
 from ocp_vscode import show, show_object
 
