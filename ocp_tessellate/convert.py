@@ -881,7 +881,7 @@ def _to_assembly(
                     obj.name = name
                 pg.add(cad_obj)
 
-            elif isinstance(cad_obj, (OCP_Faces, OCP_Edges, OCP_Vertices)):
+            elif isinstance(cad_obj, (OCP_Part, OCP_Faces, OCP_Edges, OCP_Vertices)):
                 pg.add(cad_obj)
 
             else:
