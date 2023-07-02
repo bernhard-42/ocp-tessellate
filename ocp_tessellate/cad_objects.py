@@ -100,7 +100,7 @@ class OCP_Part(CADObject):
         self.color = Color(get_default("default_color") if color is None else color)
         self.loc = identity_location()
 
-        self.shape = shape if isinstance(shape, list) else [shape]
+        self.shape = shape
         self.set_states(show_faces, show_edges)
         self.renderback = False
 
