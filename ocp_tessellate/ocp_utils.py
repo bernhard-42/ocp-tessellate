@@ -784,8 +784,17 @@ def loc_to_vecs(origin, x_dir, z_dir):
 def is_same_plane(plane1, plane2):
     if is_topods_face(plane1):
         plane1 = BRep_Tool.Surface_s(plane1)
+    elif is_toploc_location(plane1):
+        a = gp_Ax3()
+        a.Transform(plane1.Transformation())
+        plane1 = gp_Pln(a)
+
     if is_topods_face(plane2):
         plane2 = BRep_Tool.Surface_s(plane2)
+    elif is_toploc_location(plane2):
+        a = gp_Ax3()
+        a.Transform(plane2.Transformation())
+        plane2 = gp_Pln(a)
 
     coordSystem1 = plane1.Position()
     coordSystem2 = plane2.Position()
@@ -798,9 +807,9 @@ def is_same_plane(plane1, plane2):
     )
 
 
-def is_plane_xy(plane):
+def is_plane_xy(obj):
     return is_same_plane(
-        plane, gp_Pln(gp_Ax3(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1), gp_Dir(1, 0, 0)))
+        obj, gp_Pln(gp_Ax3(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1), gp_Dir(1, 0, 0)))
     )
 
 
