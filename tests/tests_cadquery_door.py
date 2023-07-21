@@ -14,7 +14,9 @@ H = 400
 W = 200
 D = 350
 
-PROFILE = cq.importers.importDXF(expanduser("~/Development/vslot-2020_1.dxf")).wires()
+PROFILE = cq.importers.importDXF(
+    expanduser("~/Development/CAD/vslot-2020_1.dxf")
+).wires()
 
 SLOT_D = 6
 PANEL_T = 3

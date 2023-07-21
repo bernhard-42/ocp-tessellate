@@ -1,7 +1,7 @@
 # %%
 import cadquery as cq
 from ocp_vscode import show
-from ocp_tessellate import Part, PartGroup
+from ocp_tessellate import Part, PartGroup, OCP_Part
 
 
 def ring(inner_radius, outer_radius, width):
@@ -35,4 +35,10 @@ show(
     )
 )
 
+# %%
+
+show(Part(ball))
+# %%
+
+show(OCP_Part([ball.val().wrapped]))
 # %%

@@ -1,6 +1,6 @@
 # %%
 from build123d import *
-from ocp_vscode import show
+from ocp_vscode import *
 
 
 # %%
@@ -32,7 +32,7 @@ show(s1, s2, s3, s4, s5)
 
 # %%
 
-show(c1)
+show(c1, collapse=Collapse.NONE)
 
 # %%
 

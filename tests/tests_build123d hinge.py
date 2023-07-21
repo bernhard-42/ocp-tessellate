@@ -191,7 +191,7 @@ lid = lid_builder.part
 # %%
 
 # [A screw to attach the hinge to the box]
-m6_screw = import_step("tests/M6-1x12-countersunk-screw.step")
+m6_screw = import_step("M6-1x12-countersunk-screw.step")
 m6_joint = RigidJoint("head", m6_screw, Location((0, 0, 0), (0, 0, 0)))
 # [End of screw creation]
 
@@ -251,3 +251,5 @@ if "show_object" in locals():
     # show_object(m6_screw, name="m6 screw")
     # show_object(m6_joint.symbol, name="m6 screw symbol")
     show_object(box_assembly, name="box assembly")
+
+# %%
