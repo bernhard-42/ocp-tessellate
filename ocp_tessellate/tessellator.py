@@ -168,7 +168,12 @@ class Tessellator:
 
         # every line below is selected for performance. Do not introduce functions to "beautify" the code
 
-        for face in get_faces(self.shape):
+        face_map = TopTools_IndexedMapOfShape()
+        TopExp.MapShapes_s(self.shape, TopAbs_FACE, face_map)
+
+        for i in range(1, face_map.Extent() + 1):
+            face = TopoDS.Face_s(face_map.FindKey(i))
+
             if face.Orientation() == TopAbs_Orientation.TopAbs_REVERSED:
                 i1, i2 = 2, 1
             else:
@@ -193,7 +198,7 @@ class Tessellator:
                     flat.extend(
                         (coord[0] + offset, coord[i1] + offset, coord[i2] + offset)
                     )
-                self.triangles.extend(flat)
+                self.triangles.append(flat)
 
                 # add normals
                 if poly.HasUVNodes():
@@ -248,6 +253,7 @@ class Tessellator:
 
         for i in range(1, edge_map.Extent() + 1):
             edge = TopoDS.Edge_s(edge_map.FindKey(i))
+            edges = []
 
             face_list = face_map.FindFromKey(edge)
             if face_list.Extent() == 0:
@@ -276,8 +282,9 @@ class Tessellator:
             for j in nrange:
                 v2 = triangle.Node(index(j)).Transformed(transf).Coord()
                 if v1 is not None:
-                    self.edges.append((v1, v2))
+                    edges.append((v1, v2))
                 v1 = v2
+            self.edges.append(edges)
 
         if len(self.edges) == 0:
             self._compute_missing_edges()
@@ -286,7 +293,7 @@ class Tessellator:
         return np.asarray(self.vertices, dtype=np.float32)
 
     def get_triangles(self):
-        return np.asarray(self.triangles, dtype=np.int32)
+        return [np.asarray(t, dtype=np.int32) for t in self.triangles]
 
     def get_normals(self):
         if len(self.normals) == 0:
@@ -294,7 +301,7 @@ class Tessellator:
         return np.asarray(self.normals, dtype=np.float32)
 
     def get_edges(self):
-        return np.asarray(self.edges, dtype=np.float32)
+        return [np.asarray(edge, dtype=np.float32) for edge in self.edges]
 
 
 def compute_quality(bb, deviation=0.1):
