@@ -27,7 +27,11 @@ from cachetools import LRUCache, cached
 from OCP.BinTools import BinTools
 from OCP.Bnd import Bnd_Box
 from OCP.BRep import BRep_Tool
-from OCP.BRepAdaptor import BRepAdaptor_CompCurve, BRepAdaptor_Curve
+from OCP.BRepAdaptor import (
+    BRepAdaptor_CompCurve,
+    BRepAdaptor_Curve,
+    BRepAdaptor_Surface,
+)
 from OCP.BRepBndLib import BRepBndLib
 from OCP.BRepBuilderAPI import (
     BRepBuilderAPI_Copy,
@@ -64,7 +68,12 @@ from OCP.TopAbs import (
     TopAbs_VERTEX,
     TopAbs_WIRE,
 )
-from OCP.TopExp import TopExp_Explorer
+from OCP.TopTools import (
+    TopTools_IndexedDataMapOfShapeListOfShape,
+    TopTools_IndexedMapOfShape,
+)
+from OCP.TopExp import TopExp, TopExp_Explorer
+
 from OCP.TopLoc import TopLoc_Location
 
 # Bounding Box
@@ -490,36 +499,54 @@ def is_line(topods_edge):
     return c.GetType() == GeomAbs_CurveType.GeomAbs_Line
 
 
-def _get_topo(shape, topo):
-    explorer = TopExp_Explorer(shape, topo)
-    hashes = {}
-    while explorer.More():
-        item = explorer.Current()
-        hash_value = item.HashCode(MAX_HASH_KEY)
-        if hashes.get(hash_value) is None:
-            hashes[hash_value] = True
-            yield downcast(item)
-        explorer.Next()
-
-
 def get_solids(shape):
-    return _get_topo(shape, TopAbs_SOLID)
+    solid_map = TopTools_IndexedMapOfShape()
+    TopExp.MapShapes_s(shape, TopAbs_SOLID, solid_map)
+
+    for i in range(1, solid_map.Extent() + 1):
+        yield TopoDS.Solid_s(solid_map.FindKey(i))
 
 
 def get_faces(shape):
-    return _get_topo(shape, TopAbs_FACE)
+    face_map = TopTools_IndexedMapOfShape()
+    TopExp.MapShapes_s(shape, TopAbs_FACE, face_map)
+
+    for i in range(1, face_map.Extent() + 1):
+        yield TopoDS.Face_s(face_map.FindKey(i))
 
 
 def get_wires(shape):
-    return _get_topo(shape, TopAbs_WIRE)
+    wire_map = TopTools_IndexedMapOfShape()
+    TopExp.MapShapes_s(shape, TopAbs_WIRE, wire_map)
+
+    for i in range(1, wire_map.Extent() + 1):
+        yield TopoDS.Wire_s(wire_map.FindKey(i))
 
 
 def get_edges(shape):
-    return _get_topo(shape, TopAbs_EDGE)
+    edge_map = TopTools_IndexedMapOfShape()
+    face_map = TopTools_IndexedDataMapOfShapeListOfShape()
+
+    TopExp.MapShapes_s(shape, TopAbs_EDGE, edge_map)
+    TopExp.MapShapesAndAncestors_s(shape, TopAbs_EDGE, TopAbs_FACE, face_map)
+
+    for i in range(1, edge_map.Extent() + 1):
+        edge = TopoDS.Edge_s(edge_map.FindKey(i))
+
+        face_list = face_map.FindFromKey(edge)
+        if face_list.Extent() == 0:
+            # print("no faces")
+            continue
+
+        yield edge, TopoDS.Face_s(face_list.First())
 
 
 def get_vertices(shape):
-    return _get_topo(shape, TopAbs_VERTEX)
+    vertex_map = TopTools_IndexedMapOfShape()
+    TopExp.MapShapes_s(shape, TopAbs_VERTEX, vertex_map)
+
+    for i in range(1, vertex_map.Extent() + 1):
+        yield TopoDS.Vertex_s(vertex_map.FindKey(i))
 
 
 def get_downcasted_shape(shape):
@@ -542,6 +569,14 @@ def get_downcasted_shape(shape):
         raise ValueError("Compound is empty")
 
     return [downcast(obj) for obj in objs]
+
+
+def get_face_type(face):
+    return BRepAdaptor_Surface(face).GetType()
+
+
+def get_edge_type(edge):
+    return BRepAdaptor_Curve(edge).GetType()
 
 
 # Check TopLoc_Location

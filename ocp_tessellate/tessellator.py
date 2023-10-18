@@ -31,19 +31,23 @@ from OCP.BRepGProp import BRepGProp_Face
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
 from OCP.TopLoc import TopLoc_Location
 from OCP.TopAbs import TopAbs_Orientation
-from OCP.TopTools import (
-    TopTools_IndexedDataMapOfShapeListOfShape,
-    TopTools_IndexedMapOfShape,
-)
-from OCP.TopExp import TopExp, TopExp_Explorer
-from OCP.TopAbs import TopAbs_EDGE, TopAbs_FACE, TopAbs_SOLID
-from OCP.TopoDS import TopoDS
+
+from OCP.TopExp import TopExp_Explorer
+from OCP.TopAbs import TopAbs_SOLID
 from OCP.BRepAdaptor import BRepAdaptor_Curve
 from OCP.GCPnts import GCPnts_QuasiUniformDeflection, GCPnts_QuasiUniformAbscissa
 
 
 from .utils import Timer, round_sig
-from .ocp_utils import get_faces, make_compound
+from .ocp_utils import (
+    get_point,
+    get_faces,
+    get_edges,
+    get_vertices,
+    make_compound,
+    get_face_type,
+    get_edge_type,
+)
 
 MAX_HASH_KEY = 2147483647
 
@@ -103,12 +107,16 @@ cache = LRUCache(maxsize=cache_size, getsizeof=get_size)
 
 class Tessellator:
     def __init__(self):
-        self.vertices = np.empty((0, 3), dtype="float32")
-        self.triangles = np.empty((0,), dtype="uint32")
-        self.normals = np.empty((0, 3), dtype="float32")
-        self.normals = np.empty((0, 2, 3), dtype="float32")
-        self.shape = None
+        self.triangles = []
+        self.vertices = []  # triangle vertices
+        self.normals = []
         self.edges = []
+
+        self.obj_vertices = []  # object vertices
+        self.face_types = []
+        self.edge_types = []
+
+        self.shape = None
 
     def number_solids(self, shape):
         count = 0
@@ -151,14 +159,13 @@ class Tessellator:
             with Timer(debug, "", "get edges", 3):
                 self.compute_edges()
 
+        for v in get_vertices(shape):
+            self.obj_vertices.extend(get_point(v))
+
         # Remove mesh data again
         # BRepTools.Clean_s(shape)
 
     def tessellate(self):
-        self.vertices = []
-        self.triangles = []
-        self.normals = []
-
         # global buffers
         p_buf = gp_Pnt()
         n_buf = gp_Vec()
@@ -168,18 +175,15 @@ class Tessellator:
 
         # every line below is selected for performance. Do not introduce functions to "beautify" the code
 
-        face_map = TopTools_IndexedMapOfShape()
-        TopExp.MapShapes_s(self.shape, TopAbs_FACE, face_map)
-
-        for i in range(1, face_map.Extent() + 1):
-            face = TopoDS.Face_s(face_map.FindKey(i))
-
+        for face in get_faces(self.shape):
             if face.Orientation() == TopAbs_Orientation.TopAbs_REVERSED:
                 i1, i2 = 2, 1
             else:
                 i1, i2 = 1, 2
 
             internal = face.Orientation() == TopAbs_Orientation.TopAbs_INTERNAL
+
+            self.face_types.append(get_face_type(face).value)
 
             poly = BRep_Tool.Triangulation_s(face, loc_buf)
             if poly is not None:
@@ -245,24 +249,11 @@ class Tessellator:
             self.edges.extend([(c[0], c[1]), (c[1], c[2]), (c[2], c[0])])
 
     def compute_edges(self):
-        edge_map = TopTools_IndexedMapOfShape()
-        face_map = TopTools_IndexedDataMapOfShapeListOfShape()
+        for edge, face in get_edges(self.shape):
+            self.edge_types.append(get_edge_type(edge).value)
 
-        TopExp.MapShapes_s(self.shape, TopAbs_EDGE, edge_map)
-        TopExp.MapShapesAndAncestors_s(self.shape, TopAbs_EDGE, TopAbs_FACE, face_map)
-
-        for i in range(1, edge_map.Extent() + 1):
-            edge = TopoDS.Edge_s(edge_map.FindKey(i))
             edges = []
-
-            face_list = face_map.FindFromKey(edge)
-            if face_list.Extent() == 0:
-                # print("no faces")
-                continue
-
             loc = TopLoc_Location()
-
-            face = TopoDS.Face_s(face_list.First())
             triangle = BRep_Tool.Triangulation_s(face, loc)
             poly = BRep_Tool.PolygonOnTriangulation_s(edge, triangle, loc)
 
@@ -295,6 +286,12 @@ class Tessellator:
     def get_triangles(self):
         return [np.asarray(t, dtype=np.int32) for t in self.triangles]
 
+    def get_face_types(self):
+        return np.asarray(self.face_types, dtype=np.int32)
+
+    def get_edge_types(self):
+        return np.asarray(self.edge_types, dtype=np.int32)
+
     def get_normals(self):
         if len(self.normals) == 0:
             self._compute_missing_normals()
@@ -302,6 +299,9 @@ class Tessellator:
 
     def get_edges(self):
         return [np.asarray(edge, dtype=np.float32) for edge in self.edges]
+
+    def get_obj_vertices(self):
+        return np.asarray(self.obj_vertices, dtype=np.float32)
 
 
 def compute_quality(bb, deviation=0.1):
@@ -338,12 +338,15 @@ def tessellate(
     tess.compute(
         compound, quality, angular_tolerance, compute_faces, compute_edges, debug
     )
-    vertices = tess.get_vertices()
     return {
-        "vertices": vertices,
+        "vertices": tess.get_vertices(),
         "triangles": tess.get_triangles(),
         "normals": tess.get_normals(),
         "edges": tess.get_edges(),
+        # added for version 2
+        "obj_vertices": tess.get_obj_vertices(),
+        "face_types": tess.get_face_types(),
+        "edge_types": tess.get_edge_types(),
     }
 
 
