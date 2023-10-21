@@ -523,22 +523,26 @@ def get_wires(shape):
         yield TopoDS.Wire_s(wire_map.FindKey(i))
 
 
-def get_edges(shape):
+def get_edges(shape, with_face=False):
     edge_map = TopTools_IndexedMapOfShape()
-    face_map = TopTools_IndexedDataMapOfShapeListOfShape()
-
     TopExp.MapShapes_s(shape, TopAbs_EDGE, edge_map)
-    TopExp.MapShapesAndAncestors_s(shape, TopAbs_EDGE, TopAbs_FACE, face_map)
+
+    if with_face:
+        face_map = TopTools_IndexedDataMapOfShapeListOfShape()
+        TopExp.MapShapesAndAncestors_s(shape, TopAbs_EDGE, TopAbs_FACE, face_map)
 
     for i in range(1, edge_map.Extent() + 1):
         edge = TopoDS.Edge_s(edge_map.FindKey(i))
 
-        face_list = face_map.FindFromKey(edge)
-        if face_list.Extent() == 0:
-            # print("no faces")
-            continue
+        if with_face:
+            face_list = face_map.FindFromKey(edge)
+            if face_list.Extent() == 0:
+                # print("no faces")
+                continue
 
-        yield edge, TopoDS.Face_s(face_list.First())
+            yield edge, TopoDS.Face_s(face_list.First())
+        else:
+            yield edge
 
 
 def get_vertices(shape):
