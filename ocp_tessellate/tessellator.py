@@ -47,6 +47,7 @@ from .ocp_utils import (
     make_compound,
     get_face_type,
     get_edge_type,
+    is_line,
 )
 
 MAX_HASH_KEY = 2147483647
@@ -249,7 +250,7 @@ class Tessellator:
             self.edges.extend([(c[0], c[1]), (c[1], c[2]), (c[2], c[0])])
 
     def compute_edges(self):
-        for edge, face in get_edges(self.shape):
+        for edge, face in get_edges(self.shape, True):
             self.edge_types.append(get_edge_type(edge).value)
 
             edges = []
@@ -379,6 +380,42 @@ def discretize_edge(edge, deflection=0.1, num=None):
         edges.append((points[i], points[i + 1]))
 
     return np.asarray(edges, dtype=np.float32)
+
+
+def discretize_edges(edges, deflection=0.1):
+    d_edges = []
+    vertices = []
+    edge_types = []
+    for edge in edges:
+        edge_types.append(get_edge_type(edge).value)
+
+        d = discretize_edge(edge, deflection)
+        if len(d) == 1 and not is_line(edge):
+            num = int(0.1 / deflection)
+            d = discretize_edge(edge, deflection=deflection, num=num)
+        d_edges.append(d)
+
+        for v in get_vertices(edge):
+            if v not in vertices:  # ignore duplicates
+                vertices.append(v)
+
+    d_vertices = []
+    for v in vertices:
+        d_vertices.extend(get_point(v))
+
+    return {
+        "edges": d_edges,
+        "edge_types": edge_types,
+        "obj_vertices": np.asarray(d_vertices, dtype="float32"),
+    }
+
+
+def convert_vertices(vertices):
+    n_vertices = []
+    for vertex in vertices:
+        n_vertices.extend(get_point(vertex))
+
+    return {"obj_vertices": np.asarray(n_vertices, dtype="float32")}
 
 
 def bbox_edges(bb):

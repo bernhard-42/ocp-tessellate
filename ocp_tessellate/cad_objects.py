@@ -33,7 +33,7 @@ from .ocp_utils import (
     cross,
     normalized,
 )
-from .tessellator import discretize_edge, tessellate, compute_quality
+from .tessellator import convert_vertices, discretize_edges, tessellate, compute_quality
 from .mp_tessellator import is_apply_result, mp_tessellate, init_pool, keymap
 from .defaults import get_default
 
@@ -266,14 +266,7 @@ class OCP_Edges(CADObject):
 
         with Timer(timeit, self.name, "discretize:  ", 2) as t:
             t.info = f"quality: {quality}, deflection: {deflection}"
-            edges = []
-            for edge in self.shape:
-                d = discretize_edge(edge, deflection)
-                if len(d) == 1 and not is_line(edge):
-                    num = int(0.1 / deflection)
-                    d = discretize_edge(edge, num=num)
-                edges.extend(d)
-            edges = np.asarray(edges)
+            disc_edges = discretize_edges(self.shape, deflection)
 
         if progress is not None:
             progress.update("e")
@@ -288,7 +281,7 @@ class OCP_Edges(CADObject):
             "id": self.id,
             "type": "edges",
             "name": self.name,
-            "shape": edges,
+            "shape": disc_edges,
             "color": color,
             "loc": None if self.loc is None else loc_to_tq(self.loc),
             "width": self.width,
@@ -327,6 +320,7 @@ class OCP_Vertices(CADObject):
         self.id = f"{path}/{self.name}"
 
         bb = bounding_box(self.shape, loc=get_location(loc))
+        vertices = convert_vertices(self.shape)
 
         if progress is not None:
             progress.update("v")
@@ -335,9 +329,7 @@ class OCP_Vertices(CADObject):
             "id": self.id,
             "type": "vertices",
             "name": self.name,
-            "shape": np.asarray(
-                [get_point(vertex) for vertex in self.shape], dtype="float32"
-            ),
+            "shape": vertices,
             "color": self.color.web_color,
             "loc": None if self.loc is None else loc_to_tq(self.loc),
             "size": self.size,
