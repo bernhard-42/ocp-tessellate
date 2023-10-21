@@ -19,19 +19,14 @@ import numpy as np
 from .utils import Color, Timer
 from .ocp_utils import (
     bounding_box,
-    get_point,
     loc_to_tq,
     get_location,
     np_bbox,
-    is_line,
     line,
     axis_to_vecs,
     loc_to_vecs,
-    vertex,
     identity_location,
     make_compound,
-    cross,
-    normalized,
 )
 from .tessellator import convert_vertices, discretize_edges, tessellate, compute_quality
 from .mp_tessellator import is_apply_result, mp_tessellate, init_pool, keymap
