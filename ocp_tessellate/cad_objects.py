@@ -36,6 +36,8 @@ UNSELECTED = 0
 SELECTED = 1
 EMPTY = 3
 
+PROTOCOL_VERSION = 2
+
 #
 # Simple Part and PartGroup classes
 #
@@ -185,6 +187,7 @@ class OCP_Part(CADObject):
             alpha = self.color.a
 
         return {
+            "version": PROTOCOL_VERSION,
             "id": self.id,
             "type": "shapes",
             "name": self.name,
@@ -273,6 +276,7 @@ class OCP_Edges(CADObject):
         )
 
         return {
+            "version": PROTOCOL_VERSION,
             "id": self.id,
             "type": "edges",
             "name": self.name,
@@ -321,6 +325,7 @@ class OCP_Vertices(CADObject):
             progress.update("v")
 
         return {
+            "version": PROTOCOL_VERSION,
             "id": self.id,
             "type": "vertices",
             "name": self.name,
