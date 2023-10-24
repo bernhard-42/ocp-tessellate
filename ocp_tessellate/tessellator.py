@@ -106,6 +106,35 @@ else:
 cache = LRUCache(maxsize=cache_size, getsizeof=get_size)
 
 
+def face_mapper(shape, id):
+    compound = make_compound(shape) if len(shape) > 1 else shape[0]
+    return {
+        "faces": get_faces(compound),
+        "edges": get_edges(compound),
+        "vertices": get_vertices(compound),
+        "id": id,
+    }
+
+
+def edge_mapper(edges, id):
+    vertices = []
+    for e in edges:
+        vertices.extend(get_vertices(e))
+
+    return {
+        "edges": edges,
+        "vertices": vertices,
+        "id": id,
+    }
+
+
+def vertex_mapper(vertices, id):
+    return {
+        "vertices": vertices,
+        "id": id,
+    }
+
+
 class Tessellator:
     def __init__(self):
         self.triangles = []

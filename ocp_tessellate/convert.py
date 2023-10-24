@@ -116,7 +116,7 @@ def tessellate_group(group, kwargs=None, progress=None, timeit=False):
     if kwargs is None:
         kwargs = {}
 
-    shapes = group.collect_shapes(
+    map, shapes = group.collect_shapes(
         "",
         None,
         deviation=preset("deviation", kwargs.get("deviation")),
@@ -129,7 +129,7 @@ def tessellate_group(group, kwargs=None, progress=None, timeit=False):
     )
     states = group.to_state()
 
-    return get_instances(), shapes, states
+    return get_instances(), shapes, states, map
 
 
 def combined_bb(shapes):
@@ -963,7 +963,7 @@ def export_three_cad_viewer_json(*objs, filename=None):
         walk(shapes)
 
     part_group = to_assembly(*objs)
-    instances, shapes, states = tessellate_group(part_group)
+    instances, shapes, states, map = tessellate_group(part_group)
     decode(instances, shapes)
 
     j = numpy_to_json([shapes, states])

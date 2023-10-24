@@ -28,7 +28,15 @@ from .ocp_utils import (
     identity_location,
     make_compound,
 )
-from .tessellator import convert_vertices, discretize_edges, tessellate, compute_quality
+from .tessellator import (
+    convert_vertices,
+    discretize_edges,
+    tessellate,
+    compute_quality,
+    face_mapper,
+    edge_mapper,
+    vertex_mapper,
+)
 from .mp_tessellator import is_apply_result, mp_tessellate, init_pool, keymap
 from .defaults import get_default
 
@@ -186,7 +194,7 @@ class OCP_Part(CADObject):
             color = self.color.web_color
             alpha = self.color.a
 
-        return {
+        return face_mapper(shape, self.id), {
             "version": PROTOCOL_VERSION,
             "id": self.id,
             "type": "shapes",
@@ -275,7 +283,7 @@ class OCP_Edges(CADObject):
             else self.color.web_color
         )
 
-        return {
+        return edge_mapper(self.shape, self.id), {
             "version": PROTOCOL_VERSION,
             "id": self.id,
             "type": "edges",
@@ -324,7 +332,7 @@ class OCP_Vertices(CADObject):
         if progress is not None:
             progress.update("v")
 
-        return {
+        return vertex_mapper(self.shape, self.id), {
             "version": PROTOCOL_VERSION,
             "id": self.id,
             "type": "vertices",
@@ -389,21 +397,24 @@ class OCP_PartGroup(CADObject):
             "name": self.name,
             "id": self.id,
         }
+
+        map = {"parts": [], "id": self.id}
+
         for obj in self.objects:
-            result["parts"].append(
-                obj.collect_shapes(
-                    self.id,
-                    combined_loc,
-                    deviation,
-                    angular_tolerance,
-                    edge_accuracy,
-                    render_edges,
-                    parallel,
-                    progress,
-                    timeit,
-                )
+            mapping, mesh = obj.collect_shapes(
+                self.id,
+                combined_loc,
+                deviation,
+                angular_tolerance,
+                edge_accuracy,
+                render_edges,
+                parallel,
+                progress,
+                timeit,
             )
-        return result
+            result["parts"].append(mesh)
+            map["parts"].append(mapping)
+        return map, result
 
     def to_state(self, parents=None):  # pylint: disable=arguments-differ
         parents = parents or ()
