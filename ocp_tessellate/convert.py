@@ -697,8 +697,8 @@ def _to_assembly(
         elif hasattr(cad_obj, "wrapped") and (
             is_toploc_location(cad_obj.wrapped) or is_gp_plane(cad_obj.wrapped)
         ):
-            if is_gp_plane(cad_obj.wrapped) and hasattr(cad_obj, "to_location"):
-                cad_obj = cad_obj.to_location()
+            if is_gp_plane(cad_obj.wrapped) and hasattr(cad_obj, "location"):
+                cad_obj = cad_obj.location
 
             coord = get_location_coord(cad_obj.wrapped)
             obj = CoordSystem(
