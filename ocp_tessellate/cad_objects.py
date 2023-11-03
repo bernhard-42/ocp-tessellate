@@ -194,7 +194,7 @@ class OCP_Part(CADObject):
             color = self.color.web_color
             alpha = self.color.a
 
-        return face_mapper(shape, self.id), {
+        return dict(id=self.id, shape=shape, loc=combined_loc), {
             "version": PROTOCOL_VERSION,
             "id": self.id,
             "type": "shapes",
@@ -283,7 +283,7 @@ class OCP_Edges(CADObject):
             else self.color.web_color
         )
 
-        return edge_mapper(self.shape, self.id), {
+        return dict(id=self.id, shape=self.shape, loc=None), {
             "version": PROTOCOL_VERSION,
             "id": self.id,
             "type": "edges",
@@ -332,7 +332,7 @@ class OCP_Vertices(CADObject):
         if progress is not None:
             progress.update("v")
 
-        return vertex_mapper(self.shape, self.id), {
+        return dict(id=self.id, shape=self.shape, loc=None), {
             "version": PROTOCOL_VERSION,
             "id": self.id,
             "type": "vertices",
