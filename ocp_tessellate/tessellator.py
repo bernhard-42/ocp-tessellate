@@ -49,6 +49,7 @@ from .ocp_utils import (
     get_edge_type,
     is_line,
 )
+from .trace import Trace
 
 MAX_HASH_KEY = 2147483647
 
@@ -181,21 +182,26 @@ class Tessellator:
                 shape, quality, False, angular_tolerance, count > 1
             )
 
+        trace = Trace("ocp_tessellate.log")
+
         if compute_faces:
             with Timer(debug, "", "get nodes, triangles and normals", 3):
-                self.tessellate()
+                self.tessellate(trace)
 
         if compute_edges:
             with Timer(debug, "", "get edges", 3):
-                self.compute_edges()
+                self.compute_edges(trace)
 
-        for v in get_vertices(shape):
+        for ind, v in enumerate(get_vertices(shape)):
+            trace.vertex(f"vertices/vertex{ind}", v)
             self.obj_vertices.extend(get_point(v))
+
+        trace.close()
 
         # Remove mesh data again
         # BRepTools.Clean_s(shape)
 
-    def tessellate(self):
+    def tessellate(self, trace):
         # global buffers
         p_buf = gp_Pnt()
         n_buf = gp_Vec()
@@ -204,8 +210,8 @@ class Tessellator:
         offset = -1
 
         # every line below is selected for performance. Do not introduce functions to "beautify" the code
-
-        for face in get_faces(self.shape):
+        for ind, face in enumerate(get_faces(self.shape)):
+            trace.face(f"faces/faces_{ind}", face)
             if face.Orientation() == TopAbs_Orientation.TopAbs_REVERSED:
                 i1, i2 = 2, 1
             else:
@@ -278,8 +284,9 @@ class Tessellator:
             c = vertices[triangle]
             self.edges.extend([(c[0], c[1]), (c[1], c[2]), (c[2], c[0])])
 
-    def compute_edges(self):
-        for edge, face in get_edges(self.shape, True):
+    def compute_edges(self, trace):
+        for ind, (edge, face) in enumerate(get_edges(self.shape, True)):
+            trace.edge(f"edges/edges_{ind}", edge)
             self.edge_types.append(get_edge_type(edge).value)
 
             edges = []
