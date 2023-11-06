@@ -52,7 +52,7 @@ from .ocp_utils import (
 from .trace import Trace
 
 MAX_HASH_KEY = 2147483647
-
+LOG_FILE = "ocp_tessellate.log"
 
 #
 # Caching helpers
@@ -68,8 +68,10 @@ def make_key(
     compute_faces=True,
     debug=False,
     progress=None,
+    shape_id=None,
 ):  # pylint: disable=unused-argument
     # quality is a measure of bounding box and deviation, hence can be ignored (and should due to accuracy issues
+    # shape_id is also ignored
     # of non optimal bounding boxes. debug and progress are also irrelevant for tessellation results)
     if not isinstance(shape, (tuple, list)):
         shape = [shape]
@@ -137,7 +139,8 @@ def vertex_mapper(vertices, id):
 
 
 class Tessellator:
-    def __init__(self):
+    def __init__(self, shape_id):
+        self.shape_id = shape_id
         self.triangles = []
         self.vertices = []  # triangle vertices
         self.normals = []
@@ -182,7 +185,7 @@ class Tessellator:
                 shape, quality, False, angular_tolerance, count > 1
             )
 
-        trace = Trace("ocp_tessellate.log")
+        trace = Trace(LOG_FILE)
 
         if compute_faces:
             with Timer(debug, "", "get nodes, triangles and normals", 3):
@@ -193,7 +196,7 @@ class Tessellator:
                 self.compute_edges(trace)
 
         for ind, v in enumerate(get_vertices(shape)):
-            trace.vertex(f"vertices/vertex{ind}", v)
+            trace.vertex(f"{self.shape_id}/vertices/vertex{ind}", v)
             self.obj_vertices.extend(get_point(v))
 
         trace.close()
@@ -211,7 +214,7 @@ class Tessellator:
 
         # every line below is selected for performance. Do not introduce functions to "beautify" the code
         for ind, face in enumerate(get_faces(self.shape)):
-            trace.face(f"faces/faces_{ind}", face)
+            trace.face(f"{self.shape_id}/faces/faces_{ind}", face)
             if face.Orientation() == TopAbs_Orientation.TopAbs_REVERSED:
                 i1, i2 = 2, 1
             else:
@@ -286,7 +289,7 @@ class Tessellator:
 
     def compute_edges(self, trace):
         for ind, (edge, face) in enumerate(get_edges(self.shape, True)):
-            trace.edge(f"edges/edges_{ind}", edge)
+            trace.edge(f"{self.shape_id}/edges/edges_{ind}", edge)
             self.edge_types.append(get_edge_type(edge).value)
 
             edges = []
@@ -364,6 +367,7 @@ def tessellate(
     compute_edges=True,
     debug=False,
     progress=None,
+    shape_id="",
 ):
     if progress is not None:
         progress.update("+")
@@ -371,7 +375,7 @@ def tessellate(
     compound = (
         make_compound(shapes) if len(shapes) > 1 else shapes[0]
     )  # pylint: disable=protected-access
-    tess = Tessellator()
+    tess = Tessellator(shape_id)
     tess.compute(
         compound, quality, angular_tolerance, compute_faces, compute_edges, debug
     )
@@ -418,11 +422,15 @@ def discretize_edge(edge, deflection=0.1, num=None):
     return np.asarray(edges, dtype=np.float32)
 
 
-def discretize_edges(edges, deflection=0.1):
+def discretize_edges(edges, deflection=0.1, shape_id=""):
     d_edges = []
     vertices = []
     edge_types = []
-    for edge in edges:
+
+    trace = Trace(LOG_FILE)
+
+    for ind, edge in enumerate(edges):
+        trace.edge(f"{shape_id}/edges/edges_{ind}", edge)
         edge_types.append(get_edge_type(edge).value)
 
         d = discretize_edge(edge, deflection)
@@ -436,8 +444,11 @@ def discretize_edges(edges, deflection=0.1):
                 vertices.append(v)
 
     d_vertices = []
-    for v in vertices:
+    for ind, v in enumerate(vertices):
+        trace.vertex(f"{shape_id}/vertices/vertex{ind}", v)
         d_vertices.extend(get_point(v))
+
+    trace.close()
 
     return {
         "edges": d_edges,
@@ -446,10 +457,16 @@ def discretize_edges(edges, deflection=0.1):
     }
 
 
-def convert_vertices(vertices):
+def convert_vertices(vertices, shape_id=""):
     n_vertices = []
-    for vertex in vertices:
+
+    trace = Trace(LOG_FILE)
+
+    for ind, vertex in enumerate(vertices):
+        trace.vertex(f"{shape_id}/vertices/vertex{ind}", vertex)
         n_vertices.extend(get_point(vertex))
+
+    trace.close()
 
     return {"obj_vertices": np.asarray(n_vertices, dtype="float32")}
 

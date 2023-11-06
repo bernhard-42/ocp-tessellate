@@ -1,6 +1,6 @@
 from .ocp_utils import center_of_mass, area, end_points, point
 
-DEBUG = True
+DEBUG = False
 
 
 def dump_face(id, f):

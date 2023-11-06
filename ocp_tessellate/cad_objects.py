@@ -161,6 +161,7 @@ class OCP_Part(CADObject):
                     debug=timeit,
                     compute_edges=render_edges,
                     progress=progress,
+                    shape_id=self.id,
                 )
 
                 t.info = f"{{quality:{quality:.4f}, angular_tolerance:{angular_tolerance:.2f}}}"
@@ -272,7 +273,7 @@ class OCP_Edges(CADObject):
 
         with Timer(timeit, self.name, "discretize:  ", 2) as t:
             t.info = f"quality: {quality}, deflection: {deflection}"
-            disc_edges = discretize_edges(self.shape, deflection)
+            disc_edges = discretize_edges(self.shape, deflection, self.id)
 
         if progress is not None:
             progress.update("e")
@@ -327,7 +328,7 @@ class OCP_Vertices(CADObject):
         self.id = f"{path}/{self.name}"
 
         bb = bounding_box(self.shape, loc=get_location(loc))
-        vertices = convert_vertices(self.shape)
+        vertices = convert_vertices(self.shape, self.id)
 
         if progress is not None:
             progress.update("v")
