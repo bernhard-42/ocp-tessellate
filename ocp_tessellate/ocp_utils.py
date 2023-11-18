@@ -241,16 +241,19 @@ cache = LRUCache(maxsize=16 * 1024 * 1024, getsizeof=get_size)
 # Bounding Box
 #
 
+
 def center_of_mass(obj):
     Properties = GProp_GProps()
     BRepGProp.VolumeProperties_s(obj, Properties)
     com = Properties.CentreOfMass()
     return (com.X(), com.Y(), com.Z())
 
+
 def area(obj):
     properties = GProp_GProps()
     BRepGProp.SurfaceProperties_s(obj, properties)
-    return properties.Mass()    
+    return properties.Mass()
+
 
 def end_points(obj):
     curve = BRepAdaptor_Curve(obj)
@@ -259,9 +262,10 @@ def end_points(obj):
     e1, e2 = curve.Value(umin), curve.Value(umax)
     return (e1.X(), e1.Y(), e1.Z()), (e2.X(), e2.Y(), e2.Z())
 
+
 def point(obj):
     p = BRep_Tool.Pnt_s(obj)
-    return (p.X(), p.Y(), p.Z())    
+    return (p.X(), p.Y(), p.Z())
 
 
 class BoundingBox(object):
@@ -925,6 +929,8 @@ def get_location(obj, as_none=True):
             loc = obj.loc
         elif hasattr(obj, "location"):
             loc = obj.location
+        elif isinstance(obj, TopLoc_Location):
+            return obj
         else:
             return None if as_none else identity_location()
 
