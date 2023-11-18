@@ -171,6 +171,7 @@ class OCP_Part(CADObject):
             if self.loc is not None:
                 combined_loc = combined_loc * self.loc
             t, q = loc_to_tq(combined_loc)
+            print(t, q)
             if parallel and is_apply_result(mesh):
                 # store the instance mesh
                 if ind is not None and INSTANCES[ind].mesh is None:
@@ -196,7 +197,6 @@ class OCP_Part(CADObject):
             alpha = self.color.a
 
         return dict(id=self.id, shape=shape, loc=combined_loc), {
-            "version": PROTOCOL_VERSION,
             "id": self.id,
             "type": "shapes",
             "name": self.name,
@@ -285,7 +285,6 @@ class OCP_Edges(CADObject):
         )
 
         return dict(id=self.id, shape=self.shape, loc=None), {
-            "version": PROTOCOL_VERSION,
             "id": self.id,
             "type": "edges",
             "name": self.name,
@@ -334,7 +333,6 @@ class OCP_Vertices(CADObject):
             progress.update("v")
 
         return dict(id=self.id, shape=self.shape, loc=None), {
-            "version": PROTOCOL_VERSION,
             "id": self.id,
             "type": "vertices",
             "name": self.name,
@@ -393,6 +391,7 @@ class OCP_PartGroup(CADObject):
             combined_loc = loc * self.loc
 
         result = {
+            "version": PROTOCOL_VERSION,
             "parts": [],
             "loc": None if self.loc is None else loc_to_tq(self.loc),
             "name": self.name,
