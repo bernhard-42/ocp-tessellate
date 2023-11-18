@@ -486,15 +486,15 @@ def serialize(shape):
     if shape is None:
         return None
 
-    if platform.system() == "Darwin":
+    try:
+        bio = io.BytesIO()
+        BinTools.Write_s(shape, bio)
+        buffer = bio.getvalue()
+    except Exception:
         with tempfile.NamedTemporaryFile() as tf:
             BinTools.Write_s(shape, tf.name)
             with open(tf.name, "rb") as fd:
                 buffer = fd.read()
-    else:
-        bio = io.BytesIO()
-        BinTools.Write_s(shape, bio)
-        buffer = bio.getvalue()
     return buffer
 
 
@@ -503,14 +503,14 @@ def deserialize(buffer):
         return None
 
     shape = TopoDS_Shape()
-    if platform.system() == "Darwin":
+    try:
+        bio = io.BytesIO(buffer)
+        BinTools.Read_s(shape, bio)
+    except Exception:
         with tempfile.NamedTemporaryFile() as tf:
             with open(tf.name, "wb") as fd:
                 fd.write(buffer)
             BinTools.Read_s(shape, tf.name)
-    else:
-        bio = io.BytesIO(buffer)
-        BinTools.Read_s(shape, bio)
     return shape
 
 
