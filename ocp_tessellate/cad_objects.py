@@ -171,7 +171,7 @@ class OCP_Part(CADObject):
             if self.loc is not None:
                 combined_loc = combined_loc * self.loc
             t, q = loc_to_tq(combined_loc)
-            print(t, q)
+
             if parallel and is_apply_result(mesh):
                 # store the instance mesh
                 if ind is not None and INSTANCES[ind].mesh is None:
