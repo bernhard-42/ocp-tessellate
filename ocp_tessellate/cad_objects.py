@@ -108,6 +108,7 @@ class OCP_Part(CADObject):
         self.shape = shape
         self.set_states(show_faces, show_edges)
         self.renderback = False
+        self.solid = True
 
     def set_states(self, show_faces, show_edges):
         self.state_faces = SELECTED if show_faces else UNSELECTED
@@ -199,6 +200,7 @@ class OCP_Part(CADObject):
         return dict(id=self.id, shape=shape, loc=combined_loc), {
             "id": self.id,
             "type": "shapes",
+            "subtype": "solid" if self.solid else "faces",
             "name": self.name,
             "shape": mesh,
             "color": color,
@@ -226,6 +228,7 @@ class OCP_Faces(OCP_Part):
         self.color = Color(color or (238, 130, 238))
         self.loc = None
         self.renderback = True
+        self.solid = False
 
 
 class OCP_Edges(CADObject):
