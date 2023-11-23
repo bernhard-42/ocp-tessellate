@@ -18,7 +18,7 @@ LONG_DESCRIPTION = (
 
 setup_args = {
     "name": "ocp_tessellate",
-    "version": "1.1.2",
+    "version": "2.0.0",
     "description": "Tessellate OCP objects",
     "long_description": LONG_DESCRIPTION,
     "include_package_data": True,
@@ -28,7 +28,6 @@ setup_args = {
         "numpy",
         "numpy-quaternion",
         "cachetools~=5.2.0",
-        # "cadquery_ocp>=7.6.3a0,<7.8",
     ],
     "extras_require": {
         "dev": {"twine", "bumpversion", "black", "pylint", "pyYaml"},

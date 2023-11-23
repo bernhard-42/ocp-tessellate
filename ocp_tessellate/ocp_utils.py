@@ -27,7 +27,11 @@ from cachetools import LRUCache, cached
 from OCP.BinTools import BinTools
 from OCP.Bnd import Bnd_Box
 from OCP.BRep import BRep_Tool
-from OCP.BRepAdaptor import BRepAdaptor_CompCurve, BRepAdaptor_Curve
+from OCP.BRepAdaptor import (
+    BRepAdaptor_CompCurve,
+    BRepAdaptor_Curve,
+    BRepAdaptor_Surface,
+)
 from OCP.BRepBndLib import BRepBndLib
 from OCP.BRepBuilderAPI import (
     BRepBuilderAPI_Copy,
@@ -64,7 +68,12 @@ from OCP.TopAbs import (
     TopAbs_VERTEX,
     TopAbs_WIRE,
 )
-from OCP.TopExp import TopExp_Explorer
+from OCP.TopTools import (
+    TopTools_IndexedDataMapOfShapeListOfShape,
+    TopTools_IndexedMapOfShape,
+)
+from OCP.TopExp import TopExp, TopExp_Explorer
+
 from OCP.TopLoc import TopLoc_Location
 
 # Bounding Box
@@ -233,6 +242,32 @@ cache = LRUCache(maxsize=16 * 1024 * 1024, getsizeof=get_size)
 #
 
 
+def center_of_mass(obj):
+    Properties = GProp_GProps()
+    BRepGProp.VolumeProperties_s(obj, Properties)
+    com = Properties.CentreOfMass()
+    return (com.X(), com.Y(), com.Z())
+
+
+def area(obj):
+    properties = GProp_GProps()
+    BRepGProp.SurfaceProperties_s(obj, properties)
+    return properties.Mass()
+
+
+def end_points(obj):
+    curve = BRepAdaptor_Curve(obj)
+    umin = curve.FirstParameter()
+    umax = curve.LastParameter()
+    e1, e2 = curve.Value(umin), curve.Value(umax)
+    return (e1.X(), e1.Y(), e1.Z()), (e2.X(), e2.Y(), e2.Z())
+
+
+def point(obj):
+    p = BRep_Tool.Pnt_s(obj)
+    return (p.X(), p.Y(), p.Z())
+
+
 class BoundingBox(object):
     def __init__(self, obj=None, optimal=False):
         self.optimal = optimal
@@ -259,10 +294,7 @@ class BoundingBox(object):
         self._calc()
 
     def _center_of_mass(self, obj):
-        Properties = GProp_GProps()
-        BRepGProp.VolumeProperties_s(obj, Properties)
-        com = Properties.CentreOfMass()
-        return (com.X(), com.Y(), com.Z())
+        return center_of_mass(obj)
 
     def _bounding_box(self, obj, tol=1e-6):
         bbox = Bnd_Box()
@@ -454,15 +486,15 @@ def serialize(shape):
     if shape is None:
         return None
 
-    if platform.system() == "Darwin":
+    try:
+        bio = io.BytesIO()
+        BinTools.Write_s(shape, bio)
+        buffer = bio.getvalue()
+    except Exception:
         with tempfile.NamedTemporaryFile() as tf:
             BinTools.Write_s(shape, tf.name)
             with open(tf.name, "rb") as fd:
                 buffer = fd.read()
-    else:
-        bio = io.BytesIO()
-        BinTools.Write_s(shape, bio)
-        buffer = bio.getvalue()
     return buffer
 
 
@@ -471,14 +503,14 @@ def deserialize(buffer):
         return None
 
     shape = TopoDS_Shape()
-    if platform.system() == "Darwin":
+    try:
+        bio = io.BytesIO(buffer)
+        BinTools.Read_s(shape, bio)
+    except Exception:
         with tempfile.NamedTemporaryFile() as tf:
             with open(tf.name, "wb") as fd:
                 fd.write(buffer)
             BinTools.Read_s(shape, tf.name)
-    else:
-        bio = io.BytesIO(buffer)
-        BinTools.Read_s(shape, bio)
     return shape
 
 
@@ -490,36 +522,58 @@ def is_line(topods_edge):
     return c.GetType() == GeomAbs_CurveType.GeomAbs_Line
 
 
-def _get_topo(shape, topo):
-    explorer = TopExp_Explorer(shape, topo)
-    hashes = {}
-    while explorer.More():
-        item = explorer.Current()
-        hash_value = item.HashCode(MAX_HASH_KEY)
-        if hashes.get(hash_value) is None:
-            hashes[hash_value] = True
-            yield downcast(item)
-        explorer.Next()
-
-
 def get_solids(shape):
-    return _get_topo(shape, TopAbs_SOLID)
+    solid_map = TopTools_IndexedMapOfShape()
+    TopExp.MapShapes_s(shape, TopAbs_SOLID, solid_map)
+
+    for i in range(1, solid_map.Extent() + 1):
+        yield TopoDS.Solid_s(solid_map.FindKey(i))
 
 
 def get_faces(shape):
-    return _get_topo(shape, TopAbs_FACE)
+    face_map = TopTools_IndexedMapOfShape()
+    TopExp.MapShapes_s(shape, TopAbs_FACE, face_map)
+
+    for i in range(1, face_map.Extent() + 1):
+        yield TopoDS.Face_s(face_map.FindKey(i))
 
 
 def get_wires(shape):
-    return _get_topo(shape, TopAbs_WIRE)
+    wire_map = TopTools_IndexedMapOfShape()
+    TopExp.MapShapes_s(shape, TopAbs_WIRE, wire_map)
+
+    for i in range(1, wire_map.Extent() + 1):
+        yield TopoDS.Wire_s(wire_map.FindKey(i))
 
 
-def get_edges(shape):
-    return _get_topo(shape, TopAbs_EDGE)
+def get_edges(shape, with_face=False):
+    edge_map = TopTools_IndexedMapOfShape()
+    TopExp.MapShapes_s(shape, TopAbs_EDGE, edge_map)
+
+    if with_face:
+        face_map = TopTools_IndexedDataMapOfShapeListOfShape()
+        TopExp.MapShapesAndAncestors_s(shape, TopAbs_EDGE, TopAbs_FACE, face_map)
+
+    for i in range(1, edge_map.Extent() + 1):
+        edge = TopoDS.Edge_s(edge_map.FindKey(i))
+
+        if with_face:
+            face_list = face_map.FindFromKey(edge)
+            if face_list.Extent() == 0:
+                # print("no faces")
+                continue
+
+            yield edge, TopoDS.Face_s(face_list.First())
+        else:
+            yield edge
 
 
 def get_vertices(shape):
-    return _get_topo(shape, TopAbs_VERTEX)
+    vertex_map = TopTools_IndexedMapOfShape()
+    TopExp.MapShapes_s(shape, TopAbs_VERTEX, vertex_map)
+
+    for i in range(1, vertex_map.Extent() + 1):
+        yield TopoDS.Vertex_s(vertex_map.FindKey(i))
 
 
 def get_downcasted_shape(shape):
@@ -542,6 +596,14 @@ def get_downcasted_shape(shape):
         raise ValueError("Compound is empty")
 
     return [downcast(obj) for obj in objs]
+
+
+def get_face_type(face):
+    return BRepAdaptor_Surface(face).GetType()
+
+
+def get_edge_type(edge):
+    return BRepAdaptor_Curve(edge).GetType()
 
 
 # Check TopLoc_Location
@@ -784,8 +846,17 @@ def loc_to_vecs(origin, x_dir, z_dir):
 def is_same_plane(plane1, plane2):
     if is_topods_face(plane1):
         plane1 = BRep_Tool.Surface_s(plane1)
+    elif is_toploc_location(plane1):
+        a = gp_Ax3()
+        a.Transform(plane1.Transformation())
+        plane1 = gp_Pln(a)
+
     if is_topods_face(plane2):
         plane2 = BRep_Tool.Surface_s(plane2)
+    elif is_toploc_location(plane2):
+        a = gp_Ax3()
+        a.Transform(plane2.Transformation())
+        plane2 = gp_Pln(a)
 
     coordSystem1 = plane1.Position()
     coordSystem2 = plane2.Position()
@@ -798,9 +869,9 @@ def is_same_plane(plane1, plane2):
     )
 
 
-def is_plane_xy(plane):
+def is_plane_xy(obj):
     return is_same_plane(
-        plane, gp_Pln(gp_Ax3(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1), gp_Dir(1, 0, 0)))
+        obj, gp_Pln(gp_Ax3(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1), gp_Dir(1, 0, 0)))
     )
 
 
@@ -858,6 +929,8 @@ def get_location(obj, as_none=True):
             loc = obj.loc
         elif hasattr(obj, "location"):
             loc = obj.location
+        elif isinstance(obj, TopLoc_Location):
+            return obj
         else:
             return None if as_none else identity_location()
 

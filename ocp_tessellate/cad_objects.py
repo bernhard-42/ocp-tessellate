@@ -19,27 +19,32 @@ import numpy as np
 from .utils import Color, Timer
 from .ocp_utils import (
     bounding_box,
-    get_point,
     loc_to_tq,
     get_location,
     np_bbox,
-    is_line,
     line,
     axis_to_vecs,
     loc_to_vecs,
-    vertex,
     identity_location,
     make_compound,
-    cross,
-    normalized,
 )
-from .tessellator import discretize_edge, tessellate, compute_quality
+from .tessellator import (
+    convert_vertices,
+    discretize_edges,
+    tessellate,
+    compute_quality,
+    face_mapper,
+    edge_mapper,
+    vertex_mapper,
+)
 from .mp_tessellator import is_apply_result, mp_tessellate, init_pool, keymap
 from .defaults import get_default
 
 UNSELECTED = 0
 SELECTED = 1
 EMPTY = 3
+
+PROTOCOL_VERSION = 2
 
 #
 # Simple Part and PartGroup classes
@@ -110,6 +115,7 @@ class OCP_Part(CADObject):
         self.shape = shape
         self.set_states(show_faces, show_edges)
         self.renderback = False
+        self.solid = True
 
     def set_states(self, show_faces, show_edges):
         self.state_faces = SELECTED if show_faces else UNSELECTED
@@ -164,6 +170,7 @@ class OCP_Part(CADObject):
                     debug=timeit,
                     compute_edges=render_edges,
                     progress=progress,
+                    shape_id=self.id,
                 )
 
                 t.info = f"{{quality:{quality:.4f}, angular_tolerance:{angular_tolerance:.2f}}}"
@@ -173,6 +180,7 @@ class OCP_Part(CADObject):
             if self.loc is not None:
                 combined_loc = combined_loc * self.loc
             t, q = loc_to_tq(combined_loc)
+
             if parallel and is_apply_result(mesh):
                 # store the instance mesh
                 if ind is not None and INSTANCES[ind].mesh is None:
@@ -197,9 +205,10 @@ class OCP_Part(CADObject):
             color = self.color.web_color
             alpha = self.color.a
 
-        return {
+        return dict(id=self.id, shape=shape, loc=combined_loc), {
             "id": self.id,
             "type": "shapes",
+            "subtype": "solid" if self.solid else "faces",
             "name": self.name,
             "shape": mesh,
             "color": color,
@@ -227,6 +236,7 @@ class OCP_Faces(OCP_Part):
         self.color = Color(color or (238, 130, 238))
         self.loc = None
         self.renderback = True
+        self.solid = False
 
 
 class OCP_Edges(CADObject):
@@ -274,14 +284,7 @@ class OCP_Edges(CADObject):
 
         with Timer(timeit, self.name, "discretize:  ", 2) as t:
             t.info = f"quality: {quality}, deflection: {deflection}"
-            edges = []
-            for edge in self.shape:
-                d = discretize_edge(edge, deflection)
-                if len(d) == 1 and not is_line(edge):
-                    num = int(0.1 / deflection)
-                    d = discretize_edge(edge, num=num)
-                edges.extend(d)
-            edges = np.asarray(edges)
+            disc_edges = discretize_edges(self.shape, deflection, self.id)
 
         if progress is not None:
             progress.update("e")
@@ -292,11 +295,11 @@ class OCP_Edges(CADObject):
             else self.color.web_color
         )
 
-        return {
+        return dict(id=self.id, shape=self.shape, loc=None), {
             "id": self.id,
             "type": "edges",
             "name": self.name,
-            "shape": edges,
+            "shape": disc_edges,
             "color": color,
             "loc": None if self.loc is None else loc_to_tq(self.loc),
             "width": self.width,
@@ -335,17 +338,16 @@ class OCP_Vertices(CADObject):
         self.id = f"{path}/{self.name}"
 
         bb = bounding_box(self.shape, loc=get_location(loc))
+        vertices = convert_vertices(self.shape, self.id)
 
         if progress is not None:
             progress.update("v")
 
-        return {
+        return dict(id=self.id, shape=self.shape, loc=None), {
             "id": self.id,
             "type": "vertices",
             "name": self.name,
-            "shape": np.asarray(
-                [get_point(vertex) for vertex in self.shape], dtype="float32"
-            ),
+            "shape": vertices,
             "color": self.color.web_color,
             "loc": None if self.loc is None else loc_to_tq(self.loc),
             "size": self.size,
@@ -400,26 +402,30 @@ class OCP_PartGroup(CADObject):
             combined_loc = loc * self.loc
 
         result = {
+            "version": PROTOCOL_VERSION,
             "parts": [],
             "loc": None if self.loc is None else loc_to_tq(self.loc),
             "name": self.name,
             "id": self.id,
         }
+
+        map = {"parts": [], "id": self.id}
+
         for obj in self.objects:
-            result["parts"].append(
-                obj.collect_shapes(
-                    self.id,
-                    combined_loc,
-                    deviation,
-                    angular_tolerance,
-                    edge_accuracy,
-                    render_edges,
-                    parallel,
-                    progress,
-                    timeit,
-                )
+            mapping, mesh = obj.collect_shapes(
+                self.id,
+                combined_loc,
+                deviation,
+                angular_tolerance,
+                edge_accuracy,
+                render_edges,
+                parallel,
+                progress,
+                timeit,
             )
-        return result
+            result["parts"].append(mesh)
+            map["parts"].append(mapping)
+        return map, result
 
     def to_state(self, parents=None):  # pylint: disable=arguments-differ
         parents = parents or ()

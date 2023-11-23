@@ -31,22 +31,28 @@ from OCP.BRepGProp import BRepGProp_Face
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
 from OCP.TopLoc import TopLoc_Location
 from OCP.TopAbs import TopAbs_Orientation
-from OCP.TopTools import (
-    TopTools_IndexedDataMapOfShapeListOfShape,
-    TopTools_IndexedMapOfShape,
-)
-from OCP.TopExp import TopExp, TopExp_Explorer
-from OCP.TopAbs import TopAbs_EDGE, TopAbs_FACE, TopAbs_SOLID
-from OCP.TopoDS import TopoDS
+
+from OCP.TopExp import TopExp_Explorer
+from OCP.TopAbs import TopAbs_SOLID
 from OCP.BRepAdaptor import BRepAdaptor_Curve
 from OCP.GCPnts import GCPnts_QuasiUniformDeflection, GCPnts_QuasiUniformAbscissa
 
 
 from .utils import Timer, round_sig
-from .ocp_utils import get_faces, make_compound
+from .ocp_utils import (
+    get_point,
+    get_faces,
+    get_edges,
+    get_vertices,
+    make_compound,
+    get_face_type,
+    get_edge_type,
+    is_line,
+)
+from .trace import Trace
 
 MAX_HASH_KEY = 2147483647
-
+LOG_FILE = "ocp_tessellate.log"
 
 #
 # Caching helpers
@@ -63,8 +69,10 @@ def make_key(
     compute_faces=True,
     debug=False,
     progress=None,
+    shape_id=None,
 ):  # pylint: disable=unused-argument
     # quality is a measure of bounding box and deviation, hence can be ignored (and should due to accuracy issues
+    # shape_id is also ignored
     # of non optimal bounding boxes. debug and progress are also irrelevant for tessellation results)
     if not isinstance(shape, (tuple, list)):
         shape = [shape]
@@ -102,14 +110,48 @@ else:
 cache = LRUCache(maxsize=cache_size, getsizeof=get_size)
 
 
+def face_mapper(shape, id):
+    compound = make_compound(shape) if len(shape) > 1 else shape[0]
+    return {
+        "faces": get_faces(compound),
+        "edges": get_edges(compound),
+        "vertices": get_vertices(compound),
+        "id": id,
+    }
+
+
+def edge_mapper(edges, id):
+    vertices = []
+    for e in edges:
+        vertices.extend(get_vertices(e))
+
+    return {
+        "edges": edges,
+        "vertices": vertices,
+        "id": id,
+    }
+
+
+def vertex_mapper(vertices, id):
+    return {
+        "vertices": vertices,
+        "id": id,
+    }
+
+
 class Tessellator:
-    def __init__(self):
-        self.vertices = np.empty((0, 3), dtype="float32")
-        self.triangles = np.empty((0,), dtype="uint32")
-        self.normals = np.empty((0, 3), dtype="float32")
-        self.normals = np.empty((0, 2, 3), dtype="float32")
-        self.shape = None
+    def __init__(self, shape_id):
+        self.shape_id = shape_id
+        self.triangles = []
+        self.vertices = []  # triangle vertices
+        self.normals = []
         self.edges = []
+
+        self.obj_vertices = []  # object vertices
+        self.face_types = []
+        self.edge_types = []
+
+        self.shape = None
 
     def number_solids(self, shape):
         count = 0
@@ -144,22 +186,26 @@ class Tessellator:
                 shape, quality, False, angular_tolerance, count > 1
             )
 
+        trace = Trace(LOG_FILE)
+
         if compute_faces:
             with Timer(debug, "", "get nodes, triangles and normals", 3):
-                self.tessellate()
+                self.tessellate(trace)
 
         if compute_edges:
             with Timer(debug, "", "get edges", 3):
-                self.compute_edges()
+                self.compute_edges(trace)
+
+        for ind, v in enumerate(get_vertices(shape)):
+            trace.vertex(f"{self.shape_id}/vertices/vertex{ind}", v)
+            self.obj_vertices.extend(get_point(v))
+
+        trace.close()
 
         # Remove mesh data again
         # BRepTools.Clean_s(shape)
 
-    def tessellate(self):
-        self.vertices = []
-        self.triangles = []
-        self.normals = []
-
+    def tessellate(self, trace):
         # global buffers
         p_buf = gp_Pnt()
         n_buf = gp_Vec()
@@ -168,8 +214,8 @@ class Tessellator:
         offset = -1
 
         # every line below is selected for performance. Do not introduce functions to "beautify" the code
-
-        for face in get_faces(self.shape):
+        for ind, face in enumerate(get_faces(self.shape)):
+            trace.face(f"{self.shape_id}/faces/faces_{ind}", face)
             if face.Orientation() == TopAbs_Orientation.TopAbs_REVERSED:
                 i1, i2 = 2, 1
             else:
@@ -177,8 +223,14 @@ class Tessellator:
 
             internal = face.Orientation() == TopAbs_Orientation.TopAbs_INTERNAL
 
+            self.face_types.append(get_face_type(face).value)
+
             poly = BRep_Tool.Triangulation_s(face, loc_buf)
-            if poly is not None:
+            if poly is None:
+                self.vertices.extend([])
+                self.triangles.append([])
+                self.normals.extend([])
+            else:
                 Trsf = loc_buf.Transformation()
 
                 # add vertices
@@ -194,7 +246,7 @@ class Tessellator:
                     flat.extend(
                         (coord[0] + offset, coord[i1] + offset, coord[i2] + offset)
                     )
-                self.triangles.extend(flat)
+                self.triangles.append(flat)
 
                 # add normals
                 if poly.HasUVNodes():
@@ -238,24 +290,13 @@ class Tessellator:
             c = vertices[triangle]
             self.edges.extend([(c[0], c[1]), (c[1], c[2]), (c[2], c[0])])
 
-    def compute_edges(self):
-        edge_map = TopTools_IndexedMapOfShape()
-        face_map = TopTools_IndexedDataMapOfShapeListOfShape()
+    def compute_edges(self, trace):
+        for ind, (edge, face) in enumerate(get_edges(self.shape, True)):
+            trace.edge(f"{self.shape_id}/edges/edges_{ind}", edge)
+            self.edge_types.append(get_edge_type(edge).value)
 
-        TopExp.MapShapes_s(self.shape, TopAbs_EDGE, edge_map)
-        TopExp.MapShapesAndAncestors_s(self.shape, TopAbs_EDGE, TopAbs_FACE, face_map)
-
-        for i in range(1, edge_map.Extent() + 1):
-            edge = TopoDS.Edge_s(edge_map.FindKey(i))
-
-            face_list = face_map.FindFromKey(edge)
-            if face_list.Extent() == 0:
-                # print("no faces")
-                continue
-
+            edges = []
             loc = TopLoc_Location()
-
-            face = TopoDS.Face_s(face_list.First())
             triangle = BRep_Tool.Triangulation_s(face, loc)
             poly = BRep_Tool.PolygonOnTriangulation_s(edge, triangle, loc)
 
@@ -275,8 +316,9 @@ class Tessellator:
             for j in nrange:
                 v2 = triangle.Node(index(j)).Transformed(transf).Coord()
                 if v1 is not None:
-                    self.edges.append((v1, v2))
+                    edges.append((v1, v2))
                 v1 = v2
+            self.edges.append(edges)
 
         if len(self.edges) == 0:
             self._compute_missing_edges()
@@ -285,7 +327,13 @@ class Tessellator:
         return np.asarray(self.vertices, dtype=np.float32)
 
     def get_triangles(self):
-        return np.asarray(self.triangles, dtype=np.int32)
+        return [np.asarray(t, dtype=np.int32) for t in self.triangles]
+
+    def get_face_types(self):
+        return np.asarray(self.face_types, dtype=np.int32)
+
+    def get_edge_types(self):
+        return np.asarray(self.edge_types, dtype=np.int32)
 
     def get_normals(self):
         if len(self.normals) == 0:
@@ -293,7 +341,10 @@ class Tessellator:
         return np.asarray(self.normals, dtype=np.float32)
 
     def get_edges(self):
-        return np.asarray(self.edges, dtype=np.float32)
+        return [np.asarray(edge, dtype=np.float32) for edge in self.edges]
+
+    def get_obj_vertices(self):
+        return np.asarray(self.obj_vertices, dtype=np.float32)
 
 
 def compute_quality(bb, deviation=0.1):
@@ -320,6 +371,7 @@ def tessellate(
     compute_edges=True,
     debug=False,
     progress=None,
+    shape_id="",
 ):
     if progress is not None:
         progress.update("+")
@@ -327,16 +379,19 @@ def tessellate(
     compound = (
         make_compound(shapes) if len(shapes) > 1 else shapes[0]
     )  # pylint: disable=protected-access
-    tess = Tessellator()
+    tess = Tessellator(shape_id)
     tess.compute(
         compound, quality, angular_tolerance, compute_faces, compute_edges, debug
     )
-    vertices = tess.get_vertices()
     return {
-        "vertices": vertices,
+        "vertices": tess.get_vertices(),
         "triangles": tess.get_triangles(),
         "normals": tess.get_normals(),
         "edges": tess.get_edges(),
+        # added for version 2
+        "obj_vertices": tess.get_obj_vertices(),
+        "face_types": tess.get_face_types(),
+        "edge_types": tess.get_edge_types(),
     }
 
 
@@ -369,6 +424,55 @@ def discretize_edge(edge, deflection=0.1, num=None):
         edges.append((points[i], points[i + 1]))
 
     return np.asarray(edges, dtype=np.float32)
+
+
+def discretize_edges(edges, deflection=0.1, shape_id=""):
+    d_edges = []
+    vertices = []
+    edge_types = []
+
+    trace = Trace(LOG_FILE)
+
+    for ind, edge in enumerate(edges):
+        trace.edge(f"{shape_id}/edges/edges_{ind}", edge)
+        edge_types.append(get_edge_type(edge).value)
+
+        d = discretize_edge(edge, deflection)
+        if len(d) == 1 and not is_line(edge):
+            num = int(0.1 / deflection)
+            d = discretize_edge(edge, deflection=deflection, num=num)
+        d_edges.append(d)
+
+        for v in get_vertices(edge):
+            if v not in vertices:  # ignore duplicates
+                vertices.append(v)
+
+    d_vertices = []
+    for ind, v in enumerate(vertices):
+        trace.vertex(f"{shape_id}/vertices/vertex{ind}", v)
+        d_vertices.extend(get_point(v))
+
+    trace.close()
+
+    return {
+        "edges": d_edges,
+        "edge_types": edge_types,
+        "obj_vertices": np.asarray(d_vertices, dtype="float32"),
+    }
+
+
+def convert_vertices(vertices, shape_id=""):
+    n_vertices = []
+
+    trace = Trace(LOG_FILE)
+
+    for ind, vertex in enumerate(vertices):
+        trace.vertex(f"{shape_id}/vertices/vertex{ind}", vertex)
+        n_vertices.extend(get_point(vertex))
+
+    trace.close()
+
+    return {"obj_vertices": np.asarray(n_vertices, dtype="float32")}
 
 
 def bbox_edges(bb):

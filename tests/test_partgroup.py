@@ -1,6 +1,6 @@
 # %%
 import cadquery as cq
-from ocp_vscode import show
+from ocp_vscode import *
 from ocp_tessellate import Part, PartGroup, OCP_Part
 
 
