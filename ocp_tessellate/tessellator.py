@@ -55,6 +55,7 @@ MAX_HASH_KEY = 2147483647
 
 def make_key(
     shape,
+    cache_key,
     deviation,
     quality,
     angular_tolerance,
@@ -69,7 +70,7 @@ def make_key(
         shape = [shape]
 
     key = (
-        tuple(((s.HashCode(MAX_HASH_KEY), id(s)) for s in shape)),
+        tuple(((s.HashCode(MAX_HASH_KEY), cache_key) for s in shape)),
         deviation,
         angular_tolerance,
         compute_edges,
@@ -230,8 +231,6 @@ class Tessellator:
             norm = np.linalg.norm(self.normals[i])
             self.normals[i] /= norm
 
-        print(self.normals)
-
     def _compute_missing_edges(self):
         vertices = np.asarray(self.vertices).reshape(-1, 3)
         triangles = np.asarray(self.triangles).reshape(-1, 3)
@@ -308,10 +307,11 @@ def compute_quality(bb, deviation=0.1):
     return quality
 
 
-# cache key: (shape.hash, deviaton, angular_tolerance, compute_edges, compute_faces)
+# cache key: (shape.hash, cache_key, deviaton, angular_tolerance, compute_edges, compute_faces)
 @cached(cache, key=make_key)
 def tessellate(
     shapes,
+    cache_key,
     # only provided for managing cache:
     deviation: float,  # pylint: disable=unused-argument
     quality: float,

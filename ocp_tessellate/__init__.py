@@ -51,6 +51,7 @@ class Part(OCP_Part):
         if is_cadquery(shape):
             super().__init__(
                 [o.wrapped for o in shape.objects],
+                id(shape),
                 name=name,
                 color=color,
                 show_faces=show_faces,
@@ -59,6 +60,7 @@ class Part(OCP_Part):
         elif hasattr(shape, "wrapped"):
             super().__init__(
                 shape.wrapped,
+                id(shape),
                 name=name,
                 color=color,
                 show_faces=show_faces,

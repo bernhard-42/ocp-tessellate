@@ -92,11 +92,18 @@ class CADObject(object):
 
 class OCP_Part(CADObject):
     def __init__(
-        self, shape, name="Part", color=None, show_faces=True, show_edges=True
+        self,
+        shape,
+        cache_id,
+        name="Part",
+        color=None,
+        show_faces=True,
+        show_edges=True,
     ):
         super().__init__()
         self.name = name
         self.id = None
+        self.cache_id = cache_id
         self.color = Color(get_default("default_color") if color is None else color)
         self.loc = identity_location()
 
@@ -150,6 +157,7 @@ class OCP_Part(CADObject):
                 func = mp_tessellate if parallel else tessellate
                 mesh = func(
                     shape,
+                    self.cache_id,
                     deviation=deviation,
                     quality=quality,
                     angular_tolerance=angular_tolerance,

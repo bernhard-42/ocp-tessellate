@@ -89,6 +89,7 @@ def is_apply_result(obj):
 @cached(cache, key=make_key)
 def mp_tessellate(
     shapes,
+    cache_key,
     deviation,  # only provided for managing cache
     quality,
     angular_tolerance,

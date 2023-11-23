@@ -212,7 +212,7 @@ def make_key(objs, loc=None, optimal=False):  # pylint: disable=unused-argument
     if not isinstance(objs, (tuple, list)):
         objs = [objs]
 
-    key = (tuple((s.HashCode(MAX_HASH_KEY) for s in objs)), loc_to_tq(loc))
+    key = (tuple(((s.HashCode(MAX_HASH_KEY), id(s)) for s in objs)), loc_to_tq(loc))
     return key
 
 

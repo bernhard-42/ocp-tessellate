@@ -330,6 +330,7 @@ def conv(cad_obj, obj_name=None, obj_color=None, obj_alpha=1.0):
         _debug("          conv: solid_list")
         return OCP_Part(
             cad_objs,
+            id(cad_obj),
             name=get_name(obj_name, cad_objs, "Solid", "Solids"),
             color=get_rgba(obj_color, obj_alpha, Color(default_color)),
         )
@@ -390,7 +391,7 @@ def conv(cad_obj, obj_name=None, obj_color=None, obj_alpha=1.0):
         )
 
 
-def get_instance(obj, name, rgba, instances, progress):
+def get_instance(obj, cache_id, name, rgba, instances, progress):
     is_instance = False
     part = None
 
@@ -402,6 +403,7 @@ def get_instance(obj, name, rgba, instances, progress):
             # create a referential OCP_Part
             part = OCP_Part(
                 {"ref": i},
+                cache_id,
                 name if name is not None else "Solid",
                 rgba,
             )
@@ -422,6 +424,7 @@ def get_instance(obj, name, rgba, instances, progress):
             # and create a referential OCP_Part
             part = OCP_Part(
                 {"ref": len(instances) - 1},
+                cache_id,
                 part.name,
                 rgba,
             )
@@ -561,7 +564,9 @@ def _to_assembly(
                     # workaround: do not handle TShapes
                     part = conv(cad_obj.obj, cad_obj.name, color, alpha)
                 else:
-                    part = get_instance(cad_obj.obj, pg.name, rgba, instances, progress)
+                    part = get_instance(
+                        cad_obj.obj, id(cad_obj.obj), pg.name, rgba, instances, progress
+                    )
                 ass.add(part)
 
             # render mates
@@ -776,13 +781,23 @@ def _to_assembly(
                     if not isinstance(cad_obj, Iterable):
                         _debug("    to_assembly: no iterable", obj_name)
                         part = get_instance(
-                            cad_obj, obj_name, rgba, instances, progress
+                            cad_obj,
+                            (id(cad_obj), id(cad_obj.wrapped)),
+                            obj_name,
+                            rgba,
+                            instances,
+                            progress,
                         )
 
                     elif isinstance(cad_obj, Iterable) and len(cad_obj.solids()) == 1:
                         _debug("    to_assembly: single solid", obj_name)
                         part = get_instance(
-                            cad_obj.solids()[0], obj_name, rgba, instances, progress
+                            cad_obj.solids()[0],
+                            (id(cad_obj), id(cad_obj.wrapped)),
+                            obj_name,
+                            rgba,
+                            instances,
+                            progress,
                         )
 
                     else:
@@ -869,7 +884,9 @@ def _to_assembly(
 
             if is_solid:
                 # transform the solid to OCP
-                part = get_instance(cad_obj, obj_name, rgba, instances, progress)
+                part = get_instance(
+                    cad_obj, id(cad_obj), obj_name, rgba, instances, progress
+                )
                 if obj_name is None:
                     part.name = get_object_name(part)
 
