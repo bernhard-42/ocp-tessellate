@@ -342,6 +342,7 @@ def conv(cad_obj, obj_name=None, obj_color=None, obj_alpha=1.0):
             faces += list(get_faces(shell))
         return OCP_Faces(
             faces,
+            id(cad_obj),
             name=get_name(obj_name, cad_objs, "Shell", "Shells"),
             color=get_rgba(obj_color, obj_alpha, Color(FACE_COLOR)),
         )
@@ -350,6 +351,7 @@ def conv(cad_obj, obj_name=None, obj_color=None, obj_alpha=1.0):
         _debug("          conv: face_list")
         return OCP_Faces(
             cad_objs,
+            id(cad_obj),
             name=get_name(obj_name, cad_objs, "Face", "Faces"),
             color=get_rgba(obj_color, obj_alpha, Color(FACE_COLOR)),
         )

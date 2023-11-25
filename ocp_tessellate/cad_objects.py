@@ -228,10 +228,16 @@ class OCP_Part(CADObject):
 
 class OCP_Faces(OCP_Part):
     def __init__(
-        self, faces, name="Faces", color=None, show_faces=True, show_edges=True
+        self,
+        faces,
+        cache_id,
+        name="Faces",
+        color=None,
+        show_faces=True,
+        show_edges=True,
     ):
         super().__init__(
-            faces, name, color, show_faces, show_edges
+            faces, cache_id, name, color, show_faces, show_edges
         )  # TODO combine faces
         self.color = Color(color or (238, 130, 238))
         self.loc = None
