@@ -179,7 +179,7 @@ p = Plane(c.faces().sort_by().last)
 r = reg_poly(0.1, 6)
 
 for loc in PolarLocations(1.8, 12).local_locations:
-    r_located = r.located(p.to_location() * loc).faces()[0]
+    r_located = r.located(p.location * loc).faces()[0]
     r_extruded = Solid.extrude(r_located, Vector(0, 0, 0.1))
     c = c.fuse(r_extruded)
 

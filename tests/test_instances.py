@@ -101,7 +101,7 @@ show(*c.solids(), timeit=False)
 b = Box(0.1, 0.1, 1)
 c = Cylinder(1, 0.5)
 p = Plane(c.faces().sort_by().last)
-b = [reference(b, "pillar", p.to_location() * loc) for loc in PolarLocations(0.7, 12)]
+b = [reference(b, "pillar", p.location * loc) for loc in PolarLocations(0.7, 12)]
 
 show(*b)
 
