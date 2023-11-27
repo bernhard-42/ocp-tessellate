@@ -304,7 +304,10 @@ def conv(cad_obj, obj_name=None, obj_color=None, obj_alpha=1.0):
         if len(objs) > 0 and is_wrapped(objs[0]):
             # ShapeList
             _debug(f"        conv: build123d ShapeList {type(cad_obj)}")
-            cad_objs = [downcast(obj.wrapped) for obj in objs]
+            cad_objs = [
+                vertex(obj.wrapped) if is_vector(obj) else downcast(obj.wrapped)
+                for obj in objs
+            ]
         else:
             raise ValueError("Empty list cannot be tessellated")
 
