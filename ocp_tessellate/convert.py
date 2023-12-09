@@ -329,7 +329,15 @@ def conv(cad_obj, obj_name=None, obj_color=None, obj_alpha=1.0):
 
     # Convert to PartGroup
 
-    if is_solid_list(cad_objs):
+    if len(cad_objs) == 0:
+        _debug("          conv: empty object")
+        return OCP_Vertices(
+            [vertex((0, 0, 0))],
+            name=get_name(obj_name, cad_objs, "Object", "Objects") + " (empty)",
+            color=get_rgba(obj_color, 0.1, VERTEX_COLOR),
+            size=1,
+        )
+    elif is_solid_list(cad_objs):
         _debug("          conv: solid_list")
         return OCP_Part(
             cad_objs,
@@ -813,7 +821,11 @@ def _to_assembly(
                     _debug("    to_assembly: everything else", obj_name)
                     part = conv(cad_obj.wrapped, obj_name, color, alpha)
 
-                if is_assembly and obj_name is not None:
+                if (
+                    is_assembly
+                    and obj_name is not None
+                    and not part.name.endswith(" (empty)")
+                ):
                     part.name = f"{obj_name}"
 
                 pg.add(part)

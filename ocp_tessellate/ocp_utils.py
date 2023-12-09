@@ -593,7 +593,7 @@ def get_downcasted_shape(shape):
         objs = get_vertices(shape)
 
     else:
-        raise ValueError("Compound is empty")
+        return []
 
     return [downcast(obj) for obj in objs]
 
