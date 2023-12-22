@@ -836,17 +836,24 @@ def _to_assembly(
                     and len(cad_obj.joints) > 0
                 ):
                     _debug("    to_assembly: joints")
-                    # if obj_name is not None:
-                    #     pg.name = obj_name
-                    # part.name = "shape"
-                    # create a new part group for mates
+                    parts = []
+                    for name, joint in cad_obj.joints.items():
+                        if hasattr(joint, "symbol"):
+                            if is_mixed_compound(joint.symbol):
+                                pg3 = OCP_PartGroup([], name)
+                                for i, child in enumerate(joint.symbol):
+                                    part = conv(
+                                        child.wrapped, f"{name}_{i}", color, alpha
+                                    )
+                                    pg3.add(part)
+                                parts.append(pg3)
+                            else:
+                                part = conv(joint.symbol.wrapped, name, color, alpha)
+                                parts.append(part)
+
                     pg2 = OCP_PartGroup(
-                        [
-                            conv(joint.symbol.wrapped, name)
-                            for name, joint in cad_obj.joints.items()
-                            if hasattr(joint, "symbol")
-                        ],
-                        name=f"{part.name}[joints]",
+                        parts,
+                        name=f"{obj_name}[joints]",
                         loc=identity_location(),  # mates inherit the parent location, so actually add a no-op
                     )
 
