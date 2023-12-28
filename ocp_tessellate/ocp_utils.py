@@ -929,6 +929,8 @@ def get_location(obj, as_none=True):
             loc = obj.loc
         elif hasattr(obj, "location"):
             loc = obj.location
+            if callable(loc):
+                loc = loc()
         elif isinstance(obj, TopLoc_Location):
             return obj
         else:
