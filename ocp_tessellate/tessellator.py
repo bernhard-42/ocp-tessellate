@@ -48,6 +48,7 @@ from .ocp_utils import (
     get_face_type,
     get_edge_type,
     is_line,
+    length,
 )
 from .trace import Trace
 

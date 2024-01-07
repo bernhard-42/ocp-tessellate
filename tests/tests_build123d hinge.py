@@ -2,6 +2,7 @@
 from build123d import *
 from ocp_vscode import show_object, set_defaults
 
+# %%
 set_defaults(render_joints=True)
 
 # %%

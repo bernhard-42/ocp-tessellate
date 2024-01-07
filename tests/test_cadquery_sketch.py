@@ -1,7 +1,9 @@
 # %%
 import cadquery as cq
 from ocp_vscode import show, set_defaults
+from pathlib import Path
 
+c = Path.cwd()
 set_defaults(axes=True, axes0=True)
 
 # %%
