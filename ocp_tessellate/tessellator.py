@@ -439,7 +439,7 @@ def discretize_edges(edges, deflection=0.1, shape_id=""):
 
         d = discretize_edge(edge, deflection)
         if len(d) == 1 and not is_line(edge):
-            num = int(0.1 / deflection)
+            num = int((length(edge) / 2000) / deflection)
             d = discretize_edge(edge, deflection=deflection, num=num)
         d_edges.append(d)
 
