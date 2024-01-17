@@ -78,6 +78,7 @@ from .ocp_utils import (
     is_gp_axis,
     is_gp_plane,
     is_plane_xy,
+    is_ocp_color,
     make_compound,
     np_bbox,
     ocp_color,
@@ -516,6 +517,10 @@ def _to_assembly(
         # OCP_Faces, OCP_edges and OCP_Vertices bring their own color info
         # TODO default color for shapes is used
         #
+
+        # filter color objects that can come from vscode_ocp_cad_viewer
+        if is_ocp_color(cad_obj):
+            continue
 
         if not isinstance(cad_obj, (OCP_Faces, OCP_Edges, OCP_Vertices)):
             if hasattr(cad_obj, "color") and cad_obj.color is not None:
