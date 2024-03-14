@@ -700,6 +700,10 @@ def is_compound(obj):
     return hasattr(obj, "wrapped") and is_topods_compound(obj.wrapped)
 
 
+def is_ocp_color(obj):
+    return hasattr(obj, "wrapped") and isinstance(obj.wrapped, Quantity_ColorRGBA)
+
+
 def unroll_compound(compound):
     result = []
     for o in compound:
