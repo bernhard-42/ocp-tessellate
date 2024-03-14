@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+import base64
 import numpy as np
 
 from .utils import Color, Timer
@@ -23,6 +24,7 @@ from .ocp_utils import (
     get_location,
     np_bbox,
     line,
+    rect,
     axis_to_vecs,
     loc_to_vecs,
     identity_location,
@@ -39,6 +41,7 @@ from .tessellator import (
 )
 from .mp_tessellator import is_apply_result, mp_tessellate, init_pool, keymap
 from .defaults import get_default
+import imagesize
 
 UNSELECTED = 0
 SELECTED = 1
@@ -111,7 +114,7 @@ class OCP_Part(CADObject):
         self.cache_id = cache_id
         self.color = Color(get_default("default_color") if color is None else color)
         self.loc = identity_location()
-
+        self.texture = None
         self.shape = shape
         self.set_states(show_faces, show_edges)
         self.renderback = False
@@ -205,13 +208,22 @@ class OCP_Part(CADObject):
             color = self.color.web_color
             alpha = self.color.a
 
+        texture = None
+        subtype = "solid" if self.solid else "faces"
+
+        if isinstance(self, ImageFace):
+            subtype = "image"
+            image = {"data": self.image, "format": self.image_type}
+            texture = {"image": image, "width": self.width, "height": self.height}
+
         return dict(id=self.id, shape=shape, loc=combined_loc), {
             "id": self.id,
             "type": "shapes",
-            "subtype": "solid" if self.solid else "faces",
+            "subtype": subtype,
             "name": self.name,
             "shape": mesh,
             "color": color,
+            "texture": texture,
             "alpha": alpha,
             "loc": None if self.loc is None else loc_to_tq(self.loc),
             "renderback": self.renderback,
@@ -488,3 +500,35 @@ class CoordSystem(OCP_Edges):
 
         colors = (Color("red"), Color("green"), Color("blue"))
         super().__init__([x_edge, y_edge, z_edge], name, colors, width=3)
+
+
+class ImageFace(OCP_Faces):
+    def __init__(
+        self,
+        image_path,
+        width,
+        height=None,
+        name="ImagePlane",
+        color=None,
+        location=None,
+    ):
+        if height is None:
+            w, h = imagesize.get(image_path)
+            height = h * width / w
+
+        plane = rect(width, height)
+        super().__init__(
+            [plane],
+            id(plane),
+            name=name,
+            color=(255, 255, 255) if color is None else color,
+            show_edges=True,
+        )
+
+        with open(image_path, "rb") as f:
+            self.image = base64.b64encode(f.read()).decode("utf-8")
+            self.image_type = image_path.split(".")[-1]
+        self.name = name
+        self.width = width
+        self.height = height
+        self.loc = location.wrapped if hasattr(location, "wrapped") else location

@@ -16,6 +16,7 @@
 
 import io
 import itertools
+import os
 import platform
 import sys
 import tempfile
@@ -37,6 +38,7 @@ from OCP.BRepBuilderAPI import (
     BRepBuilderAPI_Copy,
     BRepBuilderAPI_MakeEdge,
     BRepBuilderAPI_MakeVertex,
+    BRepBuilderAPI_MakeFace,
 )
 from OCP.BRepGProp import BRepGProp
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
@@ -807,6 +809,16 @@ def vertex(obj):
 
 def vector(xyz):
     return gp_Vec(*xyz)
+
+
+def rect(width, height):
+    return BRepBuilderAPI_MakeFace(
+        gp_Pln(gp_Ax3(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1), gp_Dir(1, 0, 0))),
+        -width * 0.5,
+        width * 0.5,
+        -height * 0.5,
+        height * 0.5,
+    ).Face()
 
 
 def line(start, end):

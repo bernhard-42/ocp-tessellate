@@ -28,6 +28,7 @@ setup_args = {
         "numpy",
         "numpy-quaternion",
         "cachetools~=5.2.0",
+        "imagesize",
     ],
     "extras_require": {
         "dev": {"twine", "bumpversion", "black", "pylint", "pyYaml"},
