@@ -483,6 +483,8 @@ def write_stl_file(compound, filename, tolerance=None, angular_tolerance=None):
 
 # OCP serialisation
 
+# TODO replace with https://github.com/MatthiasJ1/ocp_serializer when published
+
 
 def serialize(shape):
     if shape is None:
@@ -493,9 +495,10 @@ def serialize(shape):
         BinTools.Write_s(shape, bio)
         buffer = bio.getvalue()
     except Exception:
-        with tempfile.NamedTemporaryFile() as tf:
-            BinTools.Write_s(shape, tf.name)
-            with open(tf.name, "rb") as fd:
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            filename = os.path.join(tmpdirname, "shape.brep")
+            BinTools.Write_s(shape, filename)
+            with open(filename, "rb") as fd:
                 buffer = fd.read()
     return buffer
 
@@ -509,10 +512,11 @@ def deserialize(buffer):
         bio = io.BytesIO(buffer)
         BinTools.Read_s(shape, bio)
     except Exception:
-        with tempfile.NamedTemporaryFile() as tf:
-            with open(tf.name, "wb") as fd:
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            filename = os.path.join(tmpdirname, "shape.brep")
+            with open(filename, "wb") as fd:
                 fd.write(buffer)
-            BinTools.Read_s(shape, tf.name)
+            BinTools.Read_s(shape, filename)
     return shape
 
 
