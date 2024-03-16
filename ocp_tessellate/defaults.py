@@ -75,7 +75,8 @@ class Defaults:
         - rotate_speed:       Mouse rotate speed (default=1.0)
         - ambient_intensity   Intensity of ambient light (default=0.75)
         - direct_intensity    Intensity of direct lights (default=0.15)
-        - show_parent:        Show the parent for edges, faces and vertices objects
+        - show_parent:        Show the parent for edges, faces and vertices objects (default=False)
+        - show_sketch_local:  In build123d show local sketch in addition to relocate sketch (default=True)
         - show_bbox:          Show bounding box (default=False)
         - tools:              Show the viewer tools like the object tree (default=True)
         - glass:              Show the viewer in glass mode, i.e (CAD navigation as transparent overlay (default=False)
@@ -145,6 +146,7 @@ class Defaults:
             "direct_intensity": 0.15,
             "reset_camera": True,
             "show_parent": False,
+            "show_sketch_local": True,
             "show_bbox": False,
             "position": None,
             "quaternion": None,

@@ -484,6 +484,7 @@ def _to_assembly(
     helper_scale=1,
     default_color=None,
     show_parent=False,
+    show_sketch_local=True,
     loc=None,
     mates=None,
     instances=None,
@@ -662,6 +663,7 @@ def _to_assembly(
         elif (
             is_build123d(cad_obj)
             and hasattr(cad_obj, "sketch_local")
+            and show_sketch_local
             and not (
                 len(cad_obj.workplanes) == 1
                 and is_plane_xy(cad_obj.workplanes[0].wrapped)
@@ -956,6 +958,7 @@ def to_assembly(
     helper_scale=1,
     default_color=None,
     show_parent=False,
+    show_sketch_local=True,
     loc=None,
     mates=None,
     instances=None,
@@ -971,6 +974,7 @@ def to_assembly(
         helper_scale=helper_scale,
         default_color=default_color,
         show_parent=show_parent,
+        show_sketch_local=show_sketch_local,
         loc=loc,
         mates=mates,
         instances=instances,
