@@ -102,7 +102,7 @@ class OCP_Part(CADObject):
     def __init__(
         self,
         shape,
-        cache_id,
+        cache_id=None,
         name="Part",
         color=None,
         show_faces=True,
@@ -111,7 +111,7 @@ class OCP_Part(CADObject):
         super().__init__()
         self.name = name
         self.id = None
-        self.cache_id = cache_id
+        self.cache_id = id(shape) if cache_id is None else cache_id
         self.color = Color(get_default("default_color") if color is None else color)
         self.loc = identity_location()
         self.texture = None
@@ -242,7 +242,7 @@ class OCP_Faces(OCP_Part):
     def __init__(
         self,
         faces,
-        cache_id,
+        cache_id=None,
         name="Faces",
         color=None,
         show_faces=True,
