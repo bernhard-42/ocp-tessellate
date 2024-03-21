@@ -24,7 +24,7 @@ for i in range(ni):
         del box
 
     result = to_assembly(boxes)
-    instances, shapes, states = tessellate_group(result, progress=p)
+    instances, shapes, states, mapping = tessellate_group(result, progress=p)
     for j in range(nj):
         print(
             i,
