@@ -44,6 +44,7 @@ create-release:
 	@github-release release -u bernhard-42 -r ocp-tessellate -t v$(CURRENT_VERSION) -n ocp_tessellate-$(CURRENT_VERSION)
 	@sleep 2
 	@github-release upload  -u bernhard-42 -r ocp-tessellate -t v$(CURRENT_VERSION) -n ocp_tessellate-$(CURRENT_VERSION).tar.gz -f dist/ocp_tessellate-$(CURRENT_VERSION).tar.gz
+	@github-release upload  -u bernhard-42 -r ocp-tessellate -t v$(CURRENT_VERSION) -n ocp_tessellate-2.2.0-py3-none-any.whl -f dist/ocp_tessellate-2.2.0-py3-none-any.whl
 
 install: dist
 	@echo "=> Installing ocp-tessellate"
