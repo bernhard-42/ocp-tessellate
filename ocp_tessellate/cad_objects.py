@@ -21,6 +21,7 @@ from .utils import Color, Timer
 from .ocp_utils import (
     bounding_box,
     loc_to_tq,
+    tq_to_loc,
     get_location,
     np_bbox,
     line,
@@ -506,22 +507,28 @@ class ImageFace(OCP_Faces):
     def __init__(
         self,
         image_path,
-        width,
-        height=None,
-        name="ImagePlane",
-        color=None,
+        scale=1.0,
+        origin_pixels=(0, 0),
         location=None,
+        name="ImagePlane",
     ):
-        if height is None:
-            w, h = imagesize.get(image_path)
-            height = h * width / w
+        self.image_width, self.image_height = imagesize.get(image_path)
+        x = origin_pixels[0]
+        y = self.image_height - origin_pixels[1]
 
-        plane = rect(width, height)
+        if isinstance(scale, (int, float)):
+            scale = (scale, scale)
+
+        ws = int(self.image_width * scale[0])
+        hs = int(self.image_height * scale[1])
+        xs = int(x * scale[0])
+        ys = int(y * scale[1])
+
+        plane = rect(ws, hs)
         super().__init__(
             [plane],
             id(plane),
             name=name,
-            color=(255, 255, 255) if color is None else color,
             show_edges=True,
         )
 
@@ -529,6 +536,9 @@ class ImageFace(OCP_Faces):
             self.image = base64.b64encode(f.read()).decode("utf-8")
             self.image_type = image_path.split(".")[-1]
         self.name = name
-        self.width = width
-        self.height = height
-        self.loc = location.wrapped if hasattr(location, "wrapped") else location
+        self.width = ws
+        self.height = hs
+
+        loc = location.wrapped if hasattr(location, "wrapped") else location
+        o = tq_to_loc((ws / 2 - xs, hs / 2 - ys, 0), (0, 0, 0, 1))
+        self.loc = loc * o if loc is not None else o
