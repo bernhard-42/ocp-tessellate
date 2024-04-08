@@ -52,6 +52,13 @@ from .ocp_utils import (
 )
 from .trace import Trace
 
+try:
+    from ocp_addons.tessellator import tessellate as tessellate_c
+
+    NATIVE = True
+except ImportError:
+    NATIVE = False
+
 MAX_HASH_KEY = 2147483647
 LOG_FILE = "ocp_tessellate.log"
 
@@ -177,15 +184,13 @@ class Tessellator:
         with Timer(
             debug,
             "",
-            f"mesh incrementally {'(parallel)' if count > 1 else ''}",
+            f"mesh incrementally",
             3,
             debug,
         ):
             # Remove previous mesh data
             BRepTools.Clean_s(shape)
-            BRepMesh_IncrementalMesh(
-                shape, quality, False, angular_tolerance, count > 1
-            )
+            BRepMesh_IncrementalMesh(shape, quality, False, angular_tolerance, True)
 
         trace = Trace(LOG_FILE)
 
@@ -348,6 +353,73 @@ class Tessellator:
         return np.asarray(self.obj_vertices, dtype=np.float32)
 
 
+class NativeTessellator:
+    def __init__(self, shape_id):
+        self.shape_id = shape_id
+        self.mesh = None
+
+    def compute(
+        self,
+        shape,
+        quality,
+        angular_tolerance,
+        compute_faces=True,
+        compute_edges=True,
+        debug=False,
+    ):
+        self.mesh = tessellate_c(
+            # shape, quality, angular_tolerance, parallel=True, debug=debug, timeit=debug
+            shape,
+            quality,
+            angular_tolerance,
+            True,
+            0,
+            debug,
+        )
+
+    def decompose(self, array, indexes, flatten=False):
+        result = []
+        s = 0
+        for e in indexes:
+            e2 = s + e
+            sub = array[s:e2]
+            if flatten:
+                sub = sub.reshape(-1)
+            result.append(sub)
+            s = e2
+        return result
+
+    def get_vertices(self):
+        return self.mesh.vertices
+
+    def get_triangles(self):
+        triangles = []
+        current_index = 0
+        for size in self.mesh.triangles_per_face:
+            subarray = self.mesh.triangles[current_index : current_index + 3 * size]
+            triangles.append(subarray)
+            current_index += 3 * size
+
+        return triangles
+
+    def get_face_types(self):
+        return self.mesh.face_types
+
+    def get_edge_types(self):
+        return self.mesh.edge_types
+
+    def get_normals(self):
+        return self.mesh.normals
+
+    def get_edges(self):
+        return self.decompose(
+            self.mesh.segments.reshape(-1, 2, 3), self.mesh.segments_per_edge
+        )
+
+    def get_obj_vertices(self):
+        return self.mesh.obj_vertices
+
+
 def compute_quality(bb, deviation=0.1):
     # Since tessellation caching depends on quality, try to come up with stable a quality value
     quality = round_sig(
@@ -380,7 +452,13 @@ def tessellate(
     compound = (
         make_compound(shapes) if len(shapes) > 1 else shapes[0]
     )  # pylint: disable=protected-access
-    tess = Tessellator(shape_id)
+
+    if NATIVE and os.environ.get("NATIVE_TESSELLATOR") == "1":
+        print("  Using native tessellator")
+        tess = NativeTessellator(shape_id)
+    else:
+        tess = Tessellator(shape_id)
+
     tess.compute(
         compound, quality, angular_tolerance, compute_faces, compute_edges, debug
     )
