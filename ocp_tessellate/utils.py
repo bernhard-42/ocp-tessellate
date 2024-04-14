@@ -1,3 +1,4 @@
+import base64
 import json
 import math
 import numpy as np
@@ -93,12 +94,9 @@ def flatten(nested_list):
     return [y for x in nested_list for y in x]
 
 
-def numpy_to_buffer_json(value, indent=None):
+def numpy_to_buffer_json(value):
     def walk(obj):
         if isinstance(obj, np.ndarray):
-            if str(obj.dtype) in ("int32", "int64", "uint64"):
-                return obj.tolist()
-
             if not obj.flags["C_CONTIGUOUS"]:
                 obj = np.ascontiguousarray(obj)
 
@@ -106,7 +104,8 @@ def numpy_to_buffer_json(value, indent=None):
             return {
                 "shape": obj.shape,
                 "dtype": str(obj.dtype),
-                "buffer": memoryview(obj).hex(),
+                "buffer": base64.b64encode(memoryview(obj)).decode(),
+                "codec": "b64",
             }
         elif isinstance(obj, (tuple, list)):
             return [walk(el) for el in obj]
