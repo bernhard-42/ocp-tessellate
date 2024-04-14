@@ -151,9 +151,11 @@ class Tessellator:
     def __init__(self, shape_id):
         self.shape_id = shape_id
         self.triangles = []
+        self.triangles_per_face = []
         self.vertices = []  # triangle vertices
         self.normals = []
         self.edges = []
+        self.segments_per_edge = []
 
         self.obj_vertices = []  # object vertices
         self.face_types = []
@@ -254,7 +256,8 @@ class Tessellator:
                     flat.extend(
                         (coord[0] + offset, coord[i1] + offset, coord[i2] + offset)
                     )
-                self.triangles.append(flat)
+                self.triangles.extend(flat)
+                self.triangles_per_face.append(poly.NbTriangles())
 
                 # add normals
                 if poly.HasUVNodes():
@@ -324,9 +327,10 @@ class Tessellator:
             for j in nrange:
                 v2 = triangle.Node(index(j)).Transformed(transf).Coord()
                 if v1 is not None:
-                    edges.append((v1, v2))
+                    edges.extend((v1, v2))
                 v1 = v2
-            self.edges.append(edges)
+            self.edges.extend(edges)
+            self.segments_per_edge.append(len(edges) // 2)
 
         if len(self.edges) == 0:
             self._compute_missing_edges()
@@ -335,7 +339,10 @@ class Tessellator:
         return np.asarray(self.vertices, dtype=np.float32)
 
     def get_triangles(self):
-        return [np.asarray(t, dtype=np.int32) for t in self.triangles]
+        return np.asarray(self.triangles, dtype=np.int32)
+
+    def get_triangles_per_face(self):
+        return np.asarray(self.triangles_per_face, dtype=np.int32)
 
     def get_face_types(self):
         return np.asarray(self.face_types, dtype=np.int32)
@@ -349,7 +356,10 @@ class Tessellator:
         return np.asarray(self.normals, dtype=np.float32)
 
     def get_edges(self):
-        return [np.asarray(edge, dtype=np.float32) for edge in self.edges]
+        return np.asarray(self.edges, dtype=np.float32)
+
+    def get_segments_per_edge(self):
+        return np.asarray(self.segments_per_edge, dtype=np.int32)
 
     def get_obj_vertices(self):
         return np.asarray(self.obj_vertices, dtype=np.float32)
@@ -379,30 +389,14 @@ class NativeTessellator:
             debug,
         )
 
-    def decompose(self, array, indexes, flatten=False):
-        result = []
-        s = 0
-        for e in indexes:
-            e2 = s + e
-            sub = array[s:e2]
-            if flatten:
-                sub = sub.reshape(-1)
-            result.append(sub)
-            s = e2
-        return result
-
     def get_vertices(self):
         return self.mesh.vertices
 
     def get_triangles(self):
-        triangles = []
-        current_index = 0
-        for size in self.mesh.triangles_per_face:
-            subarray = self.mesh.triangles[current_index : current_index + 3 * size]
-            triangles.append(subarray)
-            current_index += 3 * size
+        return self.mesh.triangles
 
-        return triangles
+    def get_triangles_per_face(self):
+        return self.mesh.triangles_per_face
 
     def get_face_types(self):
         return self.mesh.face_types
@@ -414,9 +408,10 @@ class NativeTessellator:
         return self.mesh.normals
 
     def get_edges(self):
-        return self.decompose(
-            self.mesh.segments.reshape(-1, 2, 3), self.mesh.segments_per_edge
-        )
+        return self.mesh.segments
+
+    def get_segments_per_edge(self):
+        return self.mesh.segments_per_edge
 
     def get_obj_vertices(self):
         return self.mesh.obj_vertices
@@ -473,6 +468,9 @@ def tessellate(
         "obj_vertices": tess.get_obj_vertices(),
         "face_types": tess.get_face_types(),
         "edge_types": tess.get_edge_types(),
+        # added for version 3 (optional)
+        "triangles_per_face": tess.get_triangles_per_face(),
+        "segments_per_edge": tess.get_segments_per_edge(),
     }
 
 

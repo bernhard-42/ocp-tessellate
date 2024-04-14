@@ -48,7 +48,7 @@ UNSELECTED = 0
 SELECTED = 1
 EMPTY = 3
 
-PROTOCOL_VERSION = 2
+PROTOCOL_VERSION = 3
 
 #
 # Simple Part and PartGroup classes
