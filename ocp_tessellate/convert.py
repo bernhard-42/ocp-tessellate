@@ -26,8 +26,6 @@ from .cad_objects import (
     OCP_Part,
     OCP_PartGroup,
     OCP_Vertices,
-    get_instances,
-    set_instances,
 )
 from .defaults import get_default, preset
 from .mp_tessellator import get_mp_result, is_apply_result
@@ -113,12 +111,15 @@ def web_color(name):
     return ocp_color(*wc.percentage)
 
 
-def tessellate_group(group, kwargs=None, progress=None, timeit=False):
+def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False):
     if kwargs is None:
         kwargs = {}
 
-    map, shapes = group.collect_shapes(
+    meshed_instances = [None] * len(instances)
+    mapping, shapes = group.collect_shapes(
         "",
+        instances,
+        meshed_instances,
         None,
         deviation=preset("deviation", kwargs.get("deviation")),
         angular_tolerance=preset("angular_tolerance", kwargs.get("angular_tolerance")),
@@ -130,7 +131,7 @@ def tessellate_group(group, kwargs=None, progress=None, timeit=False):
     )
     states = group.to_state()
 
-    return get_instances(), shapes, states, map
+    return [instance.mesh for instance in meshed_instances], shapes, states, mapping
 
 
 def combined_bb(shapes):
@@ -988,8 +989,7 @@ def to_assembly(
             pg.objects[0].loc = pg.loc * pg.objects[0].loc
         pg = pg.objects[0]
 
-    set_instances([instance[1] for instance in instances])
-    return pg
+    return pg, instances
 
 
 def export_three_cad_viewer_json(*objs, filename=None):
@@ -1012,8 +1012,8 @@ def export_three_cad_viewer_json(*objs, filename=None):
 
         walk(shapes)
 
-    part_group = to_assembly(*objs)
-    instances, shapes, states, map = tessellate_group(part_group)
+    part_group, instances = to_assembly(*objs)
+    instances, shapes, states, map = tessellate_group(part_group, instances)
     decode(instances, shapes)
 
     j = numpy_to_json([shapes, states])

@@ -62,18 +62,6 @@ class Instance:
         self.quality = None
 
 
-INSTANCES = []
-
-
-def get_instances():
-    return [instance.mesh for instance in INSTANCES]
-
-
-def set_instances(instances):
-    global INSTANCES
-    INSTANCES = [Instance(instance) for instance in instances]
-
-
 class CADObject(object):
     def __init__(self):
         self.color = Color(get_default("default_color"))
@@ -87,6 +75,8 @@ class CADObject(object):
     def collect_shapes(
         self,
         path,
+        instances,
+        meshed_instances,
         loc,
         deviation,
         angular_tolerance,
@@ -134,6 +124,8 @@ class OCP_Part(CADObject):
     def collect_shapes(
         self,
         path,
+        instances,
+        meshed_instances,
         loc,
         deviation,
         angular_tolerance,
@@ -147,9 +139,14 @@ class OCP_Part(CADObject):
 
         if isinstance(self.shape, dict):
             ind = self.shape["ref"]
-            shape = [INSTANCES[ind].shape]
-            mesh = INSTANCES[ind].mesh
-            quality = INSTANCES[ind].quality
+            if isinstance(instances[ind], Instance):
+                mesh = instances[ind].mesh
+            else:
+                shape = instances[ind][1]
+                if not isinstance(shape, (list, tuple)):
+                    shape = [shape]
+                meshed_instances[ind] = Instance(shape)
+                mesh = None
         else:
             ind = None
             shape = self.shape
@@ -187,17 +184,17 @@ class OCP_Part(CADObject):
 
             if parallel and is_apply_result(mesh):
                 # store the instance mesh
-                if ind is not None and INSTANCES[ind].mesh is None:
-                    INSTANCES[ind].mesh = mesh
-                    INSTANCES[ind].quality = quality
+                if ind is not None and meshed_instances[ind].mesh is None:
+                    meshed_instances[ind].mesh = mesh
+                    meshed_instances[ind].quality = quality
                 mesh = {"ref": ind, "t": t, "q": q}
                 bb = {}
             else:
                 bb = np_bbox(mesh["vertices"], t, q)
                 # store the instance mesh
-                if ind is not None and INSTANCES[ind].mesh is None:
-                    INSTANCES[ind].mesh = mesh
-                    INSTANCES[ind].quality = quality
+                if ind is not None and meshed_instances[ind].mesh is None:
+                    meshed_instances[ind].mesh = mesh
+                    meshed_instances[ind].quality = quality
 
                 if isinstance(self.shape, dict):
                     mesh = self.shape  # return the instance id
@@ -284,6 +281,8 @@ class OCP_Edges(CADObject):
     def collect_shapes(
         self,
         path,
+        instances,
+        meshed_instances,
         loc,
         deviation,
         angular_tolerance,
@@ -345,6 +344,8 @@ class OCP_Vertices(CADObject):
     def collect_shapes(
         self,
         path,
+        instances,
+        meshed_instances,
         loc,
         deviation,
         angular_tolerance,
@@ -402,6 +403,8 @@ class OCP_PartGroup(CADObject):
     def collect_shapes(
         self,
         path,
+        instances,
+        meshed_instances,
         loc,
         deviation,
         angular_tolerance,
@@ -433,6 +436,8 @@ class OCP_PartGroup(CADObject):
         for obj in self.objects:
             mapping, mesh = obj.collect_shapes(
                 self.id,
+                instances,
+                meshed_instances,
                 combined_loc,
                 deviation,
                 angular_tolerance,

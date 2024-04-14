@@ -24,8 +24,6 @@ from .cad_objects import (
     OCP_Part,
     OCP_PartGroup,
     OCP_Vertices,
-    get_instances,
-    set_instances,
 )
 from .convert import web_color
 from .defaults import (
