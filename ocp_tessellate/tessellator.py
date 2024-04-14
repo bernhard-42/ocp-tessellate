@@ -189,7 +189,9 @@ class Tessellator:
             debug,
         ):
             # Remove previous mesh data
-            BRepTools.Clean_s(shape)
+            # https://dev.opencascade.org/node/81262#comment-21130
+            # BRepTools.Clean_s(shape)
+            # print(quality, False, angular_tolerance, True)
             BRepMesh_IncrementalMesh(shape, quality, False, angular_tolerance, True)
 
         trace = Trace(LOG_FILE)
