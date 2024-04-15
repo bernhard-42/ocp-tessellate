@@ -55,6 +55,11 @@ from .trace import Trace
 try:
     from ocp_addons.tessellator import tessellate as tessellate_c
 
+    print("Found native tessellator")
+    if os.environ.get("NATIVE_TESSELLATOR") != "1":
+        print(
+            "To enable, set the environment variabe NATIVE_TESSELLATOR: os.environ('NATIVE_TESSELLATOR') = '1'\n"
+        )
     NATIVE = True
 except ImportError:
     NATIVE = False
@@ -447,7 +452,6 @@ def tessellate(
     )  # pylint: disable=protected-access
 
     if NATIVE and os.environ.get("NATIVE_TESSELLATOR") == "1":
-        print("  Using native tessellator")
         tess = NativeTessellator(shape_id)
     else:
         tess = Tessellator(shape_id)
