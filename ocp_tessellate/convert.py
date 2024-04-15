@@ -21,6 +21,7 @@ import json
 from .cad_objects import (
     CoordSystem,
     CoordAxis,
+    CADObject,
     OCP_Edges,
     OCP_Faces,
     OCP_Part,
