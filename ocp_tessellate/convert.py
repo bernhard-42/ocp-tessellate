@@ -759,6 +759,37 @@ def _to_assembly(
                         obj.name = name
                     pg.add(pg2)
 
+        # elif isinstance(cad_obj, dict):
+        #     pg2 = OCP_PartGroup([], name="Dict" if obj_name is None else obj_name)
+        #     for name, child in cad_obj.items():
+        #         part, instances = _to_assembly(
+        #             child,
+        #             default_color=default_color,
+        #             names=[f"{obj_name}.{name}"],
+        #             colors=[obj_color],
+        #             alphas=[obj_alpha],
+        #             render_mates=render_mates,
+        #             render_joints=render_joints,
+        #             helper_scale=helper_scale,
+        #             instances=instances,
+        #             progress=progress,
+        #             is_assembly=is_assembly,
+        #         )
+        #         if isinstance(part, OCP_PartGroup) and len(part.objects) == 1:
+        #             pg2.add(part.objects[0])
+        #         else:
+        #             if len(part.objects) > 0:
+        #                 pg2.add(part)
+
+        #     if len(pg2.objects) > 0:
+        #         if len(pg2.objects) == 1:
+        #             pg.add(pg2.objects[0])
+        #         else:
+        #             names = make_unique([obj.name for obj in pg2.objects])
+        #             for name, obj in zip(names, pg2.objects):
+        #                 obj.name = name
+        #             pg.add(pg2)
+
         elif hasattr(cad_obj, "wrapped") and (
             is_toploc_location(cad_obj.wrapped) or is_gp_plane(cad_obj.wrapped)
         ):
