@@ -707,15 +707,34 @@ def _to_assembly(
             and not hasattr(cad_obj, "last")
         ):
             _debug(
-                "to_assembly: iterables other then Compounds and ShapeLists", obj_name
+                "to_assembly: iterables other than Compounds and ShapeLists", obj_name
             )
 
-            pg2 = OCP_PartGroup([], name="List" if obj_name is None else obj_name)
-            for child in cad_obj:
+            pg2 = OCP_PartGroup(
+                [],
+                name=(
+                    ("Dict" if isinstance(cad_obj, dict) else "List")
+                    if obj_name is None
+                    else obj_name
+                ),
+            )
+            if isinstance(cad_obj, dict):
+                named_child = cad_obj.items()
+            else:
+                named_child = zip([None] * len(list(cad_obj)), cad_obj)
+
+            for name, child in named_child:
+                if hasattr(child, "name") and child.name is not None:
+                    name = child.name
+                elif hasattr(child, "label") and child.label is not None:
+                    name = child.label
+                else:
+                    name = obj_name
+
                 part, instances = _to_assembly(
                     child,
                     default_color=default_color,
-                    names=None,
+                    names=[name],
                     colors=[obj_color],
                     alphas=[obj_alpha],
                     render_mates=render_mates,
@@ -728,12 +747,17 @@ def _to_assembly(
                 if isinstance(part, OCP_PartGroup) and len(part.objects) == 1:
                     pg2.add(part.objects[0])
                 else:
-                    pg2.add(part)
+                    if len(part.objects) > 0:
+                        pg2.add(part)
 
-            names = make_unique([obj.name for obj in pg2.objects])
-            for name, obj in zip(names, pg2.objects):
-                obj.name = name
-            pg.add(pg2)
+            if len(pg2.objects) > 0:
+                if len(pg2.objects) == 1:
+                    pg.add(pg2.objects[0])
+                else:
+                    names = make_unique([obj.name for obj in pg2.objects])
+                    for name, obj in zip(names, pg2.objects):
+                        obj.name = name
+                    pg.add(pg2)
 
         elif hasattr(cad_obj, "wrapped") and (
             is_toploc_location(cad_obj.wrapped) or is_gp_plane(cad_obj.wrapped)
