@@ -236,11 +236,7 @@ class Tessellator:
             self.face_types.append(get_face_type(face).value)
 
             poly = BRep_Tool.Triangulation_s(face, loc_buf)
-            if poly is None:
-                self.vertices.extend([])
-                self.triangles.append([])
-                self.normals.extend([])
-            else:
+            if poly is not None:
                 Trsf = loc_buf.Transformation()
 
                 # add vertices
