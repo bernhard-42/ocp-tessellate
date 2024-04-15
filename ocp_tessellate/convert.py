@@ -15,12 +15,13 @@
 #
 
 from collections.abc import Iterable
-
+import enum
 import json
 
 from .cad_objects import (
     CoordSystem,
     CoordAxis,
+    CADObject,
     OCP_Edges,
     OCP_Faces,
     OCP_Part,
@@ -520,8 +521,24 @@ def _to_assembly(
         # TODO default color for shapes is used
         #
 
-        # filter color objects that can come from vscode_ocp_cad_viewer
-        if is_ocp_color(cad_obj):
+        # Silently skip enums
+        if isinstance(cad_obj, enum.Enum):
+            continue
+
+        if is_ocp_color(cad_obj) or not (
+            is_wrapped(cad_obj)
+            or isinstance(cad_obj, (CADObject, Iterable, dict))
+            or is_cadquery(cad_obj)
+            or is_cadquery_assembly(cad_obj)
+            or is_cadquery_sketch(cad_obj)
+            or is_build123d(cad_obj)
+            or is_compound(cad_obj)
+        ):
+            print(
+                "Skipping object"
+                + ("" if obj_name is None else f" '{obj_name}'")
+                + f" of type {type(cad_obj)}"
+            )
             continue
 
         if not isinstance(cad_obj, (OCP_Faces, OCP_Edges, OCP_Vertices)):
@@ -692,15 +709,34 @@ def _to_assembly(
             and not hasattr(cad_obj, "last")
         ):
             _debug(
-                "to_assembly: iterables other then Compounds and ShapeLists", obj_name
+                "to_assembly: iterables other than Compounds and ShapeLists", obj_name
             )
 
-            pg2 = OCP_PartGroup([], name="List" if obj_name is None else obj_name)
-            for child in cad_obj:
+            pg2 = OCP_PartGroup(
+                [],
+                name=(
+                    ("Dict" if isinstance(cad_obj, dict) else "List")
+                    if obj_name is None
+                    else obj_name
+                ),
+            )
+            if isinstance(cad_obj, dict):
+                named_child = cad_obj.items()
+            else:
+                named_child = zip([None] * len(list(cad_obj)), cad_obj)
+
+            for name, child in named_child:
+                if hasattr(child, "name") and child.name is not None:
+                    name = child.name
+                elif hasattr(child, "label") and child.label is not None:
+                    name = child.label
+                else:
+                    name = obj_name
+
                 part, instances = _to_assembly(
                     child,
                     default_color=default_color,
-                    names=None,
+                    names=[name],
                     colors=[obj_color],
                     alphas=[obj_alpha],
                     render_mates=render_mates,
@@ -713,12 +749,48 @@ def _to_assembly(
                 if isinstance(part, OCP_PartGroup) and len(part.objects) == 1:
                     pg2.add(part.objects[0])
                 else:
-                    pg2.add(part)
+                    if len(part.objects) > 0:
+                        pg2.add(part)
 
-            names = make_unique([obj.name for obj in pg2.objects])
-            for name, obj in zip(names, pg2.objects):
-                obj.name = name
-            pg.add(pg2)
+            if len(pg2.objects) > 0:
+                if len(pg2.objects) == 1:
+                    pg.add(pg2.objects[0])
+                else:
+                    names = make_unique([obj.name for obj in pg2.objects])
+                    for name, obj in zip(names, pg2.objects):
+                        obj.name = name
+                    pg.add(pg2)
+
+        # elif isinstance(cad_obj, dict):
+        #     pg2 = OCP_PartGroup([], name="Dict" if obj_name is None else obj_name)
+        #     for name, child in cad_obj.items():
+        #         part, instances = _to_assembly(
+        #             child,
+        #             default_color=default_color,
+        #             names=[f"{obj_name}.{name}"],
+        #             colors=[obj_color],
+        #             alphas=[obj_alpha],
+        #             render_mates=render_mates,
+        #             render_joints=render_joints,
+        #             helper_scale=helper_scale,
+        #             instances=instances,
+        #             progress=progress,
+        #             is_assembly=is_assembly,
+        #         )
+        #         if isinstance(part, OCP_PartGroup) and len(part.objects) == 1:
+        #             pg2.add(part.objects[0])
+        #         else:
+        #             if len(part.objects) > 0:
+        #                 pg2.add(part)
+
+        #     if len(pg2.objects) > 0:
+        #         if len(pg2.objects) == 1:
+        #             pg.add(pg2.objects[0])
+        #         else:
+        #             names = make_unique([obj.name for obj in pg2.objects])
+        #             for name, obj in zip(names, pg2.objects):
+        #                 obj.name = name
+        #             pg.add(pg2)
 
         elif hasattr(cad_obj, "wrapped") and (
             is_toploc_location(cad_obj.wrapped) or is_gp_plane(cad_obj.wrapped)
