@@ -15,7 +15,7 @@
 #
 
 from collections.abc import Iterable
-
+import enum
 import json
 
 from .cad_objects import (
@@ -519,8 +519,24 @@ def _to_assembly(
         # TODO default color for shapes is used
         #
 
-        # filter color objects that can come from vscode_ocp_cad_viewer
-        if is_ocp_color(cad_obj):
+        # Silently skip enums
+        if isinstance(cad_obj, enum.Enum):
+            continue
+
+        if is_ocp_color(cad_obj) or not (
+            is_wrapped(cad_obj)
+            or isinstance(cad_obj, (CADObject, Iterable, dict))
+            or is_cadquery(cad_obj)
+            or is_cadquery_assembly(cad_obj)
+            or is_cadquery_sketch(cad_obj)
+            or is_build123d(cad_obj)
+            or is_compound(cad_obj)
+        ):
+            print(
+                "Skipping object"
+                + ("" if obj_name is None else f" '{obj_name}'")
+                + f" of type {type(cad_obj)}"
+            )
             continue
 
         if not isinstance(cad_obj, (OCP_Faces, OCP_Edges, OCP_Vertices)):
