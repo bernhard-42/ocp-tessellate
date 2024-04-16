@@ -18,6 +18,8 @@ from collections.abc import Iterable
 import enum
 import json
 
+import numpy as np
+
 from .cad_objects import (
     CoordSystem,
     CoordAxis,
@@ -521,11 +523,15 @@ def _to_assembly(
         # TODO default color for shapes is used
         #
 
-        # Silently skip enums
-        if isinstance(cad_obj, enum.Enum):
+        # Silently skip enums and known types
+        if (
+            isinstance(cad_obj, enum.Enum)
+            or is_ocp_color(cad_obj)
+            or isinstance(cad_obj, (int, float, bool, str, np.number, np.ndarray))
+        ):
             continue
 
-        if is_ocp_color(cad_obj) or not (
+        if not (
             is_wrapped(cad_obj)
             or isinstance(cad_obj, (CADObject, Iterable, dict))
             or is_cadquery(cad_obj)
@@ -533,6 +539,8 @@ def _to_assembly(
             or is_cadquery_sketch(cad_obj)
             or is_build123d(cad_obj)
             or is_compound(cad_obj)
+            or is_topods_shape(cad_obj)
+            or is_toploc_location(cad_obj)
         ):
             print(
                 "Skipping object"
