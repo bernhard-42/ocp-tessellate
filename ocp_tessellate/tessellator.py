@@ -55,13 +55,22 @@ from .trace import Trace
 try:
     from ocp_addons.tessellator import tessellate as tessellate_c
 
-    print("Found native tessellator")
-    if os.environ.get("NATIVE_TESSELLATOR") != "1":
-        print(
-            "To enable, set the environment variabe NATIVE_TESSELLATOR: os.environ('NATIVE_TESSELLATOR') = '1'\n"
-        )
+    def enable_native_tessellator():
+        os.environ["NATIVE_TESSELLATOR"] = "1"
+
+    def disable_native_tessellator():
+        os.environ["NATIVE_TESSELLATOR"] = "0"
+
+    def is_native_tessellator_enabled():
+        return os.environ.get("NATIVE_TESSELLATOR") == "1"
+
+    if os.environ.get("NATIVE_TESSELLATOR") is None:
+        enable_native_tessellator()
+
     NATIVE = True
+
 except ImportError:
+
     NATIVE = False
 
 MAX_HASH_KEY = 2147483647
