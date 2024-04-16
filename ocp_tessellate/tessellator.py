@@ -444,16 +444,18 @@ def tessellate(
     progress=None,
     shape_id="",
 ):
-    if progress is not None:
-        progress.update("+")
 
     compound = (
         make_compound(shapes) if len(shapes) > 1 else shapes[0]
     )  # pylint: disable=protected-access
 
-    if NATIVE and os.environ.get("NATIVE_TESSELLATOR") == "1":
+    if NATIVE and is_native_tessellator_enabled():
+        if progress is not None:
+            progress.update("*")
         tess = NativeTessellator(shape_id)
     else:
+        if progress is not None:
+            progress.update("+")
         tess = Tessellator(shape_id)
 
     tess.compute(
