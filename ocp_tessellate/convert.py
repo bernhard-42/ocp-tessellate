@@ -953,6 +953,18 @@ def _to_assembly(
                     if pg2.objects:
                         pg.add(pg2)
 
+        elif is_topods_solid(cad_obj):
+            _debug("    to_assembly: TopoDS_Solid", obj_name)
+            part = get_instance(
+                cad_obj,
+                id(cad_obj),
+                obj_name,
+                rgba,
+                instances,
+                progress,
+            )
+            pg.add(part)
+
         else:
             _debug("to_assembly: generic case", obj_name)
             #
