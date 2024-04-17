@@ -740,9 +740,13 @@ def _to_assembly(
             for name, child in named_child:
                 if hasattr(child, "name") and child.name is not None:
                     name = child.name
-                elif hasattr(child, "label") and child.label is not None:
+                elif (
+                    hasattr(child, "label")
+                    and child.label is not None
+                    and child.label != ""
+                ):
                     name = child.label
-                else:
+                elif not isinstance(cad_obj, dict):
                     name = obj_name
 
                 part, instances = _to_assembly(
