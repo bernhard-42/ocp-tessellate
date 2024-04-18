@@ -25,8 +25,8 @@ os.remove(stl_name)
 
 f = import_stl("/Users/bernhard/Development/robot-dog/stl/base.stl")
 # f = import_stl("/tmp/base.stl")
-pg = to_assembly(f)
-result = tessellate_group(pg)
+pg, instances = to_assembly(f)
+result = tessellate_group(pg, instances)
 
 show(
     f,
