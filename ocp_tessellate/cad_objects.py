@@ -139,8 +139,10 @@ class OCP_Part(CADObject):
 
         if isinstance(self.shape, dict):
             ind = self.shape["ref"]
-            if isinstance(instances[ind], Instance):
-                mesh = instances[ind].mesh
+            if meshed_instances[ind] is not None:
+                shape = meshed_instances[ind].shape
+                mesh = meshed_instances[ind].mesh
+                quality = meshed_instances[ind].quality
             else:
                 shape = instances[ind][1]
                 if not isinstance(shape, (list, tuple)):
