@@ -88,7 +88,7 @@ b = Box(0.1, 0.1, 1)
 c = Cylinder(1, 0.5)
 p = Plane(c.faces().sort_by().last)
 b = [p * loc * b for loc in PolarLocations(0.7, 12)]
-c = Compound.make_compound(b + [c])
+c = Compound(b + [c])
 
 show(c, timeit=False)
 
@@ -115,7 +115,7 @@ show(*b, timeit=False)
 
 
 # %%
-c = Compound.make_compound(b + [c])
+c = Compound(b + [c])
 show(*c.solids(), timeit=False)
 
 # %%
