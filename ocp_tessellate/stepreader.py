@@ -2,7 +2,18 @@ import os
 import time
 import unicodedata
 
-import cadquery as cq
+try:
+    import cadquery as cq
+except:
+    pass
+
+try:
+    from build123d import *
+    from .b123d_assembly import Assembly, reference
+
+except:
+    pass
+
 from OCP.Quantity import Quantity_ColorRGBA
 from OCP.STEPCAFControl import STEPCAFControl_Reader
 from OCP.TCollection import TCollection_AsciiString, TCollection_ExtendedString
@@ -304,9 +315,11 @@ class StepReader:
                 name = f"{obj['name']}_{names[name]}"
 
                 a.add(
-                    to_workplane(obj["shape"])
-                    if obj["shapes"] is None
-                    else walk(obj["shapes"]),
+                    (
+                        to_workplane(obj["shape"])
+                        if obj["shapes"] is None
+                        else walk(obj["shapes"])
+                    ),
                     name=name,
                     color=None if obj["color"] is None else cq.Color(*obj["color"]),
                     loc=cq.Location(obj.get("loc")),
@@ -341,54 +354,58 @@ class StepReader:
 
         return result
 
-    # def save_assembly(self, filename):
-    #     """
-    #     Cache the STEP file in a pickle file with binary BRep buffers
-    #     :param filename: name of the cache object
-    #     """
+    def to_build123d(self):
+        """
+        Convert internal AssemblyObjects format to build123d Assemblies
+        :return: buiild123d assembly
+        """
 
-    #     def _save_assembly(assemblies):
-    #         if assemblies is None:
-    #             return None
+        def walk(objs, label=None, loc=None):
+            a = []
+            names = {}
+            for obj in objs:
+                label = obj["name"]
 
-    #         result = []
-    #         for assembly in assemblies:
-    #             obj = self._create_assembly_object(
-    #                 assembly["name"],
-    #                 loc_to_tq(assembly["loc"]),
-    #                 assembly["color"],
-    #                 serialize(assembly["shape"]),
-    #                 _save_assembly(assembly["shapes"]),
-    #             )
-    #             result.append(obj)
-    #         return result
+                # Create a unique name by postfixing the enumerator index if needed
+                if names.get(label) is None:
+                    names[label] = 0
+                else:
+                    names[label] += 1
+                label = f"{obj['name']}_{names[label]}"
 
-    #     objs = _save_assembly(self.assemblies)
-    #     with open(filename, "wb") as fd:
-    #         pickle.dump(objs, fd)
+                a.append(
+                    reference(
+                        (
+                            Compound(obj["shape"])
+                            if obj["shapes"] is None
+                            else walk(obj["shapes"])
+                        ),
+                        label=label,
+                        color=None if obj["color"] is None else Color(*obj["color"]),
+                        location=Location(obj.get("loc")),
+                    )
+                )
+            return Assembly(label=label, children=a, location=loc)
 
-    # def load_assembly(self, filename):
-    #     """
-    #     Load the STEP file from a pickle file with binary BRep buffers.
-    #     The result will be stores as a list of AssemblyObjects in self.assemblies
-    #     :param filename: name of the cache object
-    #     """
+        if len(self.assemblies) == 0 or (
+            self.assemblies[0]["shapes"] is not None
+            and len(self.assemblies[0]["shapes"]) == 0
+        ):
+            raise ValueError("Empty assembly list")
 
-    #     def _load_assembly(objs):
-    #         if objs is None:
-    #             return None
+        if len(self.assemblies) == 1:
+            assembly = self.assemblies[0]
+            return walk(assembly["shapes"], assembly["name"], Location(assembly["loc"]))
+        else:
+            children = []
+            for assembly in self.assemblies:
+                children.append(
+                    walk(
+                        assembly["shapes"],
+                        assembly["name"],
+                        Location(assembly["loc"]),
+                    )
+                )
+            result = Assembly(label="Group", children=children)
 
-    #         result = []
-    #         for obj in objs:
-    #             assembly = self._create_assembly_object(
-    #                 obj["name"],
-    #                 tq_to_loc(*obj["loc"]),
-    #                 obj["color"],
-    #                 deserialize(obj["shape"]),
-    #                 _load_assembly(obj["shapes"]),
-    #             )
-    #             result.append(assembly)
-    #         return result
-
-    #     with open(filename, "rb") as fd:
-    #         self.assemblies = _load_assembly(pickle.load(fd))
+        return result
