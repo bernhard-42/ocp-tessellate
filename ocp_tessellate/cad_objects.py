@@ -40,7 +40,6 @@ from .tessellator import (
     edge_mapper,
     vertex_mapper,
 )
-from .mp_tessellator import is_apply_result, mp_tessellate, init_pool, keymap
 from .defaults import get_default
 import imagesize
 
@@ -82,7 +81,6 @@ class CADObject(object):
         angular_tolerance,
         edge_accuracy,
         render_edges,
-        parallel,
         progress,
         timeit,
     ):
@@ -131,7 +129,6 @@ class OCP_Part(CADObject):
         angular_tolerance,
         edge_accuracy,
         render_edges,
-        parallel=False,
         progress=None,
         timeit=False,
     ):
@@ -163,8 +160,7 @@ class OCP_Part(CADObject):
                 t.info = str(bb)
 
             with Timer(timeit, self.name, "tessellate:     ", 2) as t:
-                func = mp_tessellate if parallel else tessellate
-                mesh = func(
+                mesh = tessellate(
                     shape,
                     self.cache_id,
                     deviation=deviation,
@@ -183,23 +179,14 @@ class OCP_Part(CADObject):
             if self.loc is not None:
                 combined_loc = combined_loc * self.loc
             t, q = loc_to_tq(combined_loc)
+            bb = np_bbox(mesh["vertices"], t, q)
+            # store the instance mesh
+            if ind is not None and meshed_instances[ind].mesh is None:
+                meshed_instances[ind].mesh = mesh
+                meshed_instances[ind].quality = quality
 
-            if parallel and is_apply_result(mesh):
-                # store the instance mesh
-                if ind is not None and meshed_instances[ind].mesh is None:
-                    meshed_instances[ind].mesh = mesh
-                    meshed_instances[ind].quality = quality
-                mesh = {"ref": ind, "t": t, "q": q}
-                bb = {}
-            else:
-                bb = np_bbox(mesh["vertices"], t, q)
-                # store the instance mesh
-                if ind is not None and meshed_instances[ind].mesh is None:
-                    meshed_instances[ind].mesh = mesh
-                    meshed_instances[ind].quality = quality
-
-                if isinstance(self.shape, dict):
-                    mesh = self.shape  # return the instance id
+            if isinstance(self.shape, dict):
+                mesh = self.shape  # return the instance id
 
         if isinstance(self.color, tuple):
             color = [c.web_color for c in self.color]  # pylint: disable=not-an-iterable
@@ -290,7 +277,6 @@ class OCP_Edges(CADObject):
         angular_tolerance,
         edge_accuracy,
         render_edges,
-        parallel=False,
         progress=None,
         timeit=False,
     ):
@@ -353,7 +339,6 @@ class OCP_Vertices(CADObject):
         angular_tolerance,
         edge_accuracy,
         render_edges,
-        parallel=False,
         progress=None,
         timeit=False,
     ):
@@ -412,7 +397,6 @@ class OCP_PartGroup(CADObject):
         angular_tolerance,
         edge_accuracy,
         render_edges,
-        parallel=False,
         progress=None,
         timeit=False,
     ):
@@ -445,7 +429,6 @@ class OCP_PartGroup(CADObject):
                 angular_tolerance,
                 edge_accuracy,
                 render_edges,
-                parallel,
                 progress,
                 timeit,
             )

@@ -31,7 +31,6 @@ from .cad_objects import (
     OCP_Vertices,
 )
 from .defaults import get_default, preset
-from .mp_tessellator import get_mp_result, is_apply_result
 from .ocp_utils import (
     BoundingBox,
     copy_shape,
@@ -128,7 +127,6 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
         angular_tolerance=preset("angular_tolerance", kwargs.get("angular_tolerance")),
         edge_accuracy=preset("edge_accuracy", kwargs.get("edge_accuracy")),
         render_edges=preset("render_edges", kwargs.get("render_edges")),
-        parallel=kwargs.get("parallel"),
         progress=progress,
         timeit=timeit,
     )
@@ -158,31 +156,6 @@ def combined_bb(shapes):
 
     bb = c_bb(shapes, None)
     return bb
-
-
-def mp_get_results(instances, shapes, progress):
-    def walk(shapes):
-        for shape in shapes["parts"]:
-            if shape.get("parts") is None:
-                if shape.get("type") == "shapes":
-                    mesh = instances[shape["shape"]["ref"]]
-                    t = shape["shape"].get("t")
-                    q = shape["shape"].get("q")
-                    shape["shape"] = {"ref": shape["shape"]["ref"]}  # remove t and q
-                    shape["bb"] = np_bbox(mesh["vertices"], t, q)
-
-                    if progress is not None:
-                        progress.update("r")
-            else:
-                walk(shape)
-
-    for i in range(len(instances)):
-        if is_apply_result(instances[i]):
-            instances[i] = get_mp_result(instances[i])
-
-    walk(shapes)
-
-    return instances, shapes
 
 
 def get_accuracies(shapes):

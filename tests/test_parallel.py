@@ -19,13 +19,13 @@ rc = reader.to_cadquery()
 # %%
 
 t = time.time()
-show(rc, up="Y", parallel=True, timeit=False)
+show(rc, up="Y", timeit=False)
 print("\n", time.time() - t)
 
 # %%
 
 t = time.time()
-show(rc, up="Y", parallel=True, timeit=False)
+show(rc, up="Y", timeit=False)
 print("\n", time.time() - t)
 
 # %%

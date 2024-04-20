@@ -81,7 +81,6 @@ class Defaults:
         - tools:              Show the viewer tools like the object tree (default=True)
         - glass:              Show the viewer in glass mode, i.e (CAD navigation as transparent overlay (default=False)
         - timeit:             Show rendering times, levels = False, 0,1,2,3,4,5 (default=False)
-        - parallel:           (Linux only) Whether to use multiprocessing for parallel tessellation
         - js_debug:           Enable debug output in browser console (default=False)
 
         NOT SUPPORTED ANY MORE:
@@ -94,11 +93,6 @@ class Defaults:
         for k, v in kwargs.items():
             if self.get_default(k, float("nan")) == float("nan"):
                 print(f"Paramater {k} is not a valid argument for show()")
-
-            # elif k == "parallel" and v and platform.system() != "Linux":
-            #     warn("parallel=True only works on Linux. Setting parallel=False")
-            #     self.defaults[k] = False
-
             else:
                 self.defaults[k] = v
 
@@ -128,7 +122,6 @@ class Defaults:
             "render_edges": True,
             "render_mates": False,
             "render_joints": False,
-            "parallel": False,
             "helper_scale": 1,
             #
             # viewer options
@@ -289,7 +282,6 @@ def tessellation_args(config):
             "render_joints",
             "helper_scale",
             "quality",
-            "parallel",
         ]
     }
 

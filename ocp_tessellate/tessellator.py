@@ -390,8 +390,6 @@ class NativeTessellator:
         debug=False,
     ):
         self.mesh = tessellate_c(
-            # shape, quality, angular_tolerance, , compute_faces=True, compute_edges=True,
-            # parallel=True, debug=debug, timeit=debug
             shape,
             quality,
             angular_tolerance,
