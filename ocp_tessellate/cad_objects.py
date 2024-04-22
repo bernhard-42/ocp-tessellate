@@ -16,6 +16,7 @@
 
 import base64
 import numpy as np
+from dataclasses import dataclass
 
 from .utils import Color, Timer
 from .ocp_utils import (
@@ -54,11 +55,34 @@ PROTOCOL_VERSION = 3
 #
 
 
+@dataclass
 class Instance:
     def __init__(self, shape):
         self.shape = shape
         self.mesh = None
         self.quality = None
+
+
+@dataclass
+class MeshedInstance:
+    id: str
+    loc: tuple
+    type: str
+    ind: int
+    instance: Instance
+    mesh: dict
+    edges: dict
+    vertices: dict
+
+    def __init__(self, id, loc):
+        self.id = id
+        self.loc = loc
+        self.type = None
+        self.ind = None
+        self.instance = None
+        self.mesh = None
+        self.edges = None
+        self.vertices = None
 
 
 class CADObject(object):
@@ -83,6 +107,14 @@ class CADObject(object):
         render_edges,
         progress,
         timeit,
+    ):
+        raise NotImplementedError("not implemented yet")
+
+    def collect_tasks(
+        self,
+        path,
+        instances,
+        loc,
     ):
         raise NotImplementedError("not implemented yet")
 
@@ -118,6 +150,59 @@ class OCP_Part(CADObject):
 
     def to_assembly(self):
         return OCP_PartGroup([self])
+
+    def collect_tasks(
+        self,
+        path,
+        instances,
+        loc=None,
+    ):
+        self.id = f"{path}/{self.name}"
+        if isinstance(self.shape, dict):
+            ind = self.shape["ref"]
+        elif isinstance(self.shape, (list, tuple)) and len(self.shape) == 1:
+            shape = self.shape[0]
+            print(shape)
+        else:
+            raise RuntimeError("Non instance shapes are not supported")
+
+        shape = instances[ind][1]
+        if isinstance(shape, (list, tuple)):
+            raise RuntimeError("Lists of shapes are not supported")
+
+        combined_loc = get_location(loc, False)
+        if self.loc is not None:
+            combined_loc = combined_loc * self.loc
+
+        if isinstance(self.color, tuple):
+            color = [c.web_color for c in self.color]  # pylint: disable=not-an-iterable
+            alpha = 1.0
+        else:
+            color = self.color.web_color
+            alpha = self.color.a
+
+        texture = None
+        subtype = "solid" if self.solid else "faces"
+
+        if isinstance(self, ImageFace):
+            subtype = "image"
+            image = {"data": self.image, "format": self.image_type}
+            texture = {"image": image, "width": self.width, "height": self.height}
+
+        return dict(id=self.id, shape=shape, loc=combined_loc), {
+            "id": self.id,
+            "type": "shapes",
+            "subtype": subtype,
+            "name": self.name,
+            "shape": self.shape,
+            "color": color,
+            "texture": texture,
+            "alpha": alpha,
+            "loc": None if self.loc is None else loc_to_tq(self.loc),
+            "renderback": self.renderback,
+            "accuracy": None,
+            "bb": None,
+        }
 
     def collect_shapes(
         self,
@@ -267,6 +352,32 @@ class OCP_Edges(CADObject):
     def to_assembly(self):
         return OCP_PartGroup([self])
 
+    def collect_tasks(
+        self,
+        path,
+        instances,
+        loc=None,
+    ):
+
+        self.id = f"{path}/{self.name}"
+
+        color = (
+            [c.web_color for c in self.color]
+            if isinstance(self.color, tuple)
+            else self.color.web_color
+        )
+
+        return dict(id=self.id, shape=self.shape, loc=None), {
+            "id": self.id,
+            "type": "edges",
+            "name": self.name,
+            "shape": self.shape,
+            "color": color,
+            "loc": None if self.loc is None else loc_to_tq(self.loc),
+            "width": self.width,
+            "bb": None,
+        }
+
     def collect_shapes(
         self,
         path,
@@ -329,6 +440,25 @@ class OCP_Vertices(CADObject):
     def to_assembly(self):
         return OCP_PartGroup([self])
 
+    def collect_tasks(
+        self,
+        path,
+        instances,
+        loc=None,
+    ):
+        self.id = f"{path}/{self.name}"
+
+        return dict(id=self.id, shape=self.shape, loc=None), {
+            "id": self.id,
+            "type": "vertices",
+            "name": self.name,
+            "shape": self.shape,
+            "color": self.color.web_color,
+            "loc": None if self.loc is None else loc_to_tq(self.loc),
+            "size": self.size,
+            "bb": None,
+        }
+
     def collect_shapes(
         self,
         path,
@@ -354,7 +484,7 @@ class OCP_Vertices(CADObject):
             "id": self.id,
             "type": "vertices",
             "name": self.name,
-            "shape": vertices,
+            "shape": self.shape,
             "color": self.color.web_color,
             "loc": None if self.loc is None else loc_to_tq(self.loc),
             "size": self.size,
@@ -386,6 +516,41 @@ class OCP_PartGroup(CADObject):
 
     def add_list(self, cad_objs):
         self.objects += cad_objs
+
+    def collect_tasks(
+        self,
+        path,
+        instances,
+        loc=None,
+    ):
+        self.id = f"{path}/{self.name}"
+
+        if loc is None and self.loc is None:
+            combined_loc = None
+        elif loc is None:
+            combined_loc = self.loc
+        else:
+            combined_loc = loc * self.loc
+
+        result = {
+            "version": PROTOCOL_VERSION,
+            "parts": [],
+            "loc": None if self.loc is None else loc_to_tq(self.loc),
+            "name": self.name,
+            "id": self.id,
+        }
+
+        map = {"parts": [], "id": self.id}
+
+        for obj in self.objects:
+            mapping, mesh = obj.collect_tasks(
+                self.id,
+                instances,
+                combined_loc,
+            )
+            result["parts"].append(mesh)
+            map["parts"].append(mapping)
+        return map, result
 
     def collect_shapes(
         self,

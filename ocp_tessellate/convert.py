@@ -33,6 +33,7 @@ from .cad_objects import (
 from .defaults import get_default, preset
 from .ocp_utils import (
     BoundingBox,
+    bounding_box,
     copy_shape,
     downcast,
     get_downcasted_shape,
@@ -84,9 +85,16 @@ from .ocp_utils import (
     ocp_color,
     vertex,
     loc_to_tq,
+    tq_to_loc,
+)
+from .tessellator import (
+    convert_vertices,
+    discretize_edges,
+    tessellate,
+    compute_quality,
 )
 
-from .utils import Color, make_unique, numpy_to_json
+from .utils import Color, make_unique, numpy_to_json, Timer
 
 EDGE_COLOR = "Silver"
 THICK_EDGE_COLOR = "MediumOrchid"
@@ -114,6 +122,120 @@ def web_color(name):
 
 
 def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False):
+
+    def discretize_edges_vertices(shapes):
+        for shape in shapes["parts"]:
+            if shape.get("parts") is None:
+                if shape["type"] == "edges":
+                    with Timer(timeit, shape["name"], "compute quality:", 2) as t:
+                        bb = bounding_box(
+                            shape["shape"],
+                            None if shape["loc"] is None else tq_to_loc(*shape["loc"]),
+                        )
+                        quality = compute_quality(bb, deviation=deviation)
+                        deflection = (
+                            quality / 100 if edge_accuracy is None else edge_accuracy
+                        )
+                        t.info = str(bb)
+
+                    with Timer(
+                        timeit,
+                        shape["name"],
+                        "discretize edges:     ",
+                        2,
+                    ) as t:
+                        shape["shape"] = discretize_edges(
+                            shape["shape"], deflection, shape["id"]
+                        )
+                        shape["bb"] = bb
+
+                elif shape["type"] == "vertices":
+                    with Timer(timeit, shape["name"], "bounding box:", 2) as t:
+                        bb = bounding_box(
+                            shape["shape"],
+                            None if shape["loc"] is None else tq_to_loc(*shape["loc"]),
+                        )
+                    with Timer(
+                        timeit,
+                        shape["name"],
+                        "convert vertices:     ",
+                        2,
+                    ) as t:
+                        shape["shape"] = convert_vertices(shape["shape"])
+                        shape["bb"] = bb
+
+            else:
+                discretize_edges_vertices(shape)
+
+    def add_bb(shapes):
+        for shape in shapes["parts"]:
+            if shape.get("parts") is None:
+                if shape["type"] == "shapes":
+                    ind = shape["shape"]["ref"]
+                    with Timer(
+                        timeit,
+                        f"instance({ind})",
+                        "create bounding boxes:     ",
+                        2,
+                    ) as t:
+                        shape["bb"] = np_bbox(
+                            meshed_instances[ind]["vertices"],
+                            *shape["loc"],
+                        )
+            else:
+                add_bb(shape)
+
+    if kwargs is None:
+        kwargs = {}
+
+    mapping, shapes = group.collect_tasks(
+        "",
+        instances,
+        None,
+    )
+    states = group.to_state()
+    meshed_instances = []
+
+    deviation = preset("deviation", kwargs.get("deviation"))
+    angular_tolerance = preset("angular_tolerance", kwargs.get("angular_tolerance"))
+    edge_accuracy = preset("edge_accuracy", kwargs.get("edge_accuracy"))
+    render_edges = preset("render_edges", kwargs.get("render_edges"))
+
+    for i, instance in enumerate(instances):
+        with Timer(timeit, f"instance({i})", "compute quality:", 2) as t:
+            shape = instance[1]
+            # A first rough estimate of the bounding box.
+            # Will be too large, but is sufficient for computing the quality
+            # location is not relevant here
+            bb = bounding_box(shape, loc=None, optimal=False)
+            quality = compute_quality(bb, deviation=deviation)
+            t.info = str(bb)
+
+        with Timer(timeit, f"instance({i})", "tessellate:     ", 2) as t:
+            mesh = tessellate(
+                shape,
+                id(shape),
+                deviation=deviation,
+                quality=quality,
+                angular_tolerance=angular_tolerance,
+                debug=timeit,
+                compute_edges=render_edges,
+                progress=progress,
+                shape_id="n/a",
+            )
+            meshed_instances.append(mesh)
+            t.info = (
+                f"{{quality:{quality:.4f}, angular_tolerance:{angular_tolerance:.2f}}}"
+            )
+    add_bb(shapes)
+
+    print(shapes)
+    discretize_edges_vertices(shapes)
+
+    return meshed_instances, shapes, states, mapping
+
+
+def tessellate_group1(group, instances, kwargs=None, progress=None, timeit=False):
     if kwargs is None:
         kwargs = {}
 
@@ -857,7 +979,15 @@ def _to_assembly(
 
                 else:
                     _debug("    to_assembly: everything else", obj_name)
-                    part = conv(cad_obj.wrapped, obj_name, color, alpha)
+                    # part = conv(cad_obj.wrapped, obj_name, color, alpha)
+                    part = get_instance(
+                        cad_obj,
+                        (id(cad_obj), id(cad_obj.wrapped)),
+                        obj_name,
+                        rgba,
+                        instances,
+                        progress,
+                    )
 
                 if (
                     is_assembly

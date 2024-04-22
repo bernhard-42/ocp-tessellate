@@ -442,7 +442,7 @@ def compute_quality(bb, deviation=0.1):
 # cache key: (shape.hash, cache_key, deviaton, angular_tolerance, compute_edges, compute_faces)
 @cached(cache, key=make_key)
 def tessellate(
-    shapes,
+    shape,
     cache_key,
     # only provided for managing cache:
     deviation: float,  # pylint: disable=unused-argument
@@ -454,10 +454,15 @@ def tessellate(
     progress=None,
     shape_id="",
 ):
+    if isinstance(shape, (list, tuple)):
+        if len(shape) == 1:
+            shape = shape[0]
+        else:
+            raise RuntimeError("Only single shapes are supported")
 
-    compound = (
-        make_compound(shapes) if len(shapes) > 1 else shapes[0]
-    )  # pylint: disable=protected-access
+    # compound = (
+    #     make_compound(shapes) if len(shapes) > 1 else shapes[0]
+    # )  # pylint: disable=protected-access
 
     if NATIVE and is_native_tessellator_enabled():
         if progress is not None:
@@ -468,9 +473,7 @@ def tessellate(
             progress.update("+")
         tess = Tessellator(shape_id)
 
-    tess.compute(
-        compound, quality, angular_tolerance, compute_faces, compute_edges, debug
-    )
+    tess.compute(shape, quality, angular_tolerance, compute_faces, compute_edges, debug)
     return {
         "vertices": tess.get_vertices(),
         "triangles": tess.get_triangles(),
