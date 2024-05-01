@@ -553,10 +553,6 @@ def _to_assembly(
             if obj_name is None:
                 obj_name = "workplane"
 
-        # ensure builder objects participate in finding instances
-        if is_build123d(cad_obj) and hasattr(cad_obj, "_obj"):
-            cad_obj = cad_obj._obj
-
         if is_cadquery_assembly(cad_obj):
             _debug("to_assembly: cadquery assembly", obj_name)
 
