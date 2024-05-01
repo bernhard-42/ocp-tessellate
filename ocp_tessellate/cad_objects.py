@@ -160,14 +160,12 @@ class OCP_Part(CADObject):
         self.id = f"{path}/{self.name}"
         if isinstance(self.shape, dict):
             ind = self.shape["ref"]
-        elif isinstance(self.shape, (list, tuple)) and len(self.shape) == 1:
-            shape = self.shape[0]
-            print(shape)
-        else:
-            raise RuntimeError("Non instance shapes are not supported")
+            shape = instances[ind][1]
+        # elif isinstance(self.shape, (list, tuple)) and len(self.shape) == 1:
+        #     shape = self.shape[0]
 
-        shape = instances[ind][1]
-        if isinstance(shape, (list, tuple)):
+        if isinstance(self.shape, (list, tuple)):
+            print(self.shape)
             raise RuntimeError("Lists of shapes are not supported")
 
         combined_loc = get_location(loc, False)
@@ -204,110 +202,110 @@ class OCP_Part(CADObject):
             "bb": None,
         }
 
-    def collect_shapes(
-        self,
-        path,
-        instances,
-        meshed_instances,
-        loc,
-        deviation,
-        angular_tolerance,
-        edge_accuracy,
-        render_edges,
-        progress=None,
-        timeit=False,
-    ):
-        self.id = f"{path}/{self.name}"
+    # def collect_shapes(
+    #     self,
+    #     path,
+    #     instances,
+    #     meshed_instances,
+    #     loc,
+    #     deviation,
+    #     angular_tolerance,
+    #     edge_accuracy,
+    #     render_edges,
+    #     progress=None,
+    #     timeit=False,
+    # ):
+    #     self.id = f"{path}/{self.name}"
 
-        if isinstance(self.shape, dict):
-            ind = self.shape["ref"]
-            if meshed_instances[ind] is not None:
-                shape = meshed_instances[ind].shape
-                mesh = meshed_instances[ind].mesh
-                quality = meshed_instances[ind].quality
-            else:
-                shape = instances[ind][1]
-                if not isinstance(shape, (list, tuple)):
-                    shape = [shape]
-                meshed_instances[ind] = Instance(shape)
-                mesh = None
-        else:
-            ind = None
-            shape = self.shape
-            mesh = None
+    #     if isinstance(self.shape, dict):
+    #         ind = self.shape["ref"]
+    #         if meshed_instances[ind] is not None:
+    #             shape = meshed_instances[ind].shape
+    #             mesh = meshed_instances[ind].mesh
+    #             quality = meshed_instances[ind].quality
+    #         else:
+    #             shape = instances[ind][1]
+    #             if not isinstance(shape, (list, tuple)):
+    #                 shape = [shape]
+    #             meshed_instances[ind] = Instance(shape)
+    #             mesh = None
+    #     else:
+    #         ind = None
+    #         shape = self.shape
+    #         mesh = None
 
-        if mesh is None:
-            with Timer(timeit, self.name, "compute quality:", 2) as t:
-                # A first rough estimate of the bounding box.
-                # Will be too large, but is sufficient for computing the quality
-                bb = bounding_box(shape, loc=get_location(loc), optimal=False)
-                quality = compute_quality(bb, deviation=deviation)
-                t.info = str(bb)
+    #     if mesh is None:
+    #         with Timer(timeit, self.name, "compute quality:", 2) as t:
+    #             # A first rough estimate of the bounding box.
+    #             # Will be too large, but is sufficient for computing the quality
+    #             bb = bounding_box(shape, loc=get_location(loc), optimal=False)
+    #             quality = compute_quality(bb, deviation=deviation)
+    #             t.info = str(bb)
 
-            with Timer(timeit, self.name, "tessellate:     ", 2) as t:
-                mesh = tessellate(
-                    shape,
-                    self.cache_id,
-                    deviation=deviation,
-                    quality=quality,
-                    angular_tolerance=angular_tolerance,
-                    debug=timeit,
-                    compute_edges=render_edges,
-                    progress=progress,
-                    shape_id=self.id,
-                )
+    #         with Timer(timeit, self.name, "tessellate:     ", 2) as t:
+    #             mesh = tessellate(
+    #                 shape,
+    #                 self.cache_id,
+    #                 deviation=deviation,
+    #                 quality=quality,
+    #                 angular_tolerance=angular_tolerance,
+    #                 debug=timeit,
+    #                 compute_edges=render_edges,
+    #                 progress=progress,
+    #                 shape_id=self.id,
+    #             )
 
-                t.info = f"{{quality:{quality:.4f}, angular_tolerance:{angular_tolerance:.2f}}}"
+    #             t.info = f"{{quality:{quality:.4f}, angular_tolerance:{angular_tolerance:.2f}}}"
 
-        with Timer(timeit, self.name, "bounding box:   ", 2):
-            combined_loc = get_location(loc, False)
-            if self.loc is not None:
-                combined_loc = combined_loc * self.loc
-            t, q = loc_to_tq(combined_loc)
-            bb = np_bbox(mesh["vertices"], t, q)
-            # store the instance mesh
-            if ind is not None and meshed_instances[ind].mesh is None:
-                meshed_instances[ind].mesh = mesh
-                meshed_instances[ind].quality = quality
+    #     with Timer(timeit, self.name, "bounding box:   ", 2):
+    #         combined_loc = get_location(loc, False)
+    #         if self.loc is not None:
+    #             combined_loc = combined_loc * self.loc
+    #         t, q = loc_to_tq(combined_loc)
+    #         bb = np_bbox(mesh["vertices"], t, q)
+    #         # store the instance mesh
+    #         if ind is not None and meshed_instances[ind].mesh is None:
+    #             meshed_instances[ind].mesh = mesh
+    #             meshed_instances[ind].quality = quality
 
-            if isinstance(self.shape, dict):
-                mesh = self.shape  # return the instance id
+    #         if isinstance(self.shape, dict):
+    #             mesh = self.shape  # return the instance id
 
-        if isinstance(self.color, tuple):
-            color = [c.web_color for c in self.color]  # pylint: disable=not-an-iterable
-            alpha = 1.0
-        else:
-            color = self.color.web_color
-            alpha = self.color.a
+    #     if isinstance(self.color, tuple):
+    #         color = [c.web_color for c in self.color]  # pylint: disable=not-an-iterable
+    #         alpha = 1.0
+    #     else:
+    #         color = self.color.web_color
+    #         alpha = self.color.a
 
-        texture = None
-        subtype = "solid" if self.solid else "faces"
+    #     texture = None
+    #     subtype = "solid" if self.solid else "faces"
 
-        if isinstance(self, ImageFace):
-            subtype = "image"
-            image = {"data": self.image, "format": self.image_type}
-            texture = {"image": image, "width": self.width, "height": self.height}
+    #     if isinstance(self, ImageFace):
+    #         subtype = "image"
+    #         image = {"data": self.image, "format": self.image_type}
+    #         texture = {"image": image, "width": self.width, "height": self.height}
 
-        return dict(id=self.id, shape=shape, loc=combined_loc), {
-            "id": self.id,
-            "type": "shapes",
-            "subtype": subtype,
-            "name": self.name,
-            "shape": mesh,
-            "color": color,
-            "texture": texture,
-            "alpha": alpha,
-            "loc": None if self.loc is None else loc_to_tq(self.loc),
-            "renderback": self.renderback,
-            "accuracy": quality,
-            "bb": bb,
-        }
+    #     return dict(id=self.id, shape=shape, loc=combined_loc), {
+    #         "id": self.id,
+    #         "type": "shapes",
+    #         "subtype": subtype,
+    #         "name": self.name,
+    #         "shape": mesh,
+    #         "color": color,
+    #         "texture": texture,
+    #         "alpha": alpha,
+    #         "loc": None if self.loc is None else loc_to_tq(self.loc),
+    #         "renderback": self.renderback,
+    #         "accuracy": quality,
+    #         "bb": bb,
+    #     }
 
-    def compound(self):
-        return make_compound(self.shape)
+    # def compound(self):
+    #     return make_compound(self.shape)
 
-    def compounds(self):
-        return [self.compound()]
+    # def compounds(self):
+    #     return [self.compound()]
 
 
 class OCP_Faces(OCP_Part):
@@ -378,50 +376,50 @@ class OCP_Edges(CADObject):
             "bb": None,
         }
 
-    def collect_shapes(
-        self,
-        path,
-        instances,
-        meshed_instances,
-        loc,
-        deviation,
-        angular_tolerance,
-        edge_accuracy,
-        render_edges,
-        progress=None,
-        timeit=False,
-    ):
-        self.id = f"{path}/{self.name}"
+    # def collect_shapes(
+    #     self,
+    #     path,
+    #     instances,
+    #     meshed_instances,
+    #     loc,
+    #     deviation,
+    #     angular_tolerance,
+    #     edge_accuracy,
+    #     render_edges,
+    #     progress=None,
+    #     timeit=False,
+    # ):
+    #     self.id = f"{path}/{self.name}"
 
-        with Timer(timeit, self.name, "bounding box:", 2) as t:
-            bb = bounding_box(self.shape, loc=get_location(loc))
-            quality = compute_quality(bb, deviation=deviation)
-            deflection = quality / 100 if edge_accuracy is None else edge_accuracy
-            t.info = str(bb)
+    #     with Timer(timeit, self.name, "bounding box:", 2) as t:
+    #         bb = bounding_box(self.shape, loc=get_location(loc))
+    #         quality = compute_quality(bb, deviation=deviation)
+    #         deflection = quality / 100 if edge_accuracy is None else edge_accuracy
+    #         t.info = str(bb)
 
-        with Timer(timeit, self.name, "discretize:  ", 2) as t:
-            t.info = f"quality: {quality}, deflection: {deflection}"
-            disc_edges = discretize_edges(self.shape, deflection, self.id)
+    #     with Timer(timeit, self.name, "discretize:  ", 2) as t:
+    #         t.info = f"quality: {quality}, deflection: {deflection}"
+    #         disc_edges = discretize_edges(self.shape, deflection, self.id)
 
-        if progress is not None:
-            progress.update("e")
+    #     if progress is not None:
+    #         progress.update("e")
 
-        color = (
-            [c.web_color for c in self.color]
-            if isinstance(self.color, tuple)
-            else self.color.web_color
-        )
+    #     color = (
+    #         [c.web_color for c in self.color]
+    #         if isinstance(self.color, tuple)
+    #         else self.color.web_color
+    #     )
 
-        return dict(id=self.id, shape=self.shape, loc=None), {
-            "id": self.id,
-            "type": "edges",
-            "name": self.name,
-            "shape": disc_edges,
-            "color": color,
-            "loc": None if self.loc is None else loc_to_tq(self.loc),
-            "width": self.width,
-            "bb": bb.to_dict(),
-        }
+    #     return dict(id=self.id, shape=self.shape, loc=None), {
+    #         "id": self.id,
+    #         "type": "edges",
+    #         "name": self.name,
+    #         "shape": disc_edges,
+    #         "color": color,
+    #         "loc": None if self.loc is None else loc_to_tq(self.loc),
+    #         "width": self.width,
+    #         "bb": bb.to_dict(),
+    #     }
 
 
 class OCP_Vertices(CADObject):
@@ -459,37 +457,37 @@ class OCP_Vertices(CADObject):
             "bb": None,
         }
 
-    def collect_shapes(
-        self,
-        path,
-        instances,
-        meshed_instances,
-        loc,
-        deviation,
-        angular_tolerance,
-        edge_accuracy,
-        render_edges,
-        progress=None,
-        timeit=False,
-    ):
-        self.id = f"{path}/{self.name}"
+    # def collect_shapes(
+    #     self,
+    #     path,
+    #     instances,
+    #     meshed_instances,
+    #     loc,
+    #     deviation,
+    #     angular_tolerance,
+    #     edge_accuracy,
+    #     render_edges,
+    #     progress=None,
+    #     timeit=False,
+    # ):
+    #     self.id = f"{path}/{self.name}"
 
-        bb = bounding_box(self.shape, loc=get_location(loc))
-        vertices = convert_vertices(self.shape, self.id)
+    #     bb = bounding_box(self.shape, loc=get_location(loc))
+    #     vertices = convert_vertices(self.shape, self.id)
 
-        if progress is not None:
-            progress.update("v")
+    #     if progress is not None:
+    #         progress.update("v")
 
-        return dict(id=self.id, shape=self.shape, loc=None), {
-            "id": self.id,
-            "type": "vertices",
-            "name": self.name,
-            "shape": self.shape,
-            "color": self.color.web_color,
-            "loc": None if self.loc is None else loc_to_tq(self.loc),
-            "size": self.size,
-            "bb": bb.to_dict(),
-        }
+    #     return dict(id=self.id, shape=self.shape, loc=None), {
+    #         "id": self.id,
+    #         "type": "vertices",
+    #         "name": self.name,
+    #         "shape": self.shape,
+    #         "color": self.color.web_color,
+    #         "loc": None if self.loc is None else loc_to_tq(self.loc),
+    #         "size": self.size,
+    #         "bb": bb.to_dict(),
+    #     }
 
 
 class OCP_PartGroup(CADObject):
@@ -552,54 +550,54 @@ class OCP_PartGroup(CADObject):
             map["parts"].append(mapping)
         return map, result
 
-    def collect_shapes(
-        self,
-        path,
-        instances,
-        meshed_instances,
-        loc,
-        deviation,
-        angular_tolerance,
-        edge_accuracy,
-        render_edges,
-        progress=None,
-        timeit=False,
-    ):
-        self.id = f"{path}/{self.name}"
+    # def collect_shapes(
+    #     self,
+    #     path,
+    #     instances,
+    #     meshed_instances,
+    #     loc,
+    #     deviation,
+    #     angular_tolerance,
+    #     edge_accuracy,
+    #     render_edges,
+    #     progress=None,
+    #     timeit=False,
+    # ):
+    #     self.id = f"{path}/{self.name}"
 
-        if loc is None and self.loc is None:
-            combined_loc = None
-        elif loc is None:
-            combined_loc = self.loc
-        else:
-            combined_loc = loc * self.loc
+    #     if loc is None and self.loc is None:
+    #         combined_loc = None
+    #     elif loc is None:
+    #         combined_loc = self.loc
+    #     else:
+    #         combined_loc = loc * self.loc
 
-        result = {
-            "version": PROTOCOL_VERSION,
-            "parts": [],
-            "loc": None if self.loc is None else loc_to_tq(self.loc),
-            "name": self.name,
-            "id": self.id,
-        }
+    #     result = {
+    #         "version": PROTOCOL_VERSION,
+    #         "parts": [],
+    #         "loc": None if self.loc is None else loc_to_tq(self.loc),
+    #         "name": self.name,
+    #         "id": self.id,
+    #     }
 
-        map = {"parts": [], "id": self.id}
+    #     map = {"parts": [], "id": self.id}
 
-        for obj in self.objects:
-            mapping, mesh = obj.collect_shapes(
-                self.id,
-                instances,
-                meshed_instances,
-                combined_loc,
-                deviation,
-                angular_tolerance,
-                edge_accuracy,
-                render_edges,
-                progress,
-                timeit,
-            )
-            result["parts"].append(mesh)
-            map["parts"].append(mapping)
-        return map, result
+    #     for obj in self.objects:
+    #         mapping, mesh = obj.collect_shapes(
+    #             self.id,
+    #             instances,
+    #             meshed_instances,
+    #             combined_loc,
+    #             deviation,
+    #             angular_tolerance,
+    #             edge_accuracy,
+    #             render_edges,
+    #             progress,
+    #             timeit,
+    #         )
+    #         result["parts"].append(mesh)
+    #         map["parts"].append(mapping)
+    #     return map, result
 
     def to_state(self, parents=None):  # pylint: disable=arguments-differ
         parents = parents or ()

@@ -181,11 +181,28 @@ def is_wrapped(obj):
 
 
 def is_build123d(obj):
-    return _has(obj, ["_obj", "_obj_name"]) and not isinstance(obj, type)
+    return _has(obj, ["_obj", "_obj_name", "_tag"]) and not isinstance(obj, type)
+
+
+def is_build123d_part(obj):
+    return _has(obj, ["_dim", "wrapped"]) and obj._dim == 3
+
+
+def is_build123d_sketch(obj):
+    return _has(obj, ["_dim", "wrapped"]) and obj._dim == 2
+
+
+def is_build123d_curve(obj):
+    return (
+        _has(obj, ["_dim", "wrapped"])
+        and obj._dim == 1
+        and not is_gp_axis(obj.wrapped)
+        and not is_topods_edge(obj.wrapped)
+    )
 
 
 def is_build123d_shape(obj):
-    return _has(obj, ["wrapped", "children"])
+    return _has(obj, ["wrapped", "children"]) and is_topods_shape(obj.wrapped)
 
 
 def is_build123d_shell(obj):
@@ -209,8 +226,25 @@ def is_build123d_assembly(obj):
     )
 
 
-def is_alg123d(obj):
-    return _has(obj, ["wrapped", "dim"])
+def is_build123d_shapelist(obj):
+    return (
+        isinstance(obj, Iterable)
+        and hasattr(obj, "first")
+        and hasattr(obj, "last")
+        and hasattr(obj, "filter_by")
+    )
+
+
+def is_build123d_plane(obj):
+    return is_wrapped(obj) and is_gp_plane(obj.wrapped)
+
+
+def is_build123d_location(obj):
+    return is_wrapped(obj) and is_toploc_location(obj.wrapped)
+
+
+def is_build123d_axis(obj):
+    return is_wrapped(obj) and is_gp_axis(obj.wrapped)
 
 
 #
@@ -930,15 +964,19 @@ def identity_location():
     return TopLoc_Location(gp_Trsf())
 
 
-# def get_location(obj, as_none=True):
-#     if obj is None:
-#         return None if as_none else identity_location()
-#     elif hasattr(obj, "wrapped"):
-#         return obj.wrapped
-#     elif isinstance(obj, TopLoc_Location):
-#         return obj
-#     else:
-#         raise TypeError(f"Unknown location typ {type(obj)}")
+def relocate(obj):
+    loc = get_location(obj)
+
+    if loc is None or not hasattr(obj, "wrapped"):
+        return obj, identity_location()
+
+    obj = copy_shape(obj)
+
+    tshape = get_tshape(obj)
+    obj.wrapped.Move(loc.Inverted())
+    obj.wrapped.TShape(tshape)
+
+    return obj, loc
 
 
 def get_location(obj, as_none=True):
@@ -953,6 +991,8 @@ def get_location(obj, as_none=True):
                 loc = loc()
         elif isinstance(obj, TopLoc_Location):
             return obj
+        elif is_topods_shape(obj):
+            loc = get_tlocation(obj)
         else:
             return None if as_none else identity_location()
 
