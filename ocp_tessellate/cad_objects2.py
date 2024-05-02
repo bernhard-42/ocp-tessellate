@@ -1,13 +1,30 @@
-from ocp_tessellate.ocp_utils import axis_to_vecs, loc_to_vecs, line, make_compound
+from ocp_tessellate.ocp_utils import (
+    axis_to_vecs,
+    loc_to_vecs,
+    line,
+    make_compound,
+    loc_to_tq,
+)
 from ocp_tessellate.utils import Color, make_unique
 
 
 class OcpObj:
     def __init__(
-        self, obj, kind, cache_id=None, name="Object", loc=None, color=None, width=None
+        self,
+        kind,
+        obj=None,
+        ref=None,
+        cache_id=None,
+        name="Object",
+        loc=None,
+        color=None,
+        width=None,
     ):
+        if obj is None and ref is None:
+            raise ValueError("Either obj or ref must be provided")
         self.obj = obj
         self.kind = kind
+        self.ref = ref
         self.cache_id = cache_id
         self.name = name
         self.loc = loc
@@ -19,7 +36,16 @@ class OcpObj:
         self.width = width
 
     def dump(self, ind=0):
-        return f"{' '*ind}OcpObj('{self.name}' ({self.kind}), class={self.obj.__class__.__name__}, color={self.color}, loc={self.loc})"
+        if self.obj is None:
+            obj_repl = f"ref={self.ref}"
+        else:
+            obj_repl = f"class={self.obj.__class__.__name__}"
+
+        return (
+            f"{' '*ind}OcpObj('{self.name}' ({self.kind}), "
+            f"{obj_repl}, "
+            f"color={self.color}, loc={loc_to_tq(self.loc)})"
+        )
 
     def __repr__(self):
         return self.dump()
@@ -32,7 +58,7 @@ class OcpGroup:
         self.loc = loc
 
     def dump(self, ind=0):
-        result = f"{' '*ind}OcpGroup('{self.name}', loc={self.loc}\n"
+        result = f"{' '*ind}OcpGroup('{self.name}', loc={loc_to_tq(self.loc)}\n"
         for obj in self.objs:
             result += obj.dump(ind + 4) + "\n"
         return result + f"{' '*ind})\n"
