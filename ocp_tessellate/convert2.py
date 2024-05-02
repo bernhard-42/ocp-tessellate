@@ -314,7 +314,7 @@ class OcpConverter:
                     ocp_obj = OcpGroup([ocp_obj], name=name)
                     obj_local = cad_obj.sketch_local
                     objs = obj_local.faces()
-                    ocp_obj.add(self.unify(objs, "sketch_local"), obj_color, obj_alpha)
+                    ocp_obj.add(self.unify(objs, "sketch_local", obj_color, obj_alpha))
 
             # build123d BuildLine().line
             elif is_build123d_curve(obj):
