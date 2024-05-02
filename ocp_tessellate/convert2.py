@@ -99,7 +99,7 @@ class OcpConverter:
         # check if the same instance is already available
         for i, instance in enumerate(self.instances):
             if instance[0] == get_tshape(obj):
-                # create a referential OCP_Part
+                # create a referential OcpObj
                 ocp_obj = OcpObj(
                     kind,
                     ref=i,
@@ -120,7 +120,7 @@ class OcpConverter:
             ref = len(self.instances)
             # append the new instance
             self.instances.append((get_tshape(obj), obj))
-            # and create a referential OCP_Part
+            # and create a referential OcpObj
             ocp_obj = OcpObj(
                 kind,
                 ref=ref,
@@ -388,55 +388,55 @@ class OcpConverter:
 # ======================================= END ======================================= #
 # =================================================================================== #
 
-b = Box(1, 2, 3)
-b2 = Box(1, 1, 1) - Box(2, 2, 0.2)
+# b = Box(1, 2, 3)
+# b2 = Box(1, 1, 1) - Box(2, 2, 0.2)
 
-with BuildPart() as bp:
-    Box(1, 1, 1)
+# with BuildPart() as bp:
+#     Box(1, 1, 1)
 
-with BuildPart() as bp2:
-    Box(1, 1, 1)
-    Box(2, 2, 0.2, mode=Mode.SUBTRACT)
+# with BuildPart() as bp2:
+#     Box(1, 1, 1)
+#     Box(2, 2, 0.2, mode=Mode.SUBTRACT)
 
-r = Rectangle(1, 2)
-r2 = Rectangle(1, 2) - Rectangle(2, 0.2)
+# r = Rectangle(1, 2)
+# r2 = Rectangle(1, 2) - Rectangle(2, 0.2)
 
-with BuildSketch() as bs:
-    Rectangle(1, 1)
+# with BuildSketch() as bs:
+#     Rectangle(1, 1)
 
-with BuildSketch() as bs2:
-    Rectangle(1, 1)
-    Rectangle(2, 0.2, mode=Mode.SUBTRACT)
+# with BuildSketch() as bs2:
+#     Rectangle(1, 1)
+#     Rectangle(2, 0.2, mode=Mode.SUBTRACT)
 
-l = Line((0, 0), (0, 1))
-l2 = Line((0, 0), (0, 1)) - Line((0, 0.4), (0, 0.6))
+# l = Line((0, 0), (0, 1))
+# l2 = Line((0, 0), (0, 1)) - Line((0, 0.4), (0, 0.6))
 
-with BuildLine() as bl:
-    Line((0, 0), (0, 1))
+# with BuildLine() as bl:
+#     Line((0, 0), (0, 1))
 
-with BuildLine() as bl2:
-    Line((0, 0), (0, 1))
-    Line((0, 0.4), (0, 0.6), mode=Mode.SUBTRACT)
+# with BuildLine() as bl2:
+#     Line((0, 0), (0, 1))
+#     Line((0, 0.4), (0, 0.6), mode=Mode.SUBTRACT)
 
 
-# Create some objects to add to the compounds
-s1 = Solid.make_box(1, 1, 1).move(Location((3, 3, 3)))
-s1.label, s1.color = "box", "red"
+# # Create some objects to add to the compounds
+# s1 = Solid.make_box(1, 1, 1).move(Location((3, 3, 3)))
+# s1.label, s1.color = "box", "red"
 
-s2 = Solid.make_cone(2, 1, 2).move(Location((-3, 3, 3)))
-s2.label, s2.color = "cone", "green"
+# s2 = Solid.make_cone(2, 1, 2).move(Location((-3, 3, 3)))
+# s2.label, s2.color = "cone", "green"
 
-s3 = Solid.make_cylinder(1, 2).move(Location((-3, -3, 3)))
-s3.label, s3.color = "cylinder", "blue"
+# s3 = Solid.make_cylinder(1, 2).move(Location((-3, -3, 3)))
+# s3.label, s3.color = "cylinder", "blue"
 
-s4 = Solid.make_sphere(2).move(Location((3, 3, -3)))
-s4.label = "sphere"
+# s4 = Solid.make_sphere(2).move(Location((3, 3, -3)))
+# s4.label = "sphere"
 
-s5 = Solid.make_torus(3, 1).move(Location((-3, 3, -3)))
-s5.label, s5.color = "torus", "cyan"
+# s5 = Solid.make_torus(3, 1).move(Location((-3, 3, -3)))
+# s5.label, s5.color = "torus", "cyan"
 
-c2 = Compound(label="c2", children=[s2, s3])
-c3 = Compound(label="c3", children=[s4, s5])
-c1 = Compound(label="c1", children=[s1, c2, c3])
-show(b)
+# c2 = Compound(label="c2", children=[s2, s3])
+# c3 = Compound(label="c3", children=[s4, s5])
+# c1 = Compound(label="c1", children=[s1, c2, c3])
+# show(b)
 # %%
