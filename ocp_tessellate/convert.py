@@ -323,19 +323,6 @@ class OcpConverter:
 
             # =============================== Assemblies ================================ #
 
-            # build123d ShapeList
-            elif is_build123d_shapelist(obj):
-                if DEBUG:
-                    _debug("build123d ShapeList", obj_name)
-                objs = unwrap(obj)
-                ocp_obj = OcpObject(
-                    get_kind(objs[0]),
-                    obj=objs,
-                    name=get_name(obj, obj_name, "ShapeList"),
-                    color=get_color(objs[0], obj_color),
-                    width=2 if get_kind(objs[0]) == "edge" else 4,
-                )
-
             elif is_build123d_assembly(cad_obj):
                 if DEBUG:
                     _debug("build123d Assembly", obj_name)
@@ -360,6 +347,19 @@ class OcpConverter:
                     ocp_obj.add(sub_obj)
 
             # =============================== Conversions =============================== #
+
+            # build123d ShapeList
+            elif is_build123d_shapelist(obj):
+                if DEBUG:
+                    _debug("build123d ShapeList", obj_name)
+                objs = unwrap(obj)
+                ocp_obj = OcpObject(
+                    get_kind(objs[0]),
+                    obj=objs,
+                    name=get_name(obj, obj_name, "ShapeList"),
+                    color=get_color(objs[0], obj_color),
+                    width=2 if get_kind(objs[0]) == "edge" else 4,
+                )
 
             # bild123d BuildPart().part
             elif is_build123d_part(obj):
