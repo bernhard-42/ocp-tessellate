@@ -1,5 +1,5 @@
 from ocp_tessellate.ocp_utils import *
-from ocp_tessellate.utils import make_unique, Timer
+from ocp_tessellate.utils import make_unique, Timer, Color
 from ocp_tessellate.cad_objects import OcpGroup, OcpObject, CoordAxis, CoordSystem
 from ocp_tessellate.tessellator import (
     convert_vertices,
@@ -67,7 +67,9 @@ def get_color(obj, color=None, alpha=None):
         col_a = Color(obj.color)
 
     # else return default color
-    col_a = Color(default_colors.get(class_name(unwrap(obj))))
+    else:
+        col_a = Color(default_colors.get(class_name(unwrap(obj))))
+
     if alpha is not None:
         col_a.a = alpha
 
@@ -78,11 +80,8 @@ def unwrap(obj):
     if hasattr(obj, "wrapped"):
         return obj.wrapped
     elif isinstance(obj, (list, tuple)):
-        return [x.wrapped for x in obj]
+        return [(x.wrapped if hasattr(x, "wrapped") else x) for x in obj]
     return obj
-
-
-def conv(): ...
 
 
 def combined_bb(shapes):
@@ -190,21 +189,26 @@ class OcpConverter:
         return ocp_obj
 
     def unify(self, objs, name, color, alpha):
-        if len(objs) == 1:
-            ocp_obj = unwrap(objs[0])
-            kind = get_kind(ocp_obj)
-        else:
-            objs = unwrap(objs)
-            ocp_obj = make_compound(objs)
-            kind = get_kind(objs[0])
+        kind = get_kind(unwrap(objs)[0])
 
         if kind in ("solid", "face"):
+            if len(objs) == 1:
+                ocp_obj = unwrap(objs[0])
+            else:
+                objs = unwrap(objs)
+                ocp_obj = make_compound(objs)
             return self.get_instance(
                 ocp_obj, kind, id(ocp_obj), name, get_color(objs[0], color), alpha
             )
-        return OcpObject(
-            kind, obj=ocp_obj, name=name, color=get_color(objs[0], color), alpha=alpha
-        )
+        else:
+            return OcpObject(
+                kind,
+                obj=unwrap(objs),
+                name=name,
+                color=get_color(objs[0], color),
+                alpha=alpha,
+                width=2 if kind == "edge" else 4,
+            )
 
     def to_ocp(
         self,
@@ -258,6 +262,10 @@ class OcpConverter:
 
             # ================================= Prepare ================================= #
 
+            # Get object color
+            if hasattr(cad_obj, "color"):
+                obj_color = get_color(cad_obj, None)
+
             # Convert build123d BuildPart, BuildSketch, BuildLine to topology object
             if is_build123d(cad_obj):
                 if DEBUG:
@@ -278,19 +286,8 @@ class OcpConverter:
 
             # ================================== Loops ================================== #
 
-            # build123d ShapeList (needs to be handled before the generic tuple/list case)
-            if is_build123d_shapelist(obj):
-                if DEBUG:
-                    _debug("build123d ShapeList", obj_name)
-                objs = unwrap(obj)
-                ocp_obj = OcpObject(
-                    get_kind(objs[0]),
-                    obj=make_compound(objs),
-                    name=get_name(obj, obj_name, "ShapeList"),
-                )
-
-            # Generic iterables (tuple, list) or mixed type compounds
-            elif isinstance(obj, (list, tuple)) or (
+            # Generic iterables (tuple, list) or mixed type compounds (but not ShapeList)
+            if (isinstance(obj, (list, tuple)) and not is_build123d_shapelist(obj)) or (
                 is_compound(obj) and is_mixed_compound(obj)
             ):
                 kind = "List" if isinstance(obj, (list, tuple)) else "Mixed Compound"
@@ -326,6 +323,19 @@ class OcpConverter:
 
             # =============================== Assemblies ================================ #
 
+            # build123d ShapeList
+            elif is_build123d_shapelist(obj):
+                if DEBUG:
+                    _debug("build123d ShapeList", obj_name)
+                objs = unwrap(obj)
+                ocp_obj = OcpObject(
+                    get_kind(objs[0]),
+                    obj=objs,
+                    name=get_name(obj, obj_name, "ShapeList"),
+                    color=get_color(objs[0], obj_color),
+                    width=2 if get_kind(objs[0]) == "edge" else 4,
+                )
+
             elif is_build123d_assembly(cad_obj):
                 if DEBUG:
                     _debug("build123d Assembly", obj_name)
@@ -341,9 +351,10 @@ class OcpConverter:
                             if sub_obj.objects[0].loc is None:
                                 sub_obj.objects[0].loc = sub_obj.loc
                             else:
-                                sub_obj.objects[0].loc = (
-                                    sub_obj.loc * sub_obj.objects[0].loc
-                                )
+                                if sub_obj.loc is not None:
+                                    sub_obj.objects[0].loc = (
+                                        sub_obj.loc * sub_obj.objects[0].loc
+                                    )
                             sub_obj = sub_obj.objects[0]
 
                     ocp_obj.add(sub_obj)
@@ -432,6 +443,9 @@ class OcpConverter:
             else:
                 raise ValueError(f"Unknown object type: {obj}")
 
+            if DEBUG:
+                print(ocp_obj)
+
             group.add(ocp_obj)
 
         # if group.length == 1:
@@ -477,7 +491,7 @@ def to_assembly(
 
 
 def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False):
-    def add_bb(shapes):
+    def _add_bb(shapes):
         for shape in shapes["parts"]:
             if shape.get("parts") is None:
                 if shape["type"] == "shapes":
@@ -493,23 +507,44 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
                             *shape["loc"],
                         )
             else:
-                add_bb(shape)
+                _add_bb(shape)
+
+    def _discretize_edges(obj, name, id):
+        with Timer(timeit, name, "bounding box:", 2) as t:
+            deviation = preset("deviation", kwargs.get("deviation"))
+            edge_accuracy = preset("edge_accuracy", kwargs.get("edge_accuracy"))
+
+            bb = bounding_box(obj)
+            quality = compute_quality(bb, deviation=deviation)
+            deflection = quality / 100 if edge_accuracy is None else edge_accuracy
+            t.info = str(bb)
+
+        with Timer(timeit, name, "discretize:  ", 2) as t:
+            t.info = f"quality: {quality}, deflection: {deflection}"
+            disc_edges = discretize_edges(obj, deflection, id)
+
+        return disc_edges, bb
+
+    def _convert_vertices(obj, name, id):
+        bb = bounding_box(obj)
+        vertices = convert_vertices(obj, id)
+
+        return vertices, bb
 
     if kwargs is None:
         kwargs = {}
 
     mapping, shapes = group.collect(
-        "",
-        instances,
-        None,
+        "", instances, None, _discretize_edges, _convert_vertices
     )
+
     states = group.to_state()
 
     meshed_instances = []
 
     deviation = preset("deviation", kwargs.get("deviation"))
     angular_tolerance = preset("angular_tolerance", kwargs.get("angular_tolerance"))
-    edge_accuracy = preset("edge_accuracy", kwargs.get("edge_accuracy"))
+
     render_edges = preset("render_edges", kwargs.get("render_edges"))
 
     for i, instance in enumerate(instances):
@@ -538,6 +573,10 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
             t.info = (
                 f"{{quality:{quality:.4f}, angular_tolerance:{angular_tolerance:.2f}}}"
             )
-    add_bb(shapes)
-
+    _add_bb(shapes)
+    print(shapes)
     return meshed_instances, shapes, states, mapping
+
+
+def conv():
+    raise NotImplementedError("conv is not implemented any more")

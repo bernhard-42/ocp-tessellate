@@ -68,7 +68,7 @@ class OcpObject:
         else:
             return [EMPTY, SELECTED]
 
-    def collect(self, path, instances, loc):
+    def collect(self, path, instances, loc, discretize_edges, convert_vertices):
         self.id = f"{path}/{self.name}"
         texture = None
         combined_loc = loc
@@ -90,6 +90,31 @@ class OcpObject:
                 "accuracy": None,
                 "bb": None,
             }
+        elif self.kind in ("edge", "vertex"):
+            convert = convert_vertices if self.kind == "vertex" else discretize_edges
+            values, bb = convert(self.obj, self.name, self.id)
+
+            color = (
+                [c.web_color for c in self.color]
+                if isinstance(self.color, tuple)
+                else Color(self.color).web_color
+            )
+
+            result = dict(id=self.id, shape=self.obj, loc=None), {
+                "id": self.id,
+                "type": "edges" if self.kind == "edge" else "vertices",
+                "name": self.name,
+                "shape": values,
+                "color": color,
+                "loc": None if self.loc is None else loc_to_tq(self.loc),
+                "bb": bb,
+            }
+            if self.kind == "edge":
+                result[1]["width"] = self.width
+            else:
+                result[1]["size"] = self.width
+            return result
+
         else:
             raise NotImplementedError(f"Kind {self.kind} not implemented")
 
@@ -125,7 +150,7 @@ class OcpGroup:
         for obj, name in zip(self.objects, names):
             obj.name = name
 
-    def to_state(self, parents=None):  # pylint: disable=arguments-differ
+    def to_state(self, parents=None):
         parents = parents or ()
         result = {}
         for i, obj in enumerate(self.objects):
@@ -149,10 +174,7 @@ class OcpGroup:
         return c(self)
 
     def collect(
-        self,
-        path,
-        instances,
-        loc=None,
+        self, path, instances, loc=None, discretize_edges=None, convert_vertices=None
     ):
         self.id = f"{path}/{self.name}"
 
@@ -175,9 +197,7 @@ class OcpGroup:
 
         for obj in self.objects:
             mapping, mesh = obj.collect(
-                self.id,
-                instances,
-                combined_loc,
+                self.id, instances, combined_loc, discretize_edges, convert_vertices
             )
             result["parts"].append(mesh)
             map["parts"].append(mapping)
