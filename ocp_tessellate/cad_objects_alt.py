@@ -15,34 +15,35 @@
 #
 
 import base64
-import numpy as np
 from dataclasses import dataclass
 
-from .utils import Color, Timer
+import imagesize
+import numpy as np
+
+from .defaults import get_default
 from .ocp_utils import (
-    bounding_box,
-    loc_to_tq,
-    tq_to_loc,
-    get_location,
-    np_bbox,
-    line,
-    rect,
     axis_to_vecs,
-    loc_to_vecs,
+    bounding_box,
+    get_location,
     identity_location,
+    line,
+    loc_to_tq,
+    loc_to_vecs,
     make_compound,
+    np_bbox,
+    rect,
+    tq_to_loc,
 )
 from .tessellator import (
+    compute_quality,
     convert_vertices,
     discretize_edges,
-    tessellate,
-    compute_quality,
-    face_mapper,
     edge_mapper,
+    face_mapper,
+    tessellate,
     vertex_mapper,
 )
-from .defaults import get_default
-import imagesize
+from .utils import Color, Timer
 
 UNSELECTED = 0
 SELECTED = 1
@@ -165,7 +166,6 @@ class OCP_Part(CADObject):
         #     shape = self.shape[0]
 
         if isinstance(self.shape, (list, tuple)):
-            print(self.shape)
             raise RuntimeError("Lists of shapes are not supported")
 
         combined_loc = get_location(loc, False)

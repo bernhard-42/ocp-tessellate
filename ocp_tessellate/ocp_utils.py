@@ -92,7 +92,7 @@ from OCP.TopTools import (
 )
 from quaternion import rotate_vectors
 
-from .utils import Color, distance
+from .utils import Color, class_name, flatten
 
 MAX_HASH_KEY = 2147483647
 
@@ -197,6 +197,7 @@ def is_build123d_curve(obj):
         and obj._dim == 1
         and not is_gp_axis(obj.wrapped)
         and not is_topods_edge(obj.wrapped)
+        and not is_topods_wire(obj.wrapped)
     )
 
 

@@ -38,6 +38,7 @@ class OcpObject:
         if obj is None and ref is None:
             raise ValueError("Either obj or ref must be provided")
 
+        self.id = None
         self.obj = obj
         self.kind = kind
         self.ref = ref
@@ -45,8 +46,8 @@ class OcpObject:
         self.name = name
         self.set_states(show_faces, show_edges)
         self.loc = loc
-        self.color = color
         self.alpha = alpha
+        self.color = color
         if isinstance(color, list):
             self.color = [Color(c).web_color for c in self.color]
         elif color is not None:
@@ -103,21 +104,23 @@ class OcpObject:
 
         elif self.kind in ("edge", "vertex"):
             convert = convert_vertices if self.kind == "vertex" else discretize_edges
+            if not isinstance(self.obj, list):
+                self.obj = [self.obj]
             values, bb = convert(self.obj, self.name, self.id)
 
             # TODO is this needed?
-            color = (
-                [c.web_color for c in self.color]
-                if isinstance(self.color, tuple)
-                else Color(self.color).web_color
-            )
+            # color = (
+            #     [c.web_color for c in self.color]
+            #     if isinstance(self.color, tuple)
+            #     else Color(self.color).web_color
+            # )
 
             result = dict(id=self.id, shape=self.obj, loc=None), {
                 "id": self.id,
                 "type": "edges" if self.kind == "edge" else "vertices",
                 "name": self.name,
                 "shape": values,
-                "color": color,
+                "color": self.color,
                 "loc": None if self.loc is None else loc_to_tq(self.loc),
                 "bb": bb,
             }
@@ -133,8 +136,10 @@ class OcpObject:
 
 class OcpGroup:
     def __init__(self, objs=None, name="Group", loc=None):
+        self.id = None
         self.objects = [] if objs is None else objs
         self.name = name
+        self.kind = "group"
         self.loc = loc
 
     def dump(self, ind=0):

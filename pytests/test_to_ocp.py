@@ -1,9 +1,10 @@
 # %%
-import pytest
 import unittest
 
+import pytest
 from build123d import *
-from ocp_tessellate.convert2 import OcpConverter
+
+from ocp_tessellate.convert import OcpConverter
 from ocp_tessellate.ocp_utils import *
 
 # %%
@@ -60,12 +61,16 @@ c3 = Compound(label="c3", children=[s4, s5])
 c1 = Compound(label="c1", children=[s1, c2, c3])
 
 
-class Tests_convert(unittest.TestCase):
+class TestsConvert(unittest.TestCase):
+    """Tests for the OcpConverter class"""
 
     def test_buildpart(self):
+        """Test that a part is converted correctly"""
         c = OcpConverter()
-        o = c.to_ocp(bp)
+        g = c.to_ocp(bp)
         i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
         self.assertEqual(o.name, "Solid")
         self.assertEqual(o.kind, "solid")
         self.assertIsNotNone(o.ref)
@@ -73,9 +78,12 @@ class Tests_convert(unittest.TestCase):
         self.assertTrue(is_topods_solid(i[o.ref][1]))
 
     def test_buildsketch(self):
+        """Test that a sketch is converted correctly"""
         c = OcpConverter()
-        o = c.to_ocp(bs)
+        g = c.to_ocp(bs)
         i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
         self.assertEqual(o.name, "Face")
         self.assertEqual(o.kind, "face")
         self.assertIsNotNone(o.ref)
@@ -83,29 +91,37 @@ class Tests_convert(unittest.TestCase):
         self.assertTrue(is_topods_face(i[o.ref][1]))
 
     def test_buildsketch_local(self):
+        """Test that a sketch_local is converted correctly"""
         c = OcpConverter()
         g = c.to_ocp(bs, sketch_local=True)
         i = c.instances
         self.assertEqual(g.length, 2)
+        o = g.objects[0]
         self.assertEqual(g.name, "Face")
-        for o, n in zip(g.objs, ["sketch", "sketch_local"]):
+        for o, n in zip(g.objects, ["sketch", "sketch_local"]):
             self.assertEqual(o.name, n)
             self.assertEqual(o.kind, "face")
             self.assertTrue(is_topods_face(i[o.ref][1]))
 
     def test_buildline(self):
+        """Test that a line is converted correctly"""
         c = OcpConverter()
-        o = c.to_ocp(bl)
+        g = c.to_ocp(bl)
         i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
         self.assertEqual(o.name, "Edge")
         self.assertEqual(o.kind, "edge")
         self.assertEqual(len(i), 0)
         self.assertTrue(is_topods_edge(o.obj))
 
     def test_buildpart_name_color(self):
+        """Test that the name and color are set correctly for a part"""
         c = OcpConverter()
-        o = c.to_ocp(bp, names=["bp"])
+        g = c.to_ocp(bp, names=["bp"])
         i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
         self.assertEqual(o.name, "bp")
         self.assertEqual(o.kind, "solid")
         self.assertIsNotNone(o.ref)
@@ -113,9 +129,12 @@ class Tests_convert(unittest.TestCase):
         self.assertTrue(is_topods_solid(i[o.ref][1]))
 
     def test_buildsketch_name_color(self):
+        """Test that the name and color are set correctly for a sketch"""
         c = OcpConverter()
-        o = c.to_ocp(bs, names=["bs"])
+        g = c.to_ocp(bs, names=["bs"])
         i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
         self.assertEqual(o.name, "bs")
         self.assertEqual(o.kind, "face")
         self.assertIsNotNone(o.ref)
@@ -123,12 +142,13 @@ class Tests_convert(unittest.TestCase):
         self.assertTrue(is_topods_face(i[o.ref][1]))
 
     def test_buildsketch_local_name_color(self):
+        """Test that the name and color are set correctly for a sketch_local"""
         c = OcpConverter()
         g = c.to_ocp(bs, names=["bs"], sketch_local=True)
         i = c.instances
-        self.assertEqual(g.name, "bs")
         self.assertEqual(g.length, 2)
-        for o, n in zip(g.objs, ["sketch", "sketch_local"]):
+        self.assertEqual(g.name, "bs")
+        for o, n in zip(g.objects, ["sketch", "sketch_local"]):
             self.assertEqual(o.name, n)
             self.assertEqual(o.kind, "face")
             self.assertIsNotNone(o.ref)
@@ -136,29 +156,37 @@ class Tests_convert(unittest.TestCase):
             self.assertTrue(is_topods_face(i[o.ref][1]))
 
     def test_buildsketch_local_color(self):
+        """Test that the color is set correctly for a sketch_local"""
         c = OcpConverter()
         g = c.to_ocp(bs, sketch_local=True)
         i = c.instances
-        self.assertEqual(g.name, "Face")
         self.assertEqual(g.length, 2)
-        for o, n in zip(g.objs, ["sketch", "sketch_local"]):
+        o = g.objects[0]
+        self.assertEqual(g.name, "Face")
+        for o, n in zip(g.objects, ["sketch", "sketch_local"]):
             self.assertEqual(o.name, n)
             self.assertEqual(o.kind, "face")
             self.assertTrue(is_topods_face(i[o.ref][1]))
 
     def test_buildline_name_color(self):
+        """Test that the name and color are set correctly for a line"""
         c = OcpConverter()
-        o = c.to_ocp(bl, names=["bl"])
+        g = c.to_ocp(bl, names=["bl"])
+        self.assertEqual(g.length, 1)
         i = c.instances
+        o = g.objects[0]
         self.assertEqual(o.name, "bl")
         self.assertEqual(o.kind, "edge")
         self.assertEqual(len(i), 0)
         self.assertTrue(is_topods_edge(o.obj))
 
     def test_part_wrapped(self):
+        """Test that a wrapped part is converted correctly"""
         c = OcpConverter()
-        o = c.to_ocp(b.wrapped)
+        g = c.to_ocp(b.wrapped)
         i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
         self.assertEqual(o.name, "Solid")
         self.assertEqual(o.kind, "solid")
         self.assertIsNotNone(o.ref)
@@ -166,11 +194,217 @@ class Tests_convert(unittest.TestCase):
         self.assertTrue(is_topods_solid(i[o.ref][1]))
 
 
-class Tests_convert_moved(unittest.TestCase):
+class TestsShapeLists(unittest.TestCase):
+    """Tests for the OcpConverter class with shape lists"""
+
+    def test_shapelist_solids(self):
+        """Test that a shapelist of solids is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(b.solids())
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.kind, "solid")
+        self.assertTrue(is_topods_solid(i[o.ref][1]))
+
+    def test_shapelist_shells(self):
+        """Test that a shapelist of shells is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(b.shells())
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.kind, "face")
+        self.assertTrue(is_topods_shell(i[o.ref][1]))
+
+    def test_shapelist_face(self):
+        """Test that a shapelist of faces is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(b.faces())
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.kind, "face")
+        self.assertTrue(is_topods_compound(i[o.ref][1]))
+
+    def test_shapelist_edge(self):
+        """Test that a shapelist of edges is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(b.edges())
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.kind, "edge")
+        self.assertTrue(isinstance(o.obj, list))
+        self.assertTrue(all(is_topods_edge(e) for e in o.obj))
+
+    def test_shapelist_wire(self):
+        """Test that a shapelist of wires is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(b.wires())
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.kind, "edge")
+        self.assertTrue(isinstance(o.obj, list))
+        self.assertTrue(all(is_topods_edge(e) for e in o.obj))
+
+    def test_shapelist_vertex(self):
+        """Test that a shapelist of vertices is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(b.vertices())
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.kind, "vertex")
+        self.assertTrue(isinstance(o.obj, list))
+        self.assertTrue(all(is_topods_vertex(e) for e in o.obj))
+
+    def test_shapelist_solids_2(self):
+        """Test that a shapelist of solids is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(b2.solids())
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.kind, "solid")
+        self.assertTrue(is_topods_compound(i[o.ref][1]))
+
+    def test_shapelist_shells_2(self):
+        """Test that a shapelist of shells is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(b2.shells())
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.kind, "face")
+        self.assertTrue(is_topods_compound(i[o.ref][1]))
+
+    def test_shapelist_face_2(self):
+        """Test that a shapelist of faces is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(b2.faces())
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.kind, "face")
+        self.assertTrue(is_topods_compound(i[o.ref][1]))
+
+    def test_shapelist_edge_2(self):
+        """Test that a shapelist of edges is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(b2.edges())
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.kind, "edge")
+        self.assertTrue(isinstance(o.obj, list))
+        self.assertTrue(all(is_topods_edge(e) for e in o.obj))
+
+    def test_shapelist_wire_2(self):
+        """Test that a shapelist of wires is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(b2.wires())
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.kind, "edge")
+        self.assertTrue(isinstance(o.obj, list))
+        self.assertTrue(all(is_topods_edge(e) for e in o.obj))
+
+    def test_shapelist_vertex_2(self):
+        """Test that a shapelist of vertices is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(b2.vertices())
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.kind, "vertex")
+        self.assertTrue(isinstance(o.obj, list))
+        self.assertTrue(all(is_topods_vertex(e) for e in o.obj))
+
+    def test_shapelist_solids_2_list(self):
+        """Test that a shapelist of solids is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(*b2.solids())
+        i = c.instances
+        self.assertEqual(g.length, 2)
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.name, "Solid" if ind == 0 else f"Solid({ind+1})")
+            self.assertEqual(o.kind, "solid")
+            self.assertTrue(is_topods_solid(i[o.ref][1]))
+
+    def test_shapelist_shells_2_list(self):
+        """Test that a shapelist of shells is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(*b2.shells())
+        i = c.instances
+        self.assertEqual(g.length, 2)
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.name, "Faces" if ind == 0 else f"Faces({ind+1})")
+            self.assertEqual(o.kind, "face")
+            self.assertTrue(is_topods_compound(i[o.ref][1]))
+
+    def test_shapelist_face_2_list(self):
+        """Test that a shapelist of faces is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(*b2.faces())
+        i = c.instances
+        self.assertEqual(g.length, 12)
+        o = g.objects[0]
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.name, "Face" if ind == 0 else f"Face({ind+1})")
+            self.assertEqual(o.kind, "face")
+            self.assertTrue(is_topods_face(i[o.ref][1]))
+
+    def test_shapelist_edge_2_list(self):
+        """Test that a shapelist of edges is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(*b2.edges())
+        self.assertEqual(g.length, 24)
+        o = g.objects[0]
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.name, "Edge" if ind == 0 else f"Edge({ind+1})")
+            self.assertEqual(o.kind, "edge")
+            self.assertTrue(is_topods_edge(o.obj))
+
+    def test_shapelist_wire_2_list(self):
+        """Test that a shapelist of wires is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(*b2.wires())
+        self.assertEqual(g.length, 12)
+        o = g.objects[0]
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.name, "Wire" if ind == 0 else f"Wire({ind+1})")
+            self.assertEqual(o.kind, "edge")
+            self.assertTrue(all(is_topods_edge(e) for e in o.obj))
+
+    def test_shapelist_vertex_2_list(self):
+        """Test that a shapelist of vertices is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(*b2.vertices())
+        self.assertEqual(g.length, 16)
+        o = g.objects[0]
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.name, "Vertex" if ind == 0 else f"Vertex({ind+1})")
+            self.assertEqual(o.kind, "vertex")
+            self.assertTrue(is_topods_vertex(o.obj))
+
+
+class TestsConvertMoved(unittest.TestCase):
+    """Tests for the OcpConverter class with moved objects"""
 
     def test_part_wrapped_moved(self):
+        """Test that a moved wrapped part is converted correctly"""
         c = OcpConverter()
-        o = c.to_ocp(b.wrapped.Moved(Location((2, 0, 0)).wrapped))
+        g = c.to_ocp(b.wrapped.Moved(Location((2, 0, 0)).wrapped))
+        o = g.objects[0]
         i = c.instances
         self.assertEqual(o.name, "Solid")
         self.assertEqual(o.kind, "solid")
@@ -179,8 +413,10 @@ class Tests_convert_moved(unittest.TestCase):
         self.assertTrue(is_topods_solid(i[o.ref][1]))
 
     def test_part_algebra_moved(self):
+        """Test that a moved algebra part is converted correctly"""
         c = OcpConverter()
-        o = c.to_ocp(Pos(4, 0, 0) * b)
+        g = c.to_ocp(Pos(4, 0, 0) * b)
+        o = g.objects[0]
         i = c.instances
         self.assertEqual(o.name, "Solid")
         self.assertEqual(o.kind, "solid")
@@ -189,8 +425,10 @@ class Tests_convert_moved(unittest.TestCase):
         self.assertTrue(is_topods_solid(i[o.ref][1]))
 
     def test_part_wrapped_algebra_moved(self):
+        """Test that a moved algebra wrapped part is converted correctly"""
         c = OcpConverter()
-        o = c.to_ocp(Pos(6, 0, 0) * Part(b.wrapped))
+        g = c.to_ocp(Pos(6, 0, 0) * Part(b.wrapped))
+        o = g.objects[0]
         i = c.instances
         self.assertEqual(o.name, "Solid")
         self.assertEqual(o.kind, "solid")
@@ -199,8 +437,10 @@ class Tests_convert_moved(unittest.TestCase):
         self.assertTrue(is_topods_solid(i[o.ref][1]))
 
     def test_compoud_algebra_moved(self):
+        """Test that a moved algebra compound is converted correctly"""
         c = OcpConverter()
-        o = c.to_ocp(Pos(8, 0, 0) * Compound(b.wrapped))
+        g = c.to_ocp(Pos(8, 0, 0) * Compound(b.wrapped))
+        o = g.objects[0]
         i = c.instances
         self.assertEqual(o.name, "Solid")
         self.assertEqual(o.kind, "solid")
