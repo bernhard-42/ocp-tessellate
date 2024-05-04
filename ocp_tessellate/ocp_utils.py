@@ -37,8 +37,8 @@ from OCP.BRepBndLib import BRepBndLib
 from OCP.BRepBuilderAPI import (
     BRepBuilderAPI_Copy,
     BRepBuilderAPI_MakeEdge,
-    BRepBuilderAPI_MakeVertex,
     BRepBuilderAPI_MakeFace,
+    BRepBuilderAPI_MakeVertex,
 )
 from OCP.BRepGProp import BRepGProp
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
@@ -46,16 +46,16 @@ from OCP.BRepTools import BRepTools
 from OCP.GCPnts import GCPnts_AbscissaPoint
 from OCP.GeomAbs import GeomAbs_CurveType
 from OCP.gp import (
+    gp_Ax1,
+    gp_Ax2,
+    gp_Ax3,
+    gp_Circ,
+    gp_Dir,
+    gp_Pln,
     gp_Pnt,
     gp_Quaternion,
     gp_Trsf,
     gp_Vec,
-    gp_Ax1,
-    gp_Ax2,
-    gp_Ax3,
-    gp_Dir,
-    gp_Pln,
-    gp_Circ,
 )
 from OCP.GProp import GProp_GProps
 from OCP.Quantity import Quantity_ColorRGBA
@@ -70,12 +70,7 @@ from OCP.TopAbs import (
     TopAbs_VERTEX,
     TopAbs_WIRE,
 )
-from OCP.TopTools import (
-    TopTools_IndexedDataMapOfShapeListOfShape,
-    TopTools_IndexedMapOfShape,
-)
 from OCP.TopExp import TopExp, TopExp_Explorer
-
 from OCP.TopLoc import TopLoc_Location
 
 # Bounding Box
@@ -86,10 +81,14 @@ from OCP.TopoDS import (
     TopoDS_Edge,
     TopoDS_Face,
     TopoDS_Shape,
-    TopoDS_Solid,
     TopoDS_Shell,
+    TopoDS_Solid,
     TopoDS_Vertex,
     TopoDS_Wire,
+)
+from OCP.TopTools import (
+    TopTools_IndexedDataMapOfShapeListOfShape,
+    TopTools_IndexedMapOfShape,
 )
 from quaternion import rotate_vectors
 

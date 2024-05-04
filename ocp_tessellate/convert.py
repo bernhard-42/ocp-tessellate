@@ -1,14 +1,13 @@
+from ocp_tessellate.cad_objects import CoordAxis, CoordSystem, OcpGroup, OcpObject
+from ocp_tessellate.defaults import get_default, preset
 from ocp_tessellate.ocp_utils import *
-from ocp_tessellate.utils import make_unique, Timer, Color
-from ocp_tessellate.cad_objects import OcpGroup, OcpObject, CoordAxis, CoordSystem
 from ocp_tessellate.tessellator import (
+    compute_quality,
     convert_vertices,
     discretize_edges,
     tessellate,
-    compute_quality,
 )
-from ocp_tessellate.defaults import get_default, preset
-
+from ocp_tessellate.utils import *
 
 DEBUG = True
 
@@ -20,117 +19,8 @@ def _debug(msg, name=None, prefix="debug:", eol="\n"):
         print(f"{prefix} {msg} ('{name}')", end=eol)
 
 
-def class_name(obj):
-    return obj.__class__.__name__
-
-
-def type_name(obj):
-    return class_name(obj).split("_")[1]
-
-
-def get_name(obj, name, default):
-    if name is None:
-        if hasattr(obj, "name") and obj.name is not None and obj.name != "":
-            name = obj.name
-        elif hasattr(obj, "label") and obj.label is not None and obj.label != "":
-            name = obj.label
-        else:
-            name = default
-    return name
-
-
-def get_kind(obj):
-    kinds = {
-        "TopoDS_Edge": "edge",
-        "TopoDS_Face": "face",
-        "TopoDS_Shell": "face",
-        "TopoDS_Solid": "solid",
-        "TopoDS_Vertex": "vertex",
-        "TopoDS_Wire": "edge",
-    }
-    return kinds.get(class_name(obj))
-
-
-def get_color(obj, color=None, alpha=None):
-    default_colors = {
-        "TopoDS_Edge": "MediumOrchid",
-        "TopoDS_Face": "Violet",
-        "TopoDS_Shell": "Violet",
-        "TopoDS_Solid": (232, 176, 36),
-        "TopoDS_Vertex": "MediumOrchid",
-        "TopoDS_Wire": "MediumOrchid",
-    }
-    if color is not None:
-        col_a = Color(color)
-
-    elif hasattr(obj, "color") and obj.color is not None:
-        col_a = Color(obj.color)
-
-    # else return default color
-    else:
-        col_a = Color(default_colors.get(class_name(unwrap(obj))))
-
-    if alpha is not None:
-        col_a.a = alpha
-
-    return col_a
-
-
-def unwrap(obj):
-    if hasattr(obj, "wrapped"):
-        return obj.wrapped
-    elif isinstance(obj, (list, tuple)):
-        return [(x.wrapped if hasattr(x, "wrapped") else x) for x in obj]
-    return obj
-
-
-def combined_bb(shapes):
-    def c_bb(shapes, bb):
-        for shape in shapes["parts"]:
-            if shape.get("parts") is None:
-                if bb is None:
-                    if shape["bb"] is None:
-                        bb = BoundingBox()
-                    else:
-                        bb = BoundingBox(shape["bb"])
-                else:
-                    if shape["bb"] is not None:
-                        bb.update(shape["bb"])
-
-                # after updating the global bounding box, remove the local
-                del shape["bb"]
-            else:
-                bb = c_bb(shape, bb)
-        return bb
-
-    bb = c_bb(shapes, None)
-    return bb
-
-
-def get_accuracies(shapes):
-    def _get_accuracies(shapes, lengths):
-        if shapes.get("parts"):
-            for shape in shapes["parts"]:
-                _get_accuracies(shape, lengths)
-        elif shapes.get("type") == "shapes":
-            accuracies[shapes["id"]] = shapes["accuracy"]
-
-    accuracies = {}
-    _get_accuracies(shapes, accuracies)
-    return accuracies
-
-
-def get_normal_len(render_normals, shapes, deviation):
-    if render_normals:
-        accuracies = get_accuracies(shapes)
-        normal_len = max(accuracies.values()) / deviation * 4
-    else:
-        normal_len = 0
-
-    return normal_len
-
-
 # TODOs:
+# - ImageFace
 # - render mates
 # - render joints
 # - render parent
@@ -198,14 +88,19 @@ class OcpConverter:
                 objs = unwrap(objs)
                 ocp_obj = make_compound(objs)
             return self.get_instance(
-                ocp_obj, kind, id(ocp_obj), name, get_color(objs[0], color), alpha
+                ocp_obj,
+                kind,
+                id(ocp_obj),
+                name,
+                get_color_for_object(objs[0], color),
+                alpha,
             )
         else:
             return OcpObject(
                 kind,
                 obj=unwrap(objs),
                 name=name,
-                color=get_color(objs[0], color),
+                color=get_color_for_object(objs[0], color),
                 alpha=alpha,
                 width=2 if kind == "edge" else 4,
             )
@@ -264,7 +159,7 @@ class OcpConverter:
 
             # Get object color
             if hasattr(cad_obj, "color"):
-                obj_color = get_color(cad_obj, None)
+                obj_color = get_color_for_object(cad_obj, None)
 
             # Convert build123d BuildPart, BuildSketch, BuildLine to topology object
             if is_build123d(cad_obj):
@@ -357,7 +252,7 @@ class OcpConverter:
                     get_kind(objs[0]),
                     obj=objs,
                     name=get_name(obj, obj_name, "ShapeList"),
-                    color=get_color(objs[0], obj_color),
+                    color=get_color_for_object(objs[0], obj_color),
                     width=2 if get_kind(objs[0]) == "edge" else 4,
                 )
 
@@ -576,6 +471,34 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
     _add_bb(shapes)
     print(shapes)
     return meshed_instances, shapes, states, mapping
+
+
+#
+# Interface functions
+#
+
+
+def combined_bb(shapes):
+    def c_bb(shapes, bb):
+        for shape in shapes["parts"]:
+            if shape.get("parts") is None:
+                if bb is None:
+                    if shape["bb"] is None:
+                        bb = BoundingBox()
+                    else:
+                        bb = BoundingBox(shape["bb"])
+                else:
+                    if shape["bb"] is not None:
+                        bb.update(shape["bb"])
+
+                # after updating the global bounding box, remove the local
+                del shape["bb"]
+            else:
+                bb = c_bb(shape, bb)
+        return bb
+
+    bb = c_bb(shapes, None)
+    return bb
 
 
 def conv():

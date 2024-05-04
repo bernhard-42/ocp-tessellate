@@ -1,9 +1,15 @@
+import base64
+
+import imagesize
+
 from ocp_tessellate.ocp_utils import (
     axis_to_vecs,
-    loc_to_vecs,
     line,
-    make_compound,
     loc_to_tq,
+    loc_to_vecs,
+    make_compound,
+    rect,
+    tq_to_loc,
 )
 from ocp_tessellate.utils import Color, make_unique
 
@@ -31,6 +37,7 @@ class OcpObject:
     ):
         if obj is None and ref is None:
             raise ValueError("Either obj or ref must be provided")
+
         self.obj = obj
         self.kind = kind
         self.ref = ref
@@ -57,6 +64,9 @@ class OcpObject:
             f"{obj_repl}, "
             f"color={self.color}, loc={loc_to_tq(self.loc)})"
         )
+
+    def __repr__(self):
+        return self.dump()
 
     def set_states(self, show_faces, show_edges):
         self.state_faces = SELECTED if show_faces else UNSELECTED
@@ -90,10 +100,12 @@ class OcpObject:
                 "accuracy": None,
                 "bb": None,
             }
+
         elif self.kind in ("edge", "vertex"):
             convert = convert_vertices if self.kind == "vertex" else discretize_edges
             values, bb = convert(self.obj, self.name, self.id)
 
+            # TODO is this needed?
             color = (
                 [c.web_color for c in self.color]
                 if isinstance(self.color, tuple)
@@ -117,9 +129,6 @@ class OcpObject:
 
         else:
             raise NotImplementedError(f"Kind {self.kind} not implemented")
-
-    def __repr__(self):
-        return self.dump()
 
 
 class OcpGroup:
@@ -231,7 +240,45 @@ class CoordSystem(OcpObject):
         )
 
 
-class ImageFace: ...
+class ImageFace(OcpObject):
+    def __init__(
+        self,
+        image_path,
+        scale=1.0,
+        origin_pixels=(0, 0),
+        location=None,
+        name="ImagePlane",
+    ):
+        self.image_width, self.image_height = imagesize.get(image_path)
+        x = origin_pixels[0]
+        y = self.image_height - origin_pixels[1]
+
+        if isinstance(scale, (int, float)):
+            scale = (scale, scale)
+
+        ws = int(self.image_width * scale[0])
+        hs = int(self.image_height * scale[1])
+        xs = int(x * scale[0])
+        ys = int(y * scale[1])
+
+        plane = rect(ws, hs)
+        super().__init__(
+            [plane],
+            id(plane),
+            name=name,
+            show_edges=True,
+        )
+
+        with open(image_path, "rb") as f:
+            self.image = base64.b64encode(f.read()).decode("utf-8")
+            self.image_type = image_path.split(".")[-1]
+        self.name = name
+        self.width = ws
+        self.height = hs
+
+        loc = location.wrapped if hasattr(location, "wrapped") else location
+        o = tq_to_loc((ws / 2 - xs, hs / 2 - ys, 0), (0, 0, 0, 1))
+        self.loc = loc * o if loc is not None else o
 
 
 class OCP_Part: ...

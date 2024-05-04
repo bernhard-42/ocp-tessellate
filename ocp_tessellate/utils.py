@@ -1,14 +1,20 @@
 import base64
 import json
 import math
-import numpy as np
 import time
 import warnings
-from webcolors import name_to_rgb, hex_to_rgb, rgb_to_hex
+
+import numpy as np
+from webcolors import hex_to_rgb, name_to_rgb, rgb_to_hex
 
 
 def round_sig(x, sig):
     return round(x, sig - int(math.floor(math.log10(abs(x)))) - 1)
+
+
+#
+# Color class
+#
 
 
 class Color:
@@ -74,6 +80,56 @@ class Color:
         return rgb_to_hex((self.r, self.g, self.b))
 
 
+#
+# Timer class
+#
+
+
+class Timer:
+    def __init__(self, timeit, name, activity, level=0, newline=False):
+        if isinstance(timeit, bool):
+            self.timeit = 99 if timeit else -1
+        else:
+            self.timeit = timeit
+        self.activity = activity
+        self.name = name
+        self.level = level
+        self.newline = newline
+        self.info = ""
+        self.start = time.time()
+
+    def __enter__(self):
+        if self.newline:
+            print("", flush=True)
+
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        if self.level <= self.timeit:
+            prefix = ""
+            if self.level > 0:
+                prefix += "| " * self.level
+
+            if self.name != "":
+                self.name = f'"{self.name}"'
+
+            print(
+                "%8.3f sec: %s%s %s %s"
+                % (
+                    time.time() - self.start,
+                    prefix,
+                    self.activity,
+                    self.name,
+                    self.info,
+                )
+            )
+
+
+#
+# Helpers
+#
+
+
 def get_color(in_color, def_color, alpha):
     color = Color(def_color if in_color is None else in_color)
     if isinstance(alpha, float) and 0 <= alpha < 1.0:
@@ -81,9 +137,136 @@ def get_color(in_color, def_color, alpha):
     return color
 
 
+def get_color_for_object(obj, color=None, alpha=None):
+    default_colors = {
+        "TopoDS_Edge": "MediumOrchid",
+        "TopoDS_Face": "Violet",
+        "TopoDS_Shell": "Violet",
+        "TopoDS_Solid": (232, 176, 36),
+        "TopoDS_Vertex": "MediumOrchid",
+        "TopoDS_Wire": "MediumOrchid",
+    }
+    if color is not None:
+        col_a = Color(color)
+
+    elif hasattr(obj, "color") and obj.color is not None:
+        col_a = Color(obj.color)
+
+    # else return default color
+    else:
+        col_a = Color(default_colors.get(class_name(unwrap(obj))))
+
+    if alpha is not None:
+        col_a.a = alpha
+
+    return col_a
+
+
+def get_name(obj, name, default):
+    if name is None:
+        if hasattr(obj, "name") and obj.name is not None and obj.name != "":
+            name = obj.name
+        elif hasattr(obj, "label") and obj.label is not None and obj.label != "":
+            name = obj.label
+        else:
+            name = default
+    return name
+
+
+def get_kind(obj):
+    kinds = {
+        "TopoDS_Edge": "edge",
+        "TopoDS_Face": "face",
+        "TopoDS_Shell": "face",
+        "TopoDS_Solid": "solid",
+        "TopoDS_Vertex": "vertex",
+        "TopoDS_Wire": "edge",
+    }
+    return kinds.get(class_name(obj))
+
+
+def unwrap(obj):
+    if hasattr(obj, "wrapped"):
+        return obj.wrapped
+    elif isinstance(obj, (list, tuple)):
+        return [(x.wrapped if hasattr(x, "wrapped") else x) for x in obj]
+    return obj
+
+
+def get_accuracies(shapes):
+    def _get_accuracies(shapes, lengths):
+        if shapes.get("parts"):
+            for shape in shapes["parts"]:
+                _get_accuracies(shape, lengths)
+        elif shapes.get("type") == "shapes":
+            accuracies[shapes["id"]] = shapes["accuracy"]
+
+    accuracies = {}
+    _get_accuracies(shapes, accuracies)
+    return accuracies
+
+
+def get_normal_len(render_normals, shapes, deviation):
+    if render_normals:
+        accuracies = get_accuracies(shapes)
+        normal_len = max(accuracies.values()) / deviation * 4
+    else:
+        normal_len = 0
+
+    return normal_len
+
+
+def warn(message, warning=RuntimeWarning, when="always"):
+    def warning_on_one_line(
+        message, category, filename, lineno, file=None, line=None
+    ):  # pylint: disable=unused-argument
+        return "%s: %s" % (category.__name__, message)
+
+    warn_format = warnings.formatwarning
+    warnings.formatwarning = warning_on_one_line
+    warnings.simplefilter(when, warning)
+    warnings.warn(message + "\n", warning)
+    warnings.formatwarning = warn_format
+    warnings.simplefilter("ignore", warning)
+
+
+def make_unique(names):
+    found = {}
+    unique_names = []
+    for name in names:
+        if name is None:
+            unique_names.append(None)
+            continue
+
+        if found.get(name) is None:
+            found[name] = 1
+            unique_names.append(name)
+        else:
+            found[name] += 1
+            unique_names.append(f"{name}({found[name]})")
+
+    return unique_names
+
+
+def distance(v1, v2):
+    return np.linalg.norm([x - y for x, y in zip(v1, v2)])
+
+
+def px(w):
+    return f"{w}px"
+
+
 #
-# Helpers
+# Generic helpers
 #
+
+
+def class_name(obj):
+    return obj.__class__.__name__
+
+
+def type_name(obj):
+    return class_name(obj).split("_")[1]
 
 
 def explode(edge_list):
@@ -92,6 +275,11 @@ def explode(edge_list):
 
 def flatten(nested_list):
     return [y for x in nested_list for y in x]
+
+
+#
+# Serialisation
+#
 
 
 def numpy_to_buffer_json(value):
@@ -135,12 +323,8 @@ def numpy_to_json(obj, indent=None):
     return json.dumps(obj, cls=NumpyArrayEncoder, indent=indent)
 
 
-def distance(v1, v2):
-    return np.linalg.norm([x - y for x, y in zip(v1, v2)])
-
-
 #
-# tree search
+# Tree search
 #
 
 
@@ -153,79 +337,3 @@ def tree_find_single_selector(tree, selector):
         if result is not None:
             return result
     return None
-
-
-class Timer:
-    def __init__(self, timeit, name, activity, level=0, newline=False):
-        if isinstance(timeit, bool):
-            self.timeit = 99 if timeit else -1
-        else:
-            self.timeit = timeit
-        self.activity = activity
-        self.name = name
-        self.level = level
-        self.newline = newline
-        self.info = ""
-        self.start = time.time()
-
-    def __enter__(self):
-        if self.newline:
-            print("", flush=True)
-
-        return self
-
-    def __exit__(self, exc_type, exc_value, exc_traceback):
-        if self.level <= self.timeit:
-            prefix = ""
-            if self.level > 0:
-                prefix += "| " * self.level
-
-            if self.name != "":
-                self.name = f'"{self.name}"'
-
-            print(
-                "%8.3f sec: %s%s %s %s"
-                % (
-                    time.time() - self.start,
-                    prefix,
-                    self.activity,
-                    self.name,
-                    self.info,
-                )
-            )
-
-
-def px(w):
-    return f"{w}px"
-
-
-def warn(message, warning=RuntimeWarning, when="always"):
-    def warning_on_one_line(
-        message, category, filename, lineno, file=None, line=None
-    ):  # pylint: disable=unused-argument
-        return "%s: %s" % (category.__name__, message)
-
-    warn_format = warnings.formatwarning
-    warnings.formatwarning = warning_on_one_line
-    warnings.simplefilter(when, warning)
-    warnings.warn(message + "\n", warning)
-    warnings.formatwarning = warn_format
-    warnings.simplefilter("ignore", warning)
-
-
-def make_unique(names):
-    found = {}
-    unique_names = []
-    for name in names:
-        if name is None:
-            unique_names.append(None)
-            continue
-
-        if found.get(name) is None:
-            found[name] = 1
-            unique_names.append(name)
-        else:
-            found[name] += 1
-            unique_names.append(f"{name}({found[name]})")
-
-    return unique_names
