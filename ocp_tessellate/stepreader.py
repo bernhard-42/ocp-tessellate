@@ -9,6 +9,7 @@ except:
 
 try:
     from build123d import *
+
     from .b123d_assembly import Assembly, reference
 
 except:

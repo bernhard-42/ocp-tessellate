@@ -19,38 +19,34 @@
 import os
 import sys
 
-from cachetools import LRUCache, cached
-
 import numpy as np
-
-# pylint: disable=no-name-in-module,import-error
-from OCP.gp import gp_Vec, gp_Pnt
+from cachetools import LRUCache, cached
 from OCP.BRep import BRep_Tool
-from OCP.BRepTools import BRepTools
+from OCP.BRepAdaptor import BRepAdaptor_Curve
 from OCP.BRepGProp import BRepGProp_Face
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
-from OCP.TopLoc import TopLoc_Location
-from OCP.TopAbs import TopAbs_Orientation
+from OCP.BRepTools import BRepTools
+from OCP.GCPnts import GCPnts_QuasiUniformAbscissa, GCPnts_QuasiUniformDeflection
 
+# pylint: disable=no-name-in-module,import-error
+from OCP.gp import gp_Pnt, gp_Vec
+from OCP.TopAbs import TopAbs_Orientation, TopAbs_SOLID
 from OCP.TopExp import TopExp_Explorer
-from OCP.TopAbs import TopAbs_SOLID
-from OCP.BRepAdaptor import BRepAdaptor_Curve
-from OCP.GCPnts import GCPnts_QuasiUniformDeflection, GCPnts_QuasiUniformAbscissa
+from OCP.TopLoc import TopLoc_Location
 
-
-from .utils import Timer, round_sig
 from .ocp_utils import (
-    get_point,
-    get_faces,
-    get_edges,
-    get_vertices,
-    make_compound,
-    get_face_type,
     get_edge_type,
+    get_edges,
+    get_face_type,
+    get_faces,
+    get_point,
+    get_vertices,
     is_line,
     length,
+    make_compound,
 )
 from .trace import Trace
+from .utils import Timer, round_sig
 
 try:
     from ocp_addons.tessellator import tessellate as tessellate_c

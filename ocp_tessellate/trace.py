@@ -1,4 +1,4 @@
-from .ocp_utils import center_of_mass, area, end_points, point
+from .ocp_utils import area, center_of_mass, end_points, point
 
 DEBUG = False
 
