@@ -1,7 +1,9 @@
 # %%
 import unittest
 
+import build123d as bd
 import pytest
+import webcolors
 from build123d import *
 
 from ocp_tessellate.convert import OcpConverter
@@ -9,6 +11,7 @@ from ocp_tessellate.ocp_utils import *
 
 # %%
 
+colormap = list(webcolors.CSS3_NAMES_TO_HEX.items())
 
 b = Box(1, 2, 3)
 b2 = Box(1, 1, 1) - Box(2, 2, 0.2)
@@ -192,6 +195,303 @@ class TestsConvert(unittest.TestCase):
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
         self.assertTrue(is_topods_solid(i[o.ref][1]))
+
+    def test_show_solid_default_colors(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.solid())
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.color.web_color, "#e8b024")
+
+    def test_show_solids_default_colors(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.solids())
+        o = g.objects[0]
+        self.assertEqual(g.length, 1)
+        self.assertEqual(o.color.web_color, "#e8b024")
+
+    def test_show_solids_list_default_colors(self):
+        c = OcpConverter()
+        g = c.to_ocp(*b2.solids())
+        self.assertEqual(g.length, 2)
+        for o in g.objects:
+            self.assertEqual(o.color.web_color, "#e8b024")
+
+    def test_show_shell_default_colors(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.shell())
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.color.web_color, "#ee82ee")
+
+    def test_show_shells_default_colors(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.shells())
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.color.web_color, "#ee82ee")
+
+    def test_show_shells_list_default_colors(self):
+        c = OcpConverter()
+        g = c.to_ocp(*b2.shells())
+        self.assertEqual(g.length, 2)
+        for o in g.objects:
+            self.assertEqual(o.color.web_color, "#ee82ee")
+
+    def test_show_face_default_colors(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.face())
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.color.web_color, "#ee82ee")
+
+    def test_show_faces_default_colors(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.faces())
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.color.web_color, "#ee82ee")
+
+    def test_show_faces_list_default_colors(self):
+        c = OcpConverter()
+        g = c.to_ocp(*b2.faces())
+        self.assertEqual(g.length, 12)
+        for o in g.objects:
+            self.assertEqual(o.color.web_color, "#ee82ee")
+
+    def test_show_wire_default_colors(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.wire())
+        self.assertEqual(g.length, 1)
+        for o in g.objects:
+            self.assertEqual(o.color.web_color, "#ba55d3")
+
+    def test_show_wires_default_colors(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.wires())
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.color.web_color, "#ba55d3")
+
+    def test_show_wires_list_default_colors(self):
+        c = OcpConverter()
+        g = c.to_ocp(*b2.wires())
+        self.assertEqual(g.length, 12)
+        for o in g.objects:
+            self.assertEqual(o.color.web_color, "#ba55d3")
+
+    def test_show_edge_default_colors(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.edge())
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.color.web_color, "#ba55d3")
+
+    def test_show_edges_default_colors(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.edges())
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.color.web_color, "#ba55d3")
+
+    def test_show_edges_list_default_colors(self):
+        c = OcpConverter()
+        g = c.to_ocp(*b2.edges())
+        self.assertEqual(g.length, 24)
+        for o in g.objects:
+            self.assertEqual(o.color.web_color, "#ba55d3")
+
+    def test_show_vertex_default_colors(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.vertex())
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.color.web_color, "#ba55d3")
+
+    def test_show_vertices_default_colors(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.vertices())
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.color.web_color, "#ba55d3")
+
+    def test_show_vertices_list_default_colors(self):
+        c = OcpConverter()
+        g = c.to_ocp(*b2.vertices())
+        self.assertEqual(g.length, 16)
+        for o in g.objects:
+            self.assertEqual(o.color.web_color, "#ba55d3")
+
+    #
+
+    def test_show_solid_colors_names(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.solid(), names=["MySolid"], colors=[colormap[0][0]])
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.color.web_color, colormap[0][1])
+        self.assertEqual(o.name, "MySolid")
+
+    def test_show_solids_colors_names(self):
+        c = OcpConverter()
+        g = c.to_ocp(
+            b2.solids(),
+            names=["MySolidShapeList"],
+            colors=[bd.Color("Orange", 0.7)],
+        )
+        o = g.objects[0]
+        self.assertEqual(g.length, 1)
+        self.assertEqual(o.color.web_color, "#ff5f00")
+        self.assertAlmostEqual(o.color.a, 0.7, 6)
+        self.assertEqual(o.name, "MySolidShapeList")
+
+    def test_show_solids_list_colors_names(self):
+        c = OcpConverter()
+        objs = b2.solids()
+        g = c.to_ocp(
+            *objs,
+            names=[f"MySolid_{ind}" for ind in range(len(objs))],
+            colors=[colormap[ind][0] for ind in range(len(objs))],
+        )
+        self.assertEqual(g.length, 2)
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.color.web_color, colormap[ind][1])
+            self.assertEqual(o.name, f"MySolid_{ind}")
+
+    def test_show_shell_colors_names(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.shell(), colors=[colormap[0][0]])
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.color.web_color, colormap[0][1])
+
+    def test_show_shells_colors_names(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.shells(), colors=[bd.Color("Orange", 0.7)])
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.color.web_color, "#ff5f00")
+
+    def test_show_shells_list_colors_names(self):
+        c = OcpConverter()
+        objs = b2.shells()
+        g = c.to_ocp(
+            *objs,
+            names=[f"MyShell_{ind}" for ind in range(len(objs))],
+            colors=[colormap[ind][0] for ind in range(len(objs))],
+        )
+        self.assertEqual(g.length, 2)
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.color.web_color, colormap[ind][1])
+            self.assertEqual(o.name, f"MyShell_{ind}")
+
+    def test_show_face_colors_names(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.face(), colors=[colormap[0][0]])
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.color.web_color, colormap[0][1])
+
+    def test_show_faces_colors_names(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.faces(), colors=[bd.Color("Orange", 0.7)])
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.color.web_color, "#ff5f00")
+
+    def test_show_faces_list_colors_names(self):
+        c = OcpConverter()
+        objs = b2.faces()
+        g = c.to_ocp(
+            *objs,
+            names=[f"MyFace_{ind}" for ind in range(len(objs))],
+            colors=[colormap[ind][0] for ind in range(len(objs))],
+        )
+        self.assertEqual(g.length, 12)
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.color.web_color, colormap[ind][1])
+            self.assertEqual(o.name, f"MyFace_{ind}")
+
+    def test_show_wire_colors_names(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.wire(), colors=[colormap[0][0]])
+        self.assertEqual(g.length, 1)
+        for o in g.objects:
+            self.assertEqual(o.color.web_color, colormap[0][1])
+
+    def test_show_wires_colors_names(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.wires(), colors=[bd.Color("Orange")])
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.color.web_color, "#ff5f00")
+
+    def test_show_wires_list_colors_names(self):
+        c = OcpConverter()
+        objs = b2.wires()
+        g = c.to_ocp(
+            *objs,
+            names=[f"MyWire_{ind}" for ind in range(len(objs))],
+            colors=[colormap[ind][0] for ind in range(len(objs))],
+        )
+        self.assertEqual(g.length, 12)
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.color.web_color, colormap[ind][1])
+            self.assertEqual(o.name, f"MyWire_{ind}")
+
+    def test_show_edge_colors_names(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.edge(), colors=[colormap[0][0]])
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.color.web_color, colormap[0][1])
+
+    def test_show_edges_colors_names(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.edges(), colors=[bd.Color("Orange")])
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.color.web_color, "#ff5f00")
+
+    def test_show_edges_list_colors_names(self):
+        c = OcpConverter()
+        objs = b2.edges()
+        g = c.to_ocp(
+            *objs,
+            names=[f"MyEdge_{ind}" for ind in range(len(objs))],
+            colors=[colormap[ind][0] for ind in range(len(objs))],
+        )
+        self.assertEqual(g.length, 24)
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.color.web_color, colormap[ind][1])
+            self.assertEqual(o.name, f"MyEdge_{ind}")
+
+    def test_show_vertex_colors_names(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.vertex(), colors=[colormap[0][0]])
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.color.web_color, colormap[0][1])
+
+    def test_show_vertices_colors_names(self):
+        c = OcpConverter()
+        g = c.to_ocp(b2.vertices(), colors=[bd.Color("Orange")])
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.color.web_color, "#ff5f00")
+
+    def test_show_vertices_list_colors_names(self):
+        c = OcpConverter()
+        objs = b2.vertices()
+        g = c.to_ocp(
+            *objs,
+            names=[f"MyVertex_{ind}" for ind in range(len(objs))],
+            colors=[colormap[ind][0] for ind in range(len(objs))],
+        )
+        self.assertEqual(g.length, 16)
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.color.web_color, colormap[ind][1])
+            self.assertEqual(o.name, f"MyVertex_{ind}")
 
 
 class TestsShapeLists(unittest.TestCase):

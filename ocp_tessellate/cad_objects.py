@@ -30,7 +30,6 @@ class OcpObject:
         name="Object",
         loc=None,
         color=None,
-        alpha=None,
         width=None,
         show_faces=True,
         show_edges=True,
@@ -46,12 +45,11 @@ class OcpObject:
         self.name = name
         self.set_states(show_faces, show_edges)
         self.loc = loc
-        self.alpha = alpha
         self.color = color
         if isinstance(color, list):
-            self.color = [Color(c).web_color for c in self.color]
+            self.color = [Color(c) for c in self.color]
         elif color is not None:
-            self.color = Color(self.color).web_color
+            self.color = Color(self.color)
         self.width = width
 
     def dump(self, ind=0):
@@ -93,9 +91,9 @@ class OcpObject:
                 "subtype": self.kind,
                 "name": self.name,
                 "shape": {"ref": self.ref},
-                "color": self.color,
+                "color": self.color.web_color,
+                "alpha": self.color.a,
                 "texture": texture,
-                "alpha": self.alpha,
                 "loc": None if self.loc is None else loc_to_tq(self.loc),
                 "renderback": self.kind == "face",
                 "accuracy": None,
@@ -108,19 +106,12 @@ class OcpObject:
                 self.obj = [self.obj]
             values, bb = convert(self.obj, self.name, self.id)
 
-            # TODO is this needed?
-            # color = (
-            #     [c.web_color for c in self.color]
-            #     if isinstance(self.color, tuple)
-            #     else Color(self.color).web_color
-            # )
-
             result = dict(id=self.id, shape=self.obj, loc=None), {
                 "id": self.id,
                 "type": "edges" if self.kind == "edge" else "vertices",
                 "name": self.name,
                 "shape": values,
-                "color": self.color,
+                "color": self.color.web_color,
                 "loc": None if self.loc is None else loc_to_tq(self.loc),
                 "bb": bb,
             }

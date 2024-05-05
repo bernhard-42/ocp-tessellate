@@ -812,32 +812,35 @@ def ocp_color(r, g, b, alpha=1.0):
 
 
 def get_rgba(color, alpha=None, def_color=None):
-    color = def_color if color is None else color
+    if color is None:
+        if def_color is None:
+            return None
+        color = def_color
 
-    if hasattr(color, "toTuple"):  # CadQery Color
-        *rgb, a = color.toTuple()
+    if isinstance(color, Color):
+        return color
 
-    elif hasattr(color, "percentage"):  # Alg123d Color
-        rgb, a = color.percentage, color.a
-
-    elif hasattr(color, "to_tuple"):  # Build123d
-        *rgb, a = color.to_tuple()
+    if hasattr(color, "wrapped"):  # CadQery or build123d Color
+        rgba = get_rgba(color.wrapped, alpha, def_color)
 
     elif isinstance(color, Quantity_ColorRGBA):  # OCP
         ocp_rgb = color.GetRGB()
-        rgb = (ocp_rgb.Red(), ocp_rgb.Green(), ocp_rgb.Blue())
-        a = color.Alpha()
+        rgba = Color(
+            (
+                ocp_rgb.Red(),
+                ocp_rgb.Green(),
+                ocp_rgb.Blue(),
+                color.Alpha() if alpha is None else alpha,
+            )
+        )
 
     elif isinstance(color, str) or isinstance(color, (tuple, list)):
-        col = Color(color)
-        rgb, a = col.percentage, col.a
+        rgba = Color(color, 1.0 if alpha is None else alpha)
+
     else:
         raise ValueError(f"Unknown color input {color} ({type(color)}")
 
-    if alpha is not None:
-        a = alpha
-
-    return (*rgb, a)
+    return rgba
 
 
 def vertex(obj):

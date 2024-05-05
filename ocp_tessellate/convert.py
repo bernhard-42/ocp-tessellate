@@ -89,14 +89,14 @@ def get_color_for_object(obj, color=None, alpha=None, kind=None):
         "vertex": "MediumOrchid",
     }
 
-    if is_topods_compound(obj) and kind is not None:
-        col_a = default_colors[kind]
-
-    elif color is not None:
+    if color is not None:
         col_a = Color(color)
 
     elif hasattr(obj, "color") and obj.color is not None:
         col_a = Color(obj.color)
+
+    elif color is None and is_topods_compound(obj) and kind is not None:
+        col_a = Color(default_colors[kind])
 
     # else return default color
     else:
@@ -109,15 +109,13 @@ def get_color_for_object(obj, color=None, alpha=None, kind=None):
 
 
 # TODOs:
-# - show(b2.wires())
-# - show(b2.faces())
-# - show(*b2.faces())
-# - show(b2.solids())
+# - cache handling
 # - ImageFace
 # - render mates
 # - render joints
 # - render parent
 # - render normals
+#
 # - CadQuery objects
 # - CadQuery assemblies
 
@@ -127,7 +125,7 @@ class OcpConverter:
         self.instances = []
         self.ocp = None
 
-    def get_instance(self, obj, kind, cache_id, name, color, alpha, progress=None):
+    def get_instance(self, obj, kind, cache_id, name, color, progress=None):
         is_instance = False
         ocp_obj = None
 
@@ -143,7 +141,6 @@ class OcpConverter:
                     name=name,
                     loc=loc,
                     color=color,
-                    alpha=alpha,
                     cache_id=cache_id,
                 )
                 # and stop the loop
@@ -165,13 +162,12 @@ class OcpConverter:
                 name=name,
                 loc=loc,
                 color=color,
-                alpha=alpha,
                 cache_id=cache_id,
             )
 
         return ocp_obj
 
-    def unify(self, objs, name, color, alpha):
+    def unify(self, objs, name, color):
         u_objs = unwrap(objs)
         kind = get_kind(u_objs[0])
 
@@ -187,7 +183,6 @@ class OcpConverter:
                 id(ocp_obj),
                 name,
                 get_color_for_object(ocp_obj, color, kind=kind),
-                alpha,
             )
         else:
             return OcpObject(
@@ -195,7 +190,6 @@ class OcpConverter:
                 obj=ocp_obj,
                 name=name,
                 color=get_color_for_object(ocp_obj, color, kind=kind),
-                alpha=alpha,
                 width=2 if kind == "edge" else 4,
             )
 
@@ -221,39 +215,42 @@ class OcpConverter:
         if names is None:
             names = [None] * len(cad_objs)
         else:
-            names = make_unique(names)
             if len(names) != len(cad_objs):
                 raise ValueError("Length of names does not match the number of objects")
-
-        if colors is None:
-            colors = [None] * len(cad_objs)
-        if len(colors) != len(cad_objs):
-            raise ValueError("Length of colors does not match the number of objects")
+            names = make_unique(names)
 
         if alphas is None:
             alphas = [None] * len(cad_objs)
+
         if len(alphas) != len(cad_objs):
-            raise ValueError(
-                "Length of alpha values does not match the number of objects"
-            )
+            raise ValueError("Length of alphas does not match the number of objects")
+
+        if colors is None:
+            colors = [None] * len(cad_objs)
+        else:
+            if len(colors) != len(cad_objs):
+                raise ValueError(
+                    "Length of colors does not match the number of objects"
+                )
+            colors = [get_rgba(c, a) for c, a in zip(colors, alphas)]
 
         if default_color is None:
-            default_color = (
-                get_default("default_color") if default_color is None else default_color
-            )
+            default_color = get_default("default_color")
 
         if instances is None:
             instances = []
 
-        for cad_obj, obj_name, obj_color, obj_alpha in zip(
-            cad_objs, names, colors, alphas
-        ):
+        print(f"{colors=}")
+        for cad_obj, obj_name, rgba_color in zip(cad_objs, names, colors):
 
             # ================================= Prepare ================================= #
 
             # Get object color
-            if hasattr(cad_obj, "color"):
-                obj_color = Color(cad_obj.color)
+            if rgba_color is not None and not isinstance(rgba_color, Color):
+                rgba_color = get_rgba(rgba_color)
+
+            elif hasattr(cad_obj, "color") and cad_obj.color is not None:
+                rgba_color = get_rgba(cad_obj.color)
 
             # Convert build123d BuildPart, BuildSketch, BuildLine to topology object
             if is_build123d(cad_obj):
@@ -288,6 +285,7 @@ class OcpConverter:
                     result = self.to_ocp(
                         el,
                         names=[f"{name}[{i}]"],
+                        colors=[rgba_color],
                         sketch_local=sketch_local,
                         instances=instances,
                     )
@@ -305,6 +303,7 @@ class OcpConverter:
                     result = self.to_ocp(
                         el,
                         names=[name],
+                        colors=[rgba_color],
                         sketch_local=sketch_local,
                         instances=instances,
                     )
@@ -353,8 +352,7 @@ class OcpConverter:
                     ocp_obj = self.unify(
                         objs,
                         get_name(obj, obj_name, "ShapeList"),
-                        get_color_for_object(objs[0], obj_color),
-                        obj_alpha,
+                        get_color_for_object(objs[0], rgba_color),
                     )
                 else:
                     # keep the array of wrapped edges
@@ -362,7 +360,7 @@ class OcpConverter:
                         kind,
                         obj=objs,
                         name=get_name(obj, obj_name, "ShapeList"),
-                        color=get_color_for_object(objs[0], obj_color),
+                        color=get_color_for_object(objs[0], rgba_color),
                         width=2 if kind == "edge" else 4,
                     )
 
@@ -372,7 +370,8 @@ class OcpConverter:
                     _debug("build123d part", obj_name)
                 objs = obj.solids()
                 name = get_name(obj, obj_name, "Solid" if len(objs) == 1 else "Solids")
-                ocp_obj = self.unify(objs, name, obj_color, obj_alpha)
+                print(f"{rgba_color=}")
+                ocp_obj = self.unify(objs, name, rgba_color)
 
             # build123d BuildSketch().sketch
             elif is_build123d_sketch(obj):
@@ -380,14 +379,14 @@ class OcpConverter:
                     _debug("build123d Sketch", obj_name)
                 objs = obj.faces()
                 name = get_name(obj, obj_name, "Face" if len(objs) == 1 else "Faces")
-                ocp_obj = self.unify(objs, name, obj_color, obj_alpha)
+                ocp_obj = self.unify(objs, name, rgba_color)
 
                 if sketch_local and hasattr(cad_obj, "sketch_local"):
                     ocp_obj.name = "sketch"
                     ocp_obj = OcpGroup([ocp_obj], name=name)
                     obj_local = cad_obj.sketch_local
                     objs = obj_local.faces()
-                    ocp_obj.add(self.unify(objs, "sketch_local", obj_color, obj_alpha))
+                    ocp_obj.add(self.unify(objs, "sketch_local", rgba_color))
 
             # build123d BuildLine().line
             elif is_build123d_curve(obj):
@@ -395,24 +394,24 @@ class OcpConverter:
                     _debug("build123d Curve", obj_name)
                 objs = obj.edges()
                 name = get_name(obj, obj_name, "Edge" if len(objs) == 1 else "Edges")
-                ocp_obj = self.unify(objs, name, obj_color, obj_alpha)
+                ocp_obj = self.unify(objs, name, rgba_color)
 
-            # build123d Wire
+            # build123d Wire, treat as shapelist of edges
             elif is_wrapped(obj) and is_topods_wire(obj.wrapped):
                 if DEBUG:
                     _debug("build123d Wire", obj_name)
                 name = get_name(obj, obj_name, type_name(obj.wrapped))
                 ocp_obj = self.to_ocp(
-                    obj.edges(), names=[name], colors=[obj_color], alphas=[obj_alpha]
+                    obj.edges(), names=[name], colors=[rgba_color]
                 ).objects[0]
 
-            # build123d Shape, Compound, Edge, Face, Shell, Solid, Vertex, Wire
+            # build123d Shape, Compound, Edge, Face, Shell, Solid, Vertex
             elif is_build123d_shape(obj):
                 if DEBUG:
                     _debug("build123d Shape", obj_name, eol="")
                 objs = get_downcasted_shape(obj.wrapped)
                 name = get_name(obj, obj_name, type_name(objs[0]))
-                ocp_obj = self.unify(objs, name, obj_color, obj_alpha)
+                ocp_obj = self.unify(objs, name, rgba_color)
                 if DEBUG:
                     _debug(class_name(ocp_obj.obj), prefix="")
 
@@ -423,7 +422,7 @@ class OcpConverter:
                     _debug("TopoDS_Shape", obj_name)
                 objs = get_downcasted_shape(obj)
                 name = get_name(obj, obj_name, type_name(objs[0]))
-                ocp_obj = self.unify(objs, name, obj_color, obj_alpha)
+                ocp_obj = self.unify(objs, name, rgba_color)
 
             # build123d Location or TopLoc_Location
             elif is_build123d_location(obj) or is_toploc_location(obj):

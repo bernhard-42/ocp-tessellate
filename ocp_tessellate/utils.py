@@ -12,20 +12,37 @@ def round_sig(x, sig):
     return round(x, sig - int(math.floor(math.log10(abs(x)))) - 1)
 
 
+def warn(message, warning=RuntimeWarning, when="always"):
+    def warning_on_one_line(
+        message, category, filename, lineno, file=None, line=None
+    ):  # pylint: disable=unused-argument
+        return "%s: %s" % (category.__name__, message)
+
+    warn_format = warnings.formatwarning
+    warnings.formatwarning = warning_on_one_line
+    warnings.simplefilter(when, warning)
+    warnings.warn(message + "\n", warning)
+    warnings.formatwarning = warn_format
+    warnings.simplefilter("ignore", warning)
+
+
 #
 # Color class
 #
 
 
 class Color:
-    def __init__(self, color=None):
-        self.a = 1.0
-        if color is None:
-            self.r = self.g = self.b = 160
-        elif isinstance(color, Color):
+    def __init__(self, color=None, alpha=1.0):
+        self.a = alpha
+
+        # copy the other color values
+        if isinstance(color, Color):
             self.r, self.g, self.b, self.a = color.r, color.g, color.b, color.a
+
+        # web color string #rrggbb or #rrggbbaa
         elif isinstance(color, str):
             if color[0] == "#":
+                # aa overwrites self.a
                 if len(color) > 7:
                     c = hex_to_rgb(color[:7])
                     self.a = int(color[7:9], 16) / 255
@@ -48,9 +65,16 @@ class Color:
                 self._invalid(color)
 
             if len(color) == 4:
-                self.a = color[3] if color[3] <= 1.0 else color[3] / 100
+                self.a = color[3] if color[3] <= 1.0 else color[3] / 255
+
         else:
             self._invalid(color)
+
+        if self.a is None:
+            self.a = 1.0
+        elif self.a > 1.0:
+            warn(f"warning: alpha > 1.0 ({self.a}), using alpha=1.0")
+            self.a = 1.0
 
     def __str__(self):
         return f"Color({self.r}, {self.g}, {self.b}, {self.a})"
@@ -59,7 +83,7 @@ class Color:
         return f"Color(({self.r}, {self.g}, {self.b}, {self.a}))"
 
     def _invalid(self, color):
-        print(f"warning: {color} is an invalid color, using grey (#aaa)")
+        warn(f"warning: {color} is an invalid color, using grey (#aaa)")
         self.r = self.g = self.b = 160
         self.a = 1.0
 
@@ -135,20 +159,6 @@ def get_color(in_color, def_color, alpha):
     if isinstance(alpha, float) and 0 <= alpha < 1.0:
         color.a = alpha
     return color
-
-
-def warn(message, warning=RuntimeWarning, when="always"):
-    def warning_on_one_line(
-        message, category, filename, lineno, file=None, line=None
-    ):  # pylint: disable=unused-argument
-        return "%s: %s" % (category.__name__, message)
-
-    warn_format = warnings.formatwarning
-    warnings.formatwarning = warning_on_one_line
-    warnings.simplefilter(when, warning)
-    warnings.warn(message + "\n", warning)
-    warnings.formatwarning = warn_format
-    warnings.simplefilter("ignore", warning)
 
 
 def make_unique(names):
