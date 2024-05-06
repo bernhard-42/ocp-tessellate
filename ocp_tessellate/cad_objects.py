@@ -137,7 +137,7 @@ class OcpGroup:
         result = f"{' '*ind}OcpGroup('{self.name}', loc={loc_to_tq(self.loc)}\n"
         for obj in self.objects:
             result += obj.dump(ind + 4) + "\n"
-        return result + f"{' '*ind})\n"
+        return result + f"{' '*ind})"
 
     def __repr__(self):
         return self.dump()
