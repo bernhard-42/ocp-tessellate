@@ -211,7 +211,9 @@ class OcpConverter:
         sketch_local=False,
         instances=None,
     ):
-        group = OcpGroup()
+        if loc is None:
+            loc = identity_location()
+        group = OcpGroup(loc=loc)
 
         # ============================= Validate parameters ============================= #
 
@@ -321,18 +323,19 @@ class OcpConverter:
 
                 for child in obj.children:
                     sub_obj = self.to_ocp(
-                        child, helper_scale=helper_scale, instances=instances
+                        child,
+                        names=[child.label],
+                        helper_scale=helper_scale,
+                        instances=instances,
                     )
-                    if isinstance(sub_obj, OcpGroup):
-                        if sub_obj.length == 1:
-                            if sub_obj.objects[0].loc is None:
-                                sub_obj.objects[0].loc = sub_obj.loc
-                            else:
-                                if sub_obj.loc is not None:
-                                    sub_obj.objects[0].loc = (
-                                        sub_obj.loc * sub_obj.objects[0].loc
-                                    )
-                            sub_obj = sub_obj.objects[0]
+                    if isinstance(sub_obj, OcpGroup) and sub_obj.length == 1:
+                        if sub_obj.objects[0].loc is None:
+                            sub_obj.objects[0].loc = sub_obj.loc
+                        else:
+                            sub_obj.objects[0].loc = (
+                                sub_obj.loc * sub_obj.objects[0].loc
+                            )
+                        sub_obj = sub_obj.objects[0]
 
                     ocp_obj.add(sub_obj)
 
@@ -375,7 +378,9 @@ class OcpConverter:
                 objs = obj.solids()
                 name = get_name(obj, obj_name, "Solid" if len(objs) == 1 else "Solids")
                 print(f"{rgba_color=}")
-                ocp_obj = self.unify(objs, name, rgba_color)
+                ocp_obj = self.unify(
+                    objs, name, rgba_color, cache_id=tuple(id(o) for o in objs)
+                )
 
             # build123d BuildSketch().sketch
             elif is_build123d_sketch(obj):
@@ -383,7 +388,7 @@ class OcpConverter:
                     _debug("build123d Sketch", obj_name)
                 objs = obj.faces()
                 name = get_name(obj, obj_name, "Face" if len(objs) == 1 else "Faces")
-                ocp_obj = self.unify(objs, name, rgba_color)
+                ocp_obj = self.unify(objs, name, rgba_color, cache_id=None)
 
                 if sketch_local and hasattr(cad_obj, "sketch_local"):
                     ocp_obj.name = "sketch"
@@ -398,7 +403,7 @@ class OcpConverter:
                     _debug("build123d Curve", obj_name)
                 objs = obj.edges()
                 name = get_name(obj, obj_name, "Edge" if len(objs) == 1 else "Edges")
-                ocp_obj = self.unify(objs, name, rgba_color)
+                ocp_obj = self.unify(objs, name, rgba_color, cache_id=None)
 
             # build123d Wire, treat as shapelist of edges
             elif is_wrapped(obj) and is_topods_wire(obj.wrapped):
@@ -415,7 +420,9 @@ class OcpConverter:
                     _debug("build123d Shape", obj_name, eol="")
                 objs = get_downcasted_shape(obj.wrapped)
                 name = get_name(obj, obj_name, type_name(objs[0]))
-                ocp_obj = self.unify(objs, name, rgba_color)
+                ocp_obj = self.unify(
+                    objs, name, rgba_color, cache_id=tuple(id(o) for o in objs)
+                )
                 if DEBUG:
                     _debug(class_name(ocp_obj.obj), prefix="")
 
@@ -426,7 +433,9 @@ class OcpConverter:
                     _debug("TopoDS_Shape", obj_name)
                 objs = get_downcasted_shape(obj)
                 name = get_name(obj, obj_name, type_name(objs[0]))
-                ocp_obj = self.unify(objs, name, rgba_color)
+                ocp_obj = self.unify(
+                    objs, name, rgba_color, cache_id=tuple(id(o) for o in objs)
+                )
 
             # build123d Location or TopLoc_Location
             elif is_build123d_location(obj) or is_toploc_location(obj):
@@ -486,7 +495,7 @@ def to_assembly(
     progress=None,
 ):
     converter = OcpConverter()
-    ocp = converter.to_ocp(
+    ocp_group = converter.to_ocp(
         *cad_objs,
         names=names,
         colors=colors,
@@ -501,7 +510,11 @@ def to_assembly(
         instances=instances,
     )
     instances = [i[1] for i in converter.instances]
-    return ocp, instances
+
+    if ocp_group.length == 1 and isinstance(ocp_group.objects[0], OcpGroup):
+        ocp_group = ocp_group.objects[0]
+
+    return ocp_group, instances
 
 
 def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False):
