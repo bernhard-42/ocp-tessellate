@@ -187,6 +187,8 @@ class OcpGroup:
             combined_loc = None
         elif loc is None:
             combined_loc = self.loc
+        elif self.loc is None:
+            combined_loc = loc
         else:
             combined_loc = loc * self.loc
 
