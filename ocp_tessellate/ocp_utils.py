@@ -970,14 +970,14 @@ def identity_location():
 def relocate(obj):
     loc = get_location(obj)
 
-    if loc is None or not hasattr(obj, "wrapped"):
+    if loc is None:
         return obj, identity_location()
 
-    obj = copy_shape(obj)
+    obj = copy_topods_shape(obj)
 
     tshape = get_tshape(obj)
-    obj.wrapped.Move(loc.Inverted())
-    obj.wrapped.TShape(tshape)
+    obj.Move(loc.Inverted())
+    obj.TShape(tshape)
 
     return obj, loc
 
@@ -1030,6 +1030,12 @@ def get_location_coord(loc):
         "y_dir": y_dir.Coord(),
         "z_dir": z_dir.Coord(),
     }
+
+
+def copy_topods_shape(obj):
+    result = downcast(BRepBuilderAPI_Copy(obj).Shape())
+    result.TShape(obj.TShape())
+    return result
 
 
 def copy_shape(obj):
