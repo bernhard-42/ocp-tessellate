@@ -240,7 +240,6 @@ class OcpConverter:
         if instances is None:
             instances = []
 
-        print(f"{colors=}")
         for cad_obj, obj_name, rgba_color in zip(cad_objs, names, colors):
 
             # ================================= Prepare ================================= #
