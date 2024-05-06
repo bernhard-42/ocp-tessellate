@@ -167,7 +167,10 @@ class OcpConverter:
 
         return ocp_obj
 
-    def unify(self, objs, name, color):
+    def unify(self, objs, name, color, cache_id=None):
+        if cache_id is None:
+            cache_id = ()
+
         u_objs = unwrap(objs)
         kind = get_kind(u_objs[0])
 
@@ -180,7 +183,7 @@ class OcpConverter:
             return self.get_instance(
                 ocp_obj,
                 kind,
-                id(ocp_obj),
+                (*cache_id, id(ocp_obj)),
                 name,
                 get_color_for_object(ocp_obj, color, kind=kind),
             )
@@ -352,6 +355,7 @@ class OcpConverter:
                         objs,
                         get_name(obj, obj_name, "ShapeList"),
                         get_color_for_object(objs[0], rgba_color),
+                        cache_id=tuple(id(o) for o in objs),
                     )
                 else:
                     # keep the array of wrapped edges
@@ -361,6 +365,7 @@ class OcpConverter:
                         name=get_name(obj, obj_name, "ShapeList"),
                         color=get_color_for_object(objs[0], rgba_color),
                         width=2 if kind == "edge" else 4,
+                        cache_id=tuple(id(o) for o in objs),
                     )
 
             # bild123d BuildPart().part
@@ -459,9 +464,6 @@ class OcpConverter:
                 print(ocp_obj)
 
             group.add(ocp_obj)
-
-        if group.length == 1 and isinstance(group.objects[0], OcpGroup):
-            return group.objects[0]
 
         group.make_unique_names()
         return group
