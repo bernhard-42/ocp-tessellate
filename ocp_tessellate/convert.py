@@ -210,6 +210,7 @@ class OcpConverter:
         show_parent=False,
         sketch_local=False,
         instances=None,
+        top_level=True,
     ):
         if loc is None:
             loc = identity_location()
@@ -292,6 +293,7 @@ class OcpConverter:
                         colors=[rgba_color],
                         sketch_local=sketch_local,
                         instances=instances,
+                        top_level=False,
                     )
                     ocp_obj.add(result)
 
@@ -310,6 +312,7 @@ class OcpConverter:
                         colors=[rgba_color],
                         sketch_local=sketch_local,
                         instances=instances,
+                        top_level=False,
                     )
                     ocp_obj.add(result)
 
@@ -327,6 +330,7 @@ class OcpConverter:
                         names=[child.label],
                         helper_scale=helper_scale,
                         instances=instances,
+                        top_level=False,
                     )
                     if isinstance(sub_obj, OcpGroup) and sub_obj.length == 1:
                         if sub_obj.objects[0].loc is None:
@@ -474,6 +478,9 @@ class OcpConverter:
 
             group.add(ocp_obj)
 
+        if top_level and group.length == 1 and isinstance(group.objects[0], OcpGroup):
+            group = group.objects[0]
+
         group.make_unique_names()
         return group
 
@@ -510,9 +517,6 @@ def to_assembly(
         instances=instances,
     )
     instances = [i[1] for i in converter.instances]
-
-    if ocp_group.length == 1 and isinstance(ocp_group.objects[0], OcpGroup):
-        ocp_group = ocp_group.objects[0]
 
     return ocp_group, instances
 
