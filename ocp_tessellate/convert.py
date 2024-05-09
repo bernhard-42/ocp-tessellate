@@ -10,6 +10,8 @@ from ocp_tessellate.tessellator import (
 from ocp_tessellate.utils import *
 
 DEBUG = True
+LINE_WIDTH = 2
+POINT_SIZE = 4
 
 
 def _debug(msg, name=None, prefix="debug:", eol="\n"):
@@ -34,7 +36,7 @@ def get_kind(obj):
     kinds = {
         "TopoDS_Edge": "edge",
         "TopoDS_Face": "face",
-        "TopoDS_Shell": "face",  # map to face
+        "TopoDS_Shell": "shell",
         "TopoDS_Solid": "solid",
         "TopoDS_Vertex": "vertex",
         "TopoDS_Wire": "wire",
@@ -95,7 +97,8 @@ def get_color_for_object(obj, color=None, alpha=None, kind=None):
     elif hasattr(obj, "color") and obj.color is not None:
         col_a = Color(obj.color)
 
-    elif color is None and is_topods_compound(obj) and kind is not None:
+    # elif color is None and is_topods_compound(obj) and kind is not None:
+    elif color is None and kind is not None:
         col_a = Color(default_colors[kind])
 
     # else return default color
@@ -125,7 +128,7 @@ class OcpConverter:
         self.instances = []
         self.ocp = None
 
-    def get_instance(self, obj, kind, cache_id, name, color, progress=None):
+    def get_instance(self, obj, kind, name, color, cache_id, progress=None):
         is_instance = False
         ocp_obj = None
 
@@ -167,33 +170,36 @@ class OcpConverter:
 
         return ocp_obj
 
-    def unify(self, objs, name, color, cache_id=None):
+    def unify(self, objs, kind, name, color, alpha=1.0, cache_id=None):
         if cache_id is None:
             cache_id = ()
 
-        u_objs = unwrap(objs)
-        kind = get_kind(u_objs[0])
-
-        if len(objs) == 1:
-            ocp_obj = u_objs[0]
+        if len(objs) == 1:  # needs to be the first condition
+            ocp_obj = objs[0]
+        elif kind == "edge" or kind == "vertex":
+            ocp_obj = objs
         else:
-            ocp_obj = make_compound(u_objs)
+            ocp_obj = make_compound(objs)
+
+        color = get_color_for_object(ocp_obj, color, kind=kind)
+        if alpha < 1.0:
+            color.a = alpha
 
         if kind in ("solid", "face"):
             return self.get_instance(
                 ocp_obj,
                 kind,
-                (*cache_id, id(ocp_obj)),
                 name,
-                get_color_for_object(ocp_obj, color, kind=kind),
+                color,
+                (*cache_id, id(ocp_obj)),
             )
         else:
             return OcpObject(
                 kind,
                 obj=ocp_obj,
                 name=name,
-                color=get_color_for_object(ocp_obj, color, kind=kind),
-                width=2 if kind == "edge" else 4,
+                color=color,
+                width=LINE_WIDTH if kind == "edge" else POINT_SIZE,
             )
 
     def to_ocp(
@@ -257,36 +263,23 @@ class OcpConverter:
             elif hasattr(cad_obj, "color") and cad_obj.color is not None:
                 rgba_color = get_rgba(cad_obj.color)
 
-            # Convert build123d BuildPart, BuildSketch, BuildLine to topology object
-            if is_build123d(cad_obj):
-                if DEBUG:
-                    _debug(
-                        "Convert build123d builder object to topology object", obj_name
-                    )
-                obj = cad_obj._obj  # pylint: disable=protected-access
-
-            # build123d Plane
-            elif is_build123d_plane(cad_obj) and hasattr(cad_obj, "location"):
-                if DEBUG:
-                    _debug("Map plane to its location", obj_name)
-                obj = cad_obj.location
-
-            # Use input object
-            else:
-                obj = cad_obj
-
             # ================================== Loops ================================== #
 
+            # TODO mixed topods compound
             # Generic iterables (tuple, list) or mixed type compounds (but not ShapeList)
-            if (isinstance(obj, (list, tuple)) and not is_build123d_shapelist(obj)) or (
-                is_compound(obj) and is_mixed_compound(obj)
-            ):
-                kind = "List" if isinstance(obj, (list, tuple)) else "Mixed Compound"
+            if (
+                isinstance(cad_obj, (list, tuple))
+                and not is_build123d_shapelist(cad_obj)
+            ) or (is_compound(cad_obj) and is_mixed_compound(cad_obj)):
+                name = (
+                    "List" if isinstance(cad_obj, (list, tuple)) else "Mixed Compound"
+                )
                 if DEBUG:
-                    _debug(kind, obj_name)
-                name = get_name(obj, obj_name, kind.rsplit(" ", maxsplit=1)[-1])
+                    _debug(name, obj_name)
+
+                name = get_name(cad_obj, obj_name, name.rsplit(" ", maxsplit=1)[-1])
                 ocp_obj = OcpGroup(name=name)
-                for i, el in enumerate(obj):
+                for i, el in enumerate(cad_obj):
                     result = self.to_ocp(
                         el,
                         names=[f"{name}[{i}]"],
@@ -301,11 +294,12 @@ class OcpConverter:
                     ocp_obj.make_unique_names()
 
             # Dicts
-            elif isinstance(obj, dict):
+            elif isinstance(cad_obj, dict):
                 if DEBUG:
                     _debug("dict", obj_name)
+
                 ocp_obj = OcpGroup(name=obj_name)
-                for name, el in obj.items():
+                for name, el in cad_obj.items():
                     result = self.to_ocp(
                         el,
                         names=[name],
@@ -319,12 +313,14 @@ class OcpConverter:
             # =============================== Assemblies ================================ #
 
             elif is_build123d_assembly(cad_obj):
+                # TODO: Fix global location
                 if DEBUG:
                     _debug("build123d Assembly", obj_name)
-                name = get_name(obj, obj_name, "Assembly")
-                ocp_obj = OcpGroup(name=name, loc=get_location(obj, as_none=False))
 
-                for child in obj.children:
+                name = get_name(cad_obj, obj_name, "Assembly")
+                ocp_obj = OcpGroup(name=name, loc=get_location(cad_obj, as_none=False))
+
+                for child in cad_obj.children:
                     sub_obj = self.to_ocp(
                         child,
                         names=[child.label],
@@ -346,109 +342,161 @@ class OcpConverter:
             # =============================== Conversions =============================== #
 
             # build123d ShapeList
-            elif is_build123d_shapelist(obj):
+            elif is_build123d_shapelist(cad_obj):
                 if DEBUG:
                     _debug("build123d ShapeList", obj_name)
 
                 # convert wires to edges
-                if len(obj) > 0 and is_topods_wire(obj[0].wrapped):
-                    obj = flatten([o.edges() for o in obj])
+                if len(cad_obj) > 0 and is_topods_wire(cad_obj[0].wrapped):
+                    objs = flatten([[e.wrapped for e in o.edges()] for o in cad_obj])
+                    kind, wkind = "edge", "wire"
 
-                objs = unwrap(obj)
-                kind = get_kind(objs[0])
+                # convert shells to faces
+                elif len(cad_obj) > 0 and is_topods_shell(cad_obj[0].wrapped):
+                    objs = flatten([[f.wrapped for f in o.faces()] for o in cad_obj])
+                    kind, wkind = "face", "shell"
+
+                # unwrap everything else
+                else:
+                    objs = unwrap(cad_obj)
+                    kind = wkind = get_kind(objs[0])
 
                 if kind in ("solid", "face"):
                     ocp_obj = self.unify(
                         objs,
-                        get_name(obj, obj_name, "ShapeList"),
-                        get_color_for_object(objs[0], rgba_color),
+                        kind=kind,
+                        name=get_name(cad_obj, obj_name, f"ShapeList({wkind})"),
+                        color=get_color_for_object(objs[0], rgba_color),
                         cache_id=tuple(id(o) for o in objs),
                     )
                 else:
-                    # keep the array of wrapped edges
+                    # keep the array of wrapped edges or vertices
                     ocp_obj = OcpObject(
                         kind,
                         obj=objs,
-                        name=get_name(obj, obj_name, "ShapeList"),
+                        name=get_name(cad_obj, obj_name, f"ShapeList({wkind})"),
                         color=get_color_for_object(objs[0], rgba_color),
-                        width=2 if kind == "edge" else 4,
+                        width=LINE_WIDTH if kind == "edge" else POINT_SIZE,
                         cache_id=tuple(id(o) for o in objs),
                     )
 
-            # bild123d BuildPart().part
-            elif is_build123d_part(obj):
+            # build123d BuildPart, BuildSketch, BuildLine
+            elif is_build123d(cad_obj):
                 if DEBUG:
-                    _debug("build123d part", obj_name)
-                objs = obj.solids()
-                name = get_name(obj, obj_name, "Solid" if len(objs) == 1 else "Solids")
-                print(f"{rgba_color=}")
-                ocp_obj = self.unify(
-                    objs, name, rgba_color, cache_id=tuple(id(o) for o in objs)
-                )
+                    _debug(f"build123d {cad_obj._obj_name}", obj_name)
 
-            # build123d BuildSketch().sketch
-            elif is_build123d_sketch(obj):
-                if DEBUG:
-                    _debug("build123d Sketch", obj_name)
-                objs = obj.faces()
-                name = get_name(obj, obj_name, "Face" if len(objs) == 1 else "Faces")
-                ocp_obj = self.unify(objs, name, rgba_color, cache_id=None)
+                # bild123d BuildPart().part
+                if is_build123d_part(cad_obj):
+                    name, objs = "Solid", unwrap(cad_obj.part.solids())
+
+                # build123d BuildSketch().sketch
+                elif is_build123d_sketch(cad_obj):
+                    name, objs = "Face", unwrap(cad_obj.sketch.faces())
+
+                # build123d BuildLine().line
+                elif is_build123d_line(cad_obj):
+                    name, objs = "Edge", unwrap(cad_obj.line.edges())
+
+                else:
+                    raise ValueError(f"Unknown build123d object: {cad_obj}")
+
+                name = get_name(cad_obj, obj_name, name)
+                ocp_obj = self.unify(
+                    objs,
+                    kind=get_kind(objs[0]),
+                    name=name,
+                    color=rgba_color,
+                    cache_id=tuple(id(o) for o in objs),
+                )
 
                 if sketch_local and hasattr(cad_obj, "sketch_local"):
                     ocp_obj.name = "sketch"
                     ocp_obj = OcpGroup([ocp_obj], name=name)
-                    obj_local = cad_obj.sketch_local
-                    objs = obj_local.faces()
-                    ocp_obj.add(self.unify(objs, "sketch_local", rgba_color))
-
-            # build123d BuildLine().line
-            elif is_build123d_curve(obj):
-                if DEBUG:
-                    _debug("build123d Curve", obj_name)
-                objs = obj.edges()
-                name = get_name(obj, obj_name, "Edge" if len(objs) == 1 else "Edges")
-                ocp_obj = self.unify(objs, name, rgba_color, cache_id=None)
+                    objs = unwrap(cad_obj.sketch_local.faces())
+                    ocp_obj.add(
+                        self.unify(
+                            objs,
+                            kind="face",
+                            name="sketch_local",
+                            color=rgba_color,
+                            alpha=0.2,
+                            cache_id=tuple(id(o) for o in objs),
+                        )
+                    )
 
             # build123d Wire, treat as shapelist of edges
-            elif is_wrapped(obj) and is_topods_wire(obj.wrapped):
+            elif is_wrapped(cad_obj) and is_topods_wire(cad_obj.wrapped):
                 if DEBUG:
                     _debug("build123d Wire", obj_name)
-                name = get_name(obj, obj_name, type_name(obj.wrapped))
+
+                name = get_name(cad_obj, obj_name, type_name(cad_obj.wrapped))
                 ocp_obj = self.to_ocp(
-                    obj.edges(), names=[name], colors=[rgba_color]
+                    cad_obj.edges(), names=[name], colors=[rgba_color]
                 ).objects[0]
 
             # build123d Shape, Compound, Edge, Face, Shell, Solid, Vertex
-            elif is_build123d_shape(obj):
-                if DEBUG:
-                    _debug("build123d Shape", obj_name, eol="")
-                objs = get_downcasted_shape(obj.wrapped)
-                name = get_name(obj, obj_name, type_name(objs[0]))
-                ocp_obj = self.unify(
-                    objs, name, rgba_color, cache_id=tuple(id(o) for o in objs)
-                )
-                if DEBUG:
-                    _debug(class_name(ocp_obj.obj), prefix="")
+            # elif is_build123d_shape(obj):
+            #     if DEBUG:
+            #         _debug(f"build123d Shape({class_name(obj)})", obj_name, eol="")
+
+            #     objs = get_downcasted_shape(obj.wrapped)
+            #     name = get_name(obj, obj_name, type_name(objs[0]))
+            #     ocp_obj = self.unify(
+            #         objs, name, rgba_color, cache_id=tuple(id(o) for o in objs)
+            #     )
+            #     if DEBUG:
+            #         _debug(class_name(ocp_obj.obj), prefix="")
 
             # TopoDS_Shape, TopoDS_Compound, TopoDS_Edge, TopoDS_Face, TopoDS_Shell,
-            # TopoDS_Solid, TopoDS_Vertex, TopoDS_Wire
-            elif is_topods_shape(obj):
+            # TopoDS_Solid, TopoDS_Vertex, TopoDS_Wire,
+            # build123d Shape, Compound, Edge, Face, Shell, Solid, Vertex
+            elif is_topods_shape(cad_obj) or is_build123d_shape(cad_obj):
                 if DEBUG:
-                    _debug("TopoDS_Shape", obj_name)
-                objs = get_downcasted_shape(obj)
-                name = get_name(obj, obj_name, type_name(objs[0]))
+                    cl = (
+                        "TopoDS_Shape"
+                        if is_topods_shape(cad_obj)
+                        else "build123d Shape"
+                    )
+                    _debug(f"{cl} ({class_name(cad_obj)})", obj_name)
+
+                if is_build123d_shape(cad_obj):
+                    cad_obj = cad_obj.wrapped
+
+                if is_topods_wire(cad_obj):
+                    objs = list(get_edges(cad_obj))
+                else:
+                    objs = get_downcasted_shape(cad_obj)
+
+                if is_topods_shell(cad_obj):
+                    name = get_name(cad_obj, obj_name, "Shell")
+                else:
+                    name = get_name(cad_obj, obj_name, type_name(objs[0]))
+
                 ocp_obj = self.unify(
-                    objs, name, rgba_color, cache_id=tuple(id(o) for o in objs)
+                    objs,
+                    kind=get_kind(objs[0]),
+                    name=name,
+                    color=rgba_color,
+                    cache_id=tuple(id(o) for o in objs),
                 )
 
             # build123d Location or TopLoc_Location
-            elif is_build123d_location(obj) or is_toploc_location(obj):
+            elif (is_build123d_location(cad_obj) or is_toploc_location(cad_obj)) or (
+                is_build123d_plane(cad_obj) and hasattr(cad_obj, "location")
+            ):
                 if DEBUG:
-                    _debug("build123d Location or TopLoc_Location", obj_name)
+                    _debug("build123d Location or TopLoc_Location or Plane", obj_name)
+
+                if is_build123d_plane(cad_obj) and hasattr(cad_obj, "location"):
+                    cad_obj = cad_obj.location
+                    def_name = "Plane"
+                else:
+                    def_name = "Location"
+
                 coord = get_location_coord(
-                    obj.wrapped if is_build123d_location(obj) else obj
+                    cad_obj.wrapped if is_build123d_location(cad_obj) else cad_obj
                 )
-                name = get_name(obj, obj_name, "Location")
+                name = get_name(cad_obj, obj_name, def_name)
                 ocp_obj = CoordSystem(
                     name,
                     coord["origin"],
@@ -458,11 +506,12 @@ class OcpConverter:
                 )
 
             # build123d Axis
-            elif is_build123d_axis(obj):
+            elif is_build123d_axis(cad_obj):
                 if DEBUG:
                     _debug("build123d Axis", obj_name)
-                coord = get_axis_coord(obj.wrapped)
-                name = get_name(obj, obj_name, "Axis")
+
+                coord = get_axis_coord(cad_obj.wrapped)
+                name = get_name(cad_obj, obj_name, "Axis")
                 ocp_obj = CoordAxis(
                     name,
                     coord["origin"],
@@ -471,7 +520,7 @@ class OcpConverter:
                 )
 
             else:
-                raise ValueError(f"Unknown object type: {obj}")
+                raise ValueError(f"Unknown object type: {cad_obj}")
 
             if DEBUG:
                 print(ocp_obj)

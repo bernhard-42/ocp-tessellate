@@ -221,7 +221,11 @@ class CoordAxis(OcpObject):
         a5 = line(o + size * z, o + size * 0.9 * z + size * 0.025 * y)
         color = Color("black")
         super().__init__(
-            make_compound([edge, a2, a3, a4, a5]), name, color=color, width=3
+            "edge",
+            make_compound([edge, a2, a3, a4, a5]),
+            name,
+            color=color,
+            width=3,
         )
 
 
@@ -234,7 +238,11 @@ class CoordSystem(OcpObject):
 
         colors = [Color("red"), Color("green"), Color("blue")]
         super().__init__(
-            make_compound([x_edge, y_edge, z_edge]), name, color=colors, width=3
+            "edge",
+            make_compound([x_edge, y_edge, z_edge]),
+            name,
+            color=colors,
+            width=3,
         )
 
 

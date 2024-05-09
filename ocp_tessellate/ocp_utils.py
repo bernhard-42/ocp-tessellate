@@ -184,21 +184,15 @@ def is_build123d(obj):
 
 
 def is_build123d_part(obj):
-    return _has(obj, ["_dim", "wrapped"]) and obj._dim == 3
+    return is_build123d(obj) and obj._obj_name == "part"
 
 
 def is_build123d_sketch(obj):
-    return _has(obj, ["_dim", "wrapped"]) and obj._dim == 2
+    return is_build123d(obj) and obj._obj_name == "sketch"
 
 
-def is_build123d_curve(obj):
-    return (
-        _has(obj, ["_dim", "wrapped"])
-        and obj._dim == 1
-        and not is_gp_axis(obj.wrapped)
-        and not is_topods_edge(obj.wrapped)
-        and not is_topods_wire(obj.wrapped)
-    )
+def is_build123d_line(obj):
+    return is_build123d(obj) and obj._obj_name == "line"
 
 
 def is_build123d_shape(obj):
@@ -210,7 +204,7 @@ def is_build123d_shell(obj):
 
 
 def is_build123d_compound(obj):
-    return is_build123d_shape(obj) and isinstance(obj, Iterable)
+    return hasattr(obj, "wrapped") and is_topods_compound(obj.wrapped)
 
 
 def is_build123d_assembly(obj):

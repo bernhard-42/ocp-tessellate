@@ -9,6 +9,13 @@ from build123d import *
 from ocp_tessellate.convert import OcpConverter
 from ocp_tessellate.ocp_utils import *
 
+
+class MyUnitTest(unittest.TestCase):
+    def _assertTupleAlmostEquals(self, expected, actual, places, msg=None):
+        for i, j in zip(actual, expected):
+            self.assertAlmostEqual(i, j, places, msg=msg)
+
+
 # %%
 
 colormap = list(webcolors.CSS3_NAMES_TO_HEX.items())
@@ -26,10 +33,10 @@ with BuildPart() as bp2:
 r = Rectangle(1, 2)
 r2 = Rectangle(1, 2) - Rectangle(2, 0.2)
 
-with BuildSketch() as bs:
+with BuildSketch(Plane.YZ) as bs:
     Rectangle(1, 1)
 
-with BuildSketch() as bs2:
+with BuildSketch(Plane.YZ) as bs2:
     Rectangle(1, 1)
     Rectangle(2, 0.2, mode=Mode.SUBTRACT)
 
@@ -64,7 +71,7 @@ c3 = Compound(label="c3", children=[s4, s5])
 c1 = Compound(label="c1", children=[s1, c2, c3])
 
 
-class TestsConvert(unittest.TestCase):
+class TestsConvert(MyUnitTest):
     """Tests for the OcpConverter class"""
 
     def test_buildpart(self):
@@ -157,6 +164,12 @@ class TestsConvert(unittest.TestCase):
             self.assertIsNotNone(o.ref)
             self.assertIsNone(o.obj)
             self.assertTrue(is_topods_face(i[o.ref][1]))
+            loc = loc_to_tq(o.loc)
+            self._assertTupleAlmostEquals(loc[0], (0, 0, 0), 6)
+            if n == "sketch":
+                self._assertTupleAlmostEquals(loc[1], (0.5, 0.5, 0.5, 0.5), 6)
+            else:
+                self._assertTupleAlmostEquals(loc[1], (0, 0, 0, 1), 6)
 
     def test_buildsketch_local_color(self):
         """Test that the color is set correctly for a sketch_local"""
@@ -493,8 +506,19 @@ class TestsConvert(unittest.TestCase):
             self.assertEqual(o.color.web_color, colormap[ind][1])
             self.assertEqual(o.name, f"MyVertex_{ind}")
 
+    #
 
-class TestsShapeLists(unittest.TestCase):
+    def test_show_plane(self):
+        c = OcpConverter()
+        g = c.to_ocp(Plane.XZ)
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Plane")
+        self.assertEqual(o.kind, "face")
+        self.assertTrue(is_topods_face(o.obj))
+
+
+class TestsShapeLists(MyUnitTest):
     """Tests for the OcpConverter class with shape lists"""
 
     def test_shapelist_solids(self):
@@ -504,7 +528,7 @@ class TestsShapeLists(unittest.TestCase):
         i = c.instances
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.name, "ShapeList(solid)")
         self.assertEqual(o.kind, "solid")
         self.assertTrue(is_topods_solid(i[o.ref][1]))
 
@@ -515,9 +539,9 @@ class TestsShapeLists(unittest.TestCase):
         i = c.instances
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.name, "ShapeList(shell)")
         self.assertEqual(o.kind, "face")
-        self.assertTrue(is_topods_shell(i[o.ref][1]))
+        self.assertTrue(is_topods_compound(i[o.ref][1]))
 
     def test_shapelist_face(self):
         """Test that a shapelist of faces is converted correctly"""
@@ -526,7 +550,7 @@ class TestsShapeLists(unittest.TestCase):
         i = c.instances
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.name, "ShapeList(face)")
         self.assertEqual(o.kind, "face")
         self.assertTrue(is_topods_compound(i[o.ref][1]))
 
@@ -536,7 +560,7 @@ class TestsShapeLists(unittest.TestCase):
         g = c.to_ocp(b.edges())
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.name, "ShapeList(edge)")
         self.assertEqual(o.kind, "edge")
         self.assertTrue(isinstance(o.obj, list))
         self.assertTrue(all(is_topods_edge(e) for e in o.obj))
@@ -547,7 +571,7 @@ class TestsShapeLists(unittest.TestCase):
         g = c.to_ocp(b.wires())
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.name, "ShapeList(wire)")
         self.assertEqual(o.kind, "edge")
         self.assertTrue(isinstance(o.obj, list))
         self.assertTrue(all(is_topods_edge(e) for e in o.obj))
@@ -558,7 +582,7 @@ class TestsShapeLists(unittest.TestCase):
         g = c.to_ocp(b.vertices())
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.name, "ShapeList(vertex)")
         self.assertEqual(o.kind, "vertex")
         self.assertTrue(isinstance(o.obj, list))
         self.assertTrue(all(is_topods_vertex(e) for e in o.obj))
@@ -570,7 +594,7 @@ class TestsShapeLists(unittest.TestCase):
         i = c.instances
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.name, "ShapeList(solid)")
         self.assertEqual(o.kind, "solid")
         self.assertTrue(is_topods_compound(i[o.ref][1]))
 
@@ -581,7 +605,7 @@ class TestsShapeLists(unittest.TestCase):
         i = c.instances
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.name, "ShapeList(shell)")
         self.assertEqual(o.kind, "face")
         self.assertTrue(is_topods_compound(i[o.ref][1]))
 
@@ -592,7 +616,7 @@ class TestsShapeLists(unittest.TestCase):
         i = c.instances
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.name, "ShapeList(face)")
         self.assertEqual(o.kind, "face")
         self.assertTrue(is_topods_compound(i[o.ref][1]))
 
@@ -602,7 +626,7 @@ class TestsShapeLists(unittest.TestCase):
         g = c.to_ocp(b2.edges())
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.name, "ShapeList(edge)")
         self.assertEqual(o.kind, "edge")
         self.assertTrue(isinstance(o.obj, list))
         self.assertTrue(all(is_topods_edge(e) for e in o.obj))
@@ -613,7 +637,7 @@ class TestsShapeLists(unittest.TestCase):
         g = c.to_ocp(b2.wires())
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.name, "ShapeList(wire)")
         self.assertEqual(o.kind, "edge")
         self.assertTrue(isinstance(o.obj, list))
         self.assertTrue(all(is_topods_edge(e) for e in o.obj))
@@ -624,7 +648,7 @@ class TestsShapeLists(unittest.TestCase):
         g = c.to_ocp(b2.vertices())
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList")
+        self.assertEqual(o.name, "ShapeList(vertex)")
         self.assertEqual(o.kind, "vertex")
         self.assertTrue(isinstance(o.obj, list))
         self.assertTrue(all(is_topods_vertex(e) for e in o.obj))
@@ -647,7 +671,7 @@ class TestsShapeLists(unittest.TestCase):
         i = c.instances
         self.assertEqual(g.length, 2)
         for ind, o in enumerate(g.objects):
-            self.assertEqual(o.name, "Faces" if ind == 0 else f"Faces({ind+1})")
+            self.assertEqual(o.name, "Shell" if ind == 0 else f"Shell({ind+1})")
             self.assertEqual(o.kind, "face")
             self.assertTrue(is_topods_compound(i[o.ref][1]))
 
@@ -697,7 +721,7 @@ class TestsShapeLists(unittest.TestCase):
             self.assertTrue(is_topods_vertex(o.obj))
 
 
-class TestsConvertMoved(unittest.TestCase):
+class TestsConvertMoved(MyUnitTest):
     """Tests for the OcpConverter class with moved objects"""
 
     def test_part_wrapped_moved(self):
