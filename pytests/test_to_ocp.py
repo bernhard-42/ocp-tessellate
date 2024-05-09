@@ -514,8 +514,17 @@ class TestsConvert(MyUnitTest):
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.name, "Plane")
-        self.assertEqual(o.kind, "face")
-        self.assertTrue(is_topods_face(o.obj))
+        self.assertEqual(o.kind, "edge")
+        self.assertTrue(is_topods_edge(o.obj[0]))
+
+    def test_show_Axis(self):
+        c = OcpConverter()
+        g = c.to_ocp(Axis.X)
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Axis")
+        self.assertEqual(o.kind, "edge")
+        self.assertTrue(is_topods_edge(o.obj[0]))
 
 
 class TestsShapeLists(MyUnitTest):

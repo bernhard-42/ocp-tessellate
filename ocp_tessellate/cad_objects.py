@@ -106,12 +106,17 @@ class OcpObject:
                 self.obj = [self.obj]
             values, bb = convert(self.obj, self.name, self.id)
 
+            if isinstance(self.color, (list, tuple)):
+                color = [c.web_color for c in self.color]
+            else:
+                color = self.color.web_color
+
             result = dict(id=self.id, shape=self.obj, loc=None), {
                 "id": self.id,
                 "type": "edges" if self.kind == "edge" else "vertices",
                 "name": self.name,
                 "shape": values,
-                "color": self.color.web_color,
+                "color": color,
                 "loc": None if self.loc is None else loc_to_tq(self.loc),
                 "bb": bb,
             }
@@ -222,8 +227,8 @@ class CoordAxis(OcpObject):
         color = Color("black")
         super().__init__(
             "edge",
-            make_compound([edge, a2, a3, a4, a5]),
-            name,
+            [edge, a2, a3, a4, a5],
+            name=name,
             color=color,
             width=3,
         )
@@ -239,8 +244,8 @@ class CoordSystem(OcpObject):
         colors = [Color("red"), Color("green"), Color("blue")]
         super().__init__(
             "edge",
-            make_compound([x_edge, y_edge, z_edge]),
-            name,
+            [x_edge, y_edge, z_edge],
+            name=name,
             color=colors,
             width=3,
         )

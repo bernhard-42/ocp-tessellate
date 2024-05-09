@@ -482,14 +482,24 @@ class OcpConverter:
 
             # build123d Location or TopLoc_Location
             elif (is_build123d_location(cad_obj) or is_toploc_location(cad_obj)) or (
-                is_build123d_plane(cad_obj) and hasattr(cad_obj, "location")
+                is_build123d_plane(cad_obj)
+                and hasattr(cad_obj, "location")
+                or is_gp_plane(cad_obj)
             ):
                 if DEBUG:
-                    _debug("build123d Location or TopLoc_Location or Plane", obj_name)
+                    _debug(
+                        "build123d Location/Plane or TopLoc_Location or gp_Pln",
+                        obj_name,
+                    )
 
                 if is_build123d_plane(cad_obj) and hasattr(cad_obj, "location"):
                     cad_obj = cad_obj.location
                     def_name = "Plane"
+
+                elif is_gp_plane(cad_obj):
+                    def_name = "Plane"
+                    cad_obj = loc_from_gp_pln(cad_obj)
+
                 else:
                     def_name = "Location"
 
@@ -506,11 +516,13 @@ class OcpConverter:
                 )
 
             # build123d Axis
-            elif is_build123d_axis(cad_obj):
+            elif is_build123d_axis(cad_obj) or is_gp_axis(cad_obj):
                 if DEBUG:
                     _debug("build123d Axis", obj_name)
 
-                coord = get_axis_coord(cad_obj.wrapped)
+                if is_wrapped(cad_obj):
+                    cad_obj = cad_obj.wrapped
+                coord = get_axis_coord(cad_obj)
                 name = get_name(cad_obj, obj_name, "Axis")
                 ocp_obj = CoordAxis(
                     name,

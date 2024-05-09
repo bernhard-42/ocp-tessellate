@@ -894,6 +894,22 @@ def loc_to_vecs(origin, x_dir, z_dir):
     return (o, x, y, z)
 
 
+# %%
+def loc_from_gp_pln(pln):
+    o = pln.Location()
+    x = pln.XAxis().Direction()
+    z = pln.Axis().Direction()
+
+    ax3 = gp_Ax3(o, z, x)
+    trsf = gp_Trsf()
+    trsf.SetTransformation(ax3)
+    trsf.Invert()
+    return TopLoc_Location(trsf)
+
+
+# %%
+
+
 def is_same_plane(plane1, plane2):
     if is_topods_face(plane1):
         plane1 = BRep_Tool.Surface_s(plane1)
