@@ -424,40 +424,15 @@ class OcpConverter:
                         )
                     )
 
-            # build123d Wire, treat as shapelist of edges
-            elif is_wrapped(cad_obj) and is_topods_wire(cad_obj.wrapped):
-                if DEBUG:
-                    _debug("build123d Wire", obj_name)
-
-                name = get_name(cad_obj, obj_name, type_name(cad_obj.wrapped))
-                ocp_obj = self.to_ocp(
-                    cad_obj.edges(), names=[name], colors=[rgba_color]
-                ).objects[0]
-
-            # build123d Shape, Compound, Edge, Face, Shell, Solid, Vertex
-            # elif is_build123d_shape(obj):
-            #     if DEBUG:
-            #         _debug(f"build123d Shape({class_name(obj)})", obj_name, eol="")
-
-            #     objs = get_downcasted_shape(obj.wrapped)
-            #     name = get_name(obj, obj_name, type_name(objs[0]))
-            #     ocp_obj = self.unify(
-            #         objs, name, rgba_color, cache_id=tuple(id(o) for o in objs)
-            #     )
-            #     if DEBUG:
-            #         _debug(class_name(ocp_obj.obj), prefix="")
-
             # TopoDS_Shape, TopoDS_Compound, TopoDS_Edge, TopoDS_Face, TopoDS_Shell,
             # TopoDS_Solid, TopoDS_Vertex, TopoDS_Wire,
             # build123d Shape, Compound, Edge, Face, Shell, Solid, Vertex
             elif is_topods_shape(cad_obj) or is_build123d_shape(cad_obj):
                 if DEBUG:
-                    cl = (
-                        "TopoDS_Shape"
-                        if is_topods_shape(cad_obj)
-                        else "build123d Shape"
+                    _debug(
+                        f"TopoDS_Shape or build123d Shape ({class_name(cad_obj)})",
+                        obj_name,
                     )
-                    _debug(f"{cl} ({class_name(cad_obj)})", obj_name)
 
                 if is_build123d_shape(cad_obj):
                     cad_obj = cad_obj.wrapped
@@ -469,6 +444,8 @@ class OcpConverter:
 
                 if is_topods_shell(cad_obj):
                     name = get_name(cad_obj, obj_name, "Shell")
+                elif is_topods_wire(cad_obj):
+                    name = get_name(cad_obj, obj_name, "Wire")
                 else:
                     name = get_name(cad_obj, obj_name, type_name(objs[0]))
 
@@ -480,7 +457,7 @@ class OcpConverter:
                     cache_id=tuple(id(o) for o in objs),
                 )
 
-            # build123d Location or TopLoc_Location
+            # build123d Location/Plane or TopLoc_Location or gp_Pln
             elif (is_build123d_location(cad_obj) or is_toploc_location(cad_obj)) or (
                 is_build123d_plane(cad_obj)
                 and hasattr(cad_obj, "location")
@@ -515,7 +492,7 @@ class OcpConverter:
                     size=helper_scale,
                 )
 
-            # build123d Axis
+            # build123d Axis or gp_Ax1
             elif is_build123d_axis(cad_obj) or is_gp_axis(cad_obj):
                 if DEBUG:
                     _debug("build123d Axis", obj_name)
