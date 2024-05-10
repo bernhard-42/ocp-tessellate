@@ -197,7 +197,7 @@ def class_name(obj):
 
 
 def type_name(obj):
-    return class_name(obj).split("_")[1]
+    return class_name(obj).split("_")[-1]
 
 
 def explode(edge_list):

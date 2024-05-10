@@ -70,6 +70,13 @@ c2 = Compound(label="c2", children=[s2, s3])
 c3 = Compound(label="c3", children=[s4, s5])
 c1 = Compound(label="c1", children=[s1, c2, c3])
 
+c = Compound([Sphere(1.2), Circle(2).wire()])
+mixed = Compound([Box(1, 2, 3), Circle(1), Line((0, 0), (1, 1)), c])
+
+c1 = Compound([Box(1, 2, 3), Sphere(1)])
+c2 = Compound([Cone(1, 2, 3), Box(1, 1, 1)])
+unmixed = Compound([c1, c2])
+
 
 class TestsConvert(MyUnitTest):
     """Tests for the OcpConverter class"""
@@ -434,7 +441,7 @@ class TestsConvert(MyUnitTest):
 
     def test_show_wires_colors_names(self):
         c = OcpConverter()
-        g = c.to_ocp(b2.wires(), colors=[bd.Color("Orange")])
+        g = c.to_ocp(b2.wires(), colors=[bd.Color("Orange", 1.0)])
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.color.web_color, "#ff5f00")
@@ -461,7 +468,7 @@ class TestsConvert(MyUnitTest):
 
     def test_show_edges_colors_names(self):
         c = OcpConverter()
-        g = c.to_ocp(b2.edges(), colors=[bd.Color("Orange")])
+        g = c.to_ocp(b2.edges(), colors=[bd.Color("Orange", 1.0)])
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.color.web_color, "#ff5f00")
@@ -488,7 +495,7 @@ class TestsConvert(MyUnitTest):
 
     def test_show_vertices_colors_names(self):
         c = OcpConverter()
-        g = c.to_ocp(b2.vertices(), colors=[bd.Color("Orange")])
+        g = c.to_ocp(b2.vertices(), colors=[bd.Color("Orange", 1.0)])
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.color.web_color, "#ff5f00")
@@ -780,3 +787,72 @@ class TestsConvertMoved(MyUnitTest):
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
         self.assertTrue(is_topods_solid(i[o.ref][1]))
+
+
+class TestConvertMixedCompounds(MyUnitTest):
+
+    def test_mixed_compound(self):
+        c = OcpConverter()
+        g = c.to_ocp(mixed)
+        self.assertEqual(g.length, 4)
+        i = c.instances
+        o = g.objects[0]
+        self.assertEqual(o.name, "Solid")
+        self.assertEqual(o.kind, "solid")
+        self.assertTrue(is_topods_solid(i[o.ref][1]))
+        o = g.objects[1]
+        self.assertEqual(o.name, "Face")
+        self.assertEqual(o.kind, "face")
+        self.assertTrue(is_topods_face(i[o.ref][1]))
+        o = g.objects[2]
+        self.assertEqual(o.name, "Wire")
+        self.assertEqual(o.kind, "edge")
+        self.assertTrue(is_topods_edge(o.obj))
+        g = g.objects[3]
+        self.assertEqual(g.length, 2)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Solid")
+        self.assertEqual(o.kind, "solid")
+        self.assertTrue(is_topods_solid(i[o.ref][1]))
+        o = g.objects[1]
+        self.assertEqual(o.name, "Wire")
+        self.assertEqual(o.kind, "edge")
+        self.assertTrue(is_topods_edge(o.obj))
+
+    def test_mixed_topods_compound(self):
+        c = OcpConverter()
+        g = c.to_ocp(mixed.wrapped)
+        self.assertEqual(g.length, 4)
+        i = c.instances
+        o = g.objects[0]
+        self.assertEqual(o.name, "Solid")
+        self.assertEqual(o.kind, "solid")
+        self.assertTrue(is_topods_solid(i[o.ref][1]))
+        o = g.objects[1]
+        self.assertEqual(o.name, "Face")
+        self.assertEqual(o.kind, "face")
+        self.assertTrue(is_topods_face(i[o.ref][1]))
+        o = g.objects[2]
+        self.assertEqual(o.name, "Wire")
+        self.assertEqual(o.kind, "edge")
+        self.assertTrue(is_topods_edge(o.obj))
+        g = g.objects[3]
+        self.assertEqual(g.length, 2)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Solid")
+        self.assertEqual(o.kind, "solid")
+        self.assertTrue(is_topods_solid(i[o.ref][1]))
+        o = g.objects[1]
+        self.assertEqual(o.name, "Wire")
+        self.assertEqual(o.kind, "edge")
+        self.assertTrue(is_topods_edge(o.obj))
+
+    def test_unmixed(self):
+        c = OcpConverter()
+        g = c.to_ocp(unmixed)
+        self.assertEqual(g.length, 1)
+        i = c.instances
+        o = g.objects[0]
+        self.assertEqual(o.name, "Solid")
+        self.assertEqual(o.kind, "solid")
+        self.assertTrue(is_topods_compound(i[o.ref][1]))

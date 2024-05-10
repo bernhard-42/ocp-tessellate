@@ -80,6 +80,7 @@ from OCP.TopoDS import (
     TopoDS_Compound,
     TopoDS_Edge,
     TopoDS_Face,
+    TopoDS_Iterator,
     TopoDS_Shape,
     TopoDS_Shell,
     TopoDS_Solid,
@@ -148,6 +149,10 @@ def _has(obj, attrs):
 
 def is_cadquery(obj):
     return _has(obj, ["objects", "ctx", "val"])
+
+
+def is_cadquery_shape(obj):
+    return _has(obj, ["wrapped", "forConstruction"]) and is_topods_shape(obj.wrapped)
 
 
 def is_cadquery_assembly(obj):
@@ -732,21 +737,76 @@ def is_ocp_color(obj):
     return hasattr(obj, "wrapped") and isinstance(obj.wrapped, Quantity_ColorRGBA)
 
 
+# %%
+def list_topods_compound(compound):
+    iterator = TopoDS_Iterator(compound)
+    while iterator.More():
+        yield downcast(iterator.Value())
+        iterator.Next()
+
+
 def unroll_compound(compound):
     result = []
     for o in compound:
         if is_compound(o):
-            result.extend(unroll_compound(o))
+            unrolled = unroll_compound(o)
+            if len(unrolled) == 1:
+                result.append(unrolled[0])
+            else:
+                result.append(unrolled)
         else:
-            result.extend(get_downcasted_shape(o.wrapped))
+            result.append(downcast(o.wrapped))
     return result
 
 
-def is_mixed_compound(compound):
-    if not isinstance(compound, Iterable):
+def unroll_topods_compound(compound):
+    result = []
+
+    iterator = TopoDS_Iterator(compound)
+    while iterator.More():
+        obj = downcast(iterator.Value())
+
+        if is_topods_compound(obj):
+            unrolled = unroll_topods_compound(obj)
+            if len(unrolled) == 1:
+                result.append(unrolled[0])
+            else:
+                result.append(unrolled)
+        else:
+            result.append(downcast(obj))
+        iterator.Next()
+    return result
+
+
+def is_mixed(unrolled):
+    mixed = None
+    if len(unrolled) == 0:
         return False
-    u_compound = unroll_compound(compound)
-    return len(set([o.__class__.__name__ for o in u_compound])) > 1
+    c = class_name(unrolled[0])
+    for obj in unrolled:
+        if isinstance(obj, list):
+            mixed = mixed or is_mixed(obj)
+        else:
+            mixed = mixed or c != class_name(obj)
+
+    return mixed
+
+
+# %%
+
+
+def is_mixed_compound(compound):
+    if not isinstance(compound, Iterable) or not is_compound(compound):
+        return False
+    unrolled = unroll_compound(compound)
+    return is_mixed(unrolled)
+
+
+def is_mixed_topods_compound(compound):
+    if not is_topods_compound(compound):
+        return False
+    unrolled = unroll_topods_compound(compound)
+    return is_mixed(unrolled)
 
 
 # Check compounds for containing same types only
