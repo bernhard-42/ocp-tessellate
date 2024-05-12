@@ -133,7 +133,7 @@ class OcpObject:
 
 
 class OcpGroup:
-    def __init__(self, objs=None, name="Group", loc=None, level=0):
+    def __init__(self, objs=None, name="Group", loc=None):
         self.id = None
         self.objects = [] if objs is None else objs
         self.name = name

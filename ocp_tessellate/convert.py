@@ -132,7 +132,7 @@ class OcpConverter:
         self.ocp = None
         self.progress = progress
 
-    def get_instance(self, obj, kind, name, color, cache_id, level):
+    def get_instance(self, obj, kind, name, color, cache_id):
         is_instance = False
         ocp_obj = None
 
@@ -174,7 +174,7 @@ class OcpConverter:
 
         return ocp_obj
 
-    def unify(self, objs, kind, name, color, alpha=1.0, cache_id=None, level=0):
+    def unify(self, objs, kind, name, color, alpha=1.0, cache_id=None):
         if cache_id is None:
             cache_id = ()
 
@@ -191,7 +191,7 @@ class OcpConverter:
 
         if kind in ("solid", "face"):
             return self.get_instance(
-                ocp_obj, kind, name, color, (*cache_id, id(ocp_obj)), level=level
+                ocp_obj, kind, name, color, (*cache_id, id(ocp_obj))
             )
         else:
             return OcpObject(
@@ -205,7 +205,7 @@ class OcpConverter:
     def handle_list_tuple(self, cad_obj, obj_name, rgba_color, sketch_local, level):
         _debug(level, "handle_list_tuple", obj_name)
 
-        ocp_obj = OcpGroup(name=get_name(cad_obj, obj_name, "List"), level=level)
+        ocp_obj = OcpGroup(name=get_name(cad_obj, obj_name, "List"))
         for i, obj in enumerate(cad_obj):
             name = get_name(cad_obj, obj_name, type_name(obj))
 
@@ -229,7 +229,7 @@ class OcpConverter:
         elif is_topods_compound(cad_obj):
             cad_obj = list_topods_compound(cad_obj)
 
-        ocp_obj = OcpGroup(name=get_name(cad_obj, obj_name, "Compound"), level=level)
+        ocp_obj = OcpGroup(name=get_name(cad_obj, obj_name, "Compound"))
         for i, obj in enumerate(cad_obj):
             name = get_name(cad_obj, None, type_name(obj))
             result = self.to_ocp(
@@ -248,7 +248,7 @@ class OcpConverter:
     def handle_dict(self, cad_obj, obj_name, rgba_color, sketch_local, level):
         _debug(level, "handle_dict", obj_name)
 
-        ocp_obj = OcpGroup(name=get_name(cad_obj, obj_name, "Dict"), level=level)
+        ocp_obj = OcpGroup(name=get_name(cad_obj, obj_name, "Dict"))
         for name, el in cad_obj.items():
             result = self.to_ocp(
                 el,
@@ -269,9 +269,7 @@ class OcpConverter:
         _debug(level, "handle_build123d_assembly", obj_name)
 
         name = get_name(cad_obj, obj_name, "Assembly")
-        ocp_obj = OcpGroup(
-            name=name, loc=get_location(cad_obj, as_none=False), level=level
-        )
+        ocp_obj = OcpGroup(name=name, loc=get_location(cad_obj, as_none=False))
 
         for child in cad_obj.children:
             sub_obj = self.to_ocp(
@@ -338,7 +336,6 @@ class OcpConverter:
                 name=get_name(cad_obj, obj_name, f"{name}({wkind})"),
                 color=get_color_for_object(objs[0], rgba_color),
                 cache_id=tuple(id(o) for o in objs),
-                level=level,
             )
         else:
             # keep the array of wrapped edges or vertices
@@ -379,12 +376,11 @@ class OcpConverter:
             name=name,
             color=rgba_color,
             cache_id=tuple(id(o) for o in objs),
-            level=level,
         )
 
         if sketch_local and hasattr(cad_obj, "sketch_local"):
             ocp_obj.name = "sketch"
-            ocp_obj = OcpGroup([ocp_obj], name=name, level=level + 1)
+            ocp_obj = OcpGroup([ocp_obj], name=name)
             objs = unwrap(cad_obj.sketch_local.faces())
             ocp_obj.add(
                 self.unify(
@@ -394,7 +390,6 @@ class OcpConverter:
                     color=rgba_color,
                     alpha=0.2,
                     cache_id=tuple(id(o) for o in objs),
-                    level=level,
                 )
             )
 
@@ -431,7 +426,6 @@ class OcpConverter:
             name=name,
             color=rgba_color,
             cache_id=tuple(id(o) for o in objs),
-            level=level,
         )
         return ocp_obj
 
@@ -507,7 +501,7 @@ class OcpConverter:
     ):
         if loc is None:
             loc = identity_location()
-        group = OcpGroup(loc=loc, level=level)
+        group = OcpGroup(loc=loc)
 
         # ============================= Validate parameters ============================= #
 
