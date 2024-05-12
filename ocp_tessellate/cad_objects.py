@@ -158,9 +158,19 @@ class OcpGroup:
             self.objects.append(obj)
 
     def make_unique_names(self):
-        names = make_unique([obj.name for obj in self.objects])
-        for obj, name in zip(self.objects, names):
-            obj.name = name
+        if self.length > 1:
+            names = make_unique([obj.name for obj in self.objects])
+            for obj, name in zip(self.objects, names):
+                obj.name = name
+        return self
+
+    def cleanup(self):
+        if self.length == 1:
+            if isinstance(self.objects[0], OcpObject):
+                self.loc = mul_locations(self.loc, self.objects[0].loc)
+            return self.objects[0]
+
+        return self
 
     def to_state(self, parents=None):
         parents = parents or ()
@@ -184,17 +194,6 @@ class OcpGroup:
             return count
 
         return c(self)
-
-    def cleanup(self):
-        if self.length == 1:
-            if isinstance(self.objects[0], OcpObject):
-                self.loc = mul_locations(self.loc, self.objects[0].loc)
-            return self.objects[0]
-
-        elif self.length > 1:
-            self.make_unique_names()
-
-        return self
 
     def collect(
         self, path, instances, loc=None, discretize_edges=None, convert_vertices=None

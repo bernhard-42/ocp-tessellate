@@ -17,10 +17,9 @@ DEBUG = True
 
 def _debug(level, msg, name=None, prefix="debug:", eol="\n"):
     if DEBUG:
-        if name is None:
-            print((" " * (level * 2)) + f"{prefix} {msg} ()", end=eol)
-        else:
-            print((" " * (level * 2)) + f"{prefix} {msg} ('{name}')", end=eol)
+        prefix = "  " * level + prefix
+        suffix = f" '{name}'" if name is not None else ""
+        print(f"{prefix} {msg} ({suffix})", end=eol)
 
 
 def get_name(obj, name, default):
@@ -206,10 +205,6 @@ class OcpConverter:
     def handle_list_tuple(self, cad_obj, obj_name, rgba_color, sketch_local, level):
         _debug(level, "handle_list_tuple", obj_name)
 
-        # Cadquery vals() can return list of compounds
-        # if len(cad_obj) > 0 and is_compound(cad_obj[0]):
-        #     cad_obj = flatten(list(obj) for obj in cad_obj)
-
         ocp_obj = OcpGroup(name=get_name(cad_obj, obj_name, "List"), level=level)
         for i, obj in enumerate(cad_obj):
             name = get_name(cad_obj, obj_name, type_name(obj))
@@ -224,7 +219,7 @@ class OcpConverter:
             )
             ocp_obj.add(result.cleanup())
 
-        return ocp_obj.cleanup()
+        return ocp_obj.make_unique_names().cleanup()
 
     def handle_compound(self, cad_obj, obj_name, rgba_color, sketch_local, level):
         _debug(level, f"handle_compound", obj_name)
@@ -248,7 +243,7 @@ class OcpConverter:
 
             ocp_obj.add(result.cleanup())
 
-        return ocp_obj.cleanup()
+        return ocp_obj.make_unique_names()
 
     def handle_dict(self, cad_obj, obj_name, rgba_color, sketch_local, level):
         _debug(level, "handle_dict", obj_name)
@@ -637,10 +632,10 @@ class OcpConverter:
 
             group.add(ocp_obj)
 
+        group.make_unique_names()
+
         if group.length == 1 and isinstance(group.objects[0], OcpGroup):
             group = group.cleanup()
-        else:
-            group.make_unique_names()
 
         return group
 
