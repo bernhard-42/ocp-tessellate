@@ -17,7 +17,6 @@
 import io
 import itertools
 import os
-import platform
 import sys
 import tempfile
 from collections.abc import Iterable
@@ -25,27 +24,27 @@ from collections.abc import Iterable
 import numpy as np
 import OCP
 from cachetools import LRUCache, cached
-from OCP.BinTools import BinTools
-from OCP.Bnd import Bnd_Box
-from OCP.BRep import BRep_Tool
-from OCP.BRepAdaptor import (
+from OCP.BinTools import BinTools  # type: ignore
+from OCP.Bnd import Bnd_Box  # type: ignore
+from OCP.BRep import BRep_Tool  # type: ignore
+from OCP.BRepAdaptor import (  # type: ignore
     BRepAdaptor_CompCurve,
     BRepAdaptor_Curve,
     BRepAdaptor_Surface,
 )
-from OCP.BRepBndLib import BRepBndLib
-from OCP.BRepBuilderAPI import (
+from OCP.BRepBndLib import BRepBndLib  # type: ignore
+from OCP.BRepBuilderAPI import (  # type: ignore
     BRepBuilderAPI_Copy,
     BRepBuilderAPI_MakeEdge,
     BRepBuilderAPI_MakeFace,
     BRepBuilderAPI_MakeVertex,
 )
-from OCP.BRepGProp import BRepGProp
-from OCP.BRepMesh import BRepMesh_IncrementalMesh
-from OCP.BRepTools import BRepTools
-from OCP.GCPnts import GCPnts_AbscissaPoint
-from OCP.GeomAbs import GeomAbs_CurveType
-from OCP.gp import (
+from OCP.BRepGProp import BRepGProp  # type: ignore
+from OCP.BRepMesh import BRepMesh_IncrementalMesh  # type: ignore
+from OCP.BRepTools import BRepTools  # type: ignore
+from OCP.GCPnts import GCPnts_AbscissaPoint  # type: ignore
+from OCP.GeomAbs import GeomAbs_CurveType  # type: ignore
+from OCP.gp import (  # type: ignore
     gp_Ax1,
     gp_Ax2,
     gp_Ax3,
@@ -57,10 +56,10 @@ from OCP.gp import (
     gp_Trsf,
     gp_Vec,
 )
-from OCP.GProp import GProp_GProps
-from OCP.Quantity import Quantity_ColorRGBA
-from OCP.StlAPI import StlAPI_Writer
-from OCP.TopAbs import (
+from OCP.GProp import GProp_GProps  # type: ignore
+from OCP.Quantity import Quantity_ColorRGBA  # type: ignore
+from OCP.StlAPI import StlAPI_Writer  # type: ignore
+from OCP.TopAbs import (  # type: ignore
     TopAbs_COMPOUND,
     TopAbs_COMPSOLID,
     TopAbs_EDGE,
@@ -70,11 +69,11 @@ from OCP.TopAbs import (
     TopAbs_VERTEX,
     TopAbs_WIRE,
 )
-from OCP.TopExp import TopExp, TopExp_Explorer
-from OCP.TopLoc import TopLoc_Location
+from OCP.TopExp import TopExp, TopExp_Explorer  # type: ignore
+from OCP.TopLoc import TopLoc_Location  # type: ignore
 
 # Bounding Box
-from OCP.TopoDS import (
+from OCP.TopoDS import (  # type: ignore
     TopoDS,
     TopoDS_Builder,
     TopoDS_Compound,
@@ -87,13 +86,13 @@ from OCP.TopoDS import (
     TopoDS_Vertex,
     TopoDS_Wire,
 )
-from OCP.TopTools import (
+from OCP.TopTools import (  # type: ignore
     TopTools_IndexedDataMapOfShapeListOfShape,
     TopTools_IndexedMapOfShape,
 )
 from quaternion import rotate_vectors
 
-from .utils import Color, class_name, flatten
+from .utils import Color, class_name, distance, flatten
 
 MAX_HASH_KEY = 2147483647
 
@@ -1075,6 +1074,14 @@ def get_location(obj, as_none=True):
         return loc
     else:
         raise TypeError(f"Unknown location typ {type(loc)}")
+
+
+def mul_locations(loc1, loc2):
+    if loc1 is None:
+        return loc2
+    if loc2 is None:
+        return loc1
+    return loc1 * loc2
 
 
 def get_axis_coord(axis):

@@ -1,4 +1,5 @@
 import base64
+from textwrap import indent
 
 import imagesize
 
@@ -7,7 +8,7 @@ from ocp_tessellate.ocp_utils import (
     line,
     loc_to_tq,
     loc_to_vecs,
-    make_compound,
+    mul_locations,
     rect,
     tq_to_loc,
 )
@@ -59,9 +60,10 @@ class OcpObject:
             obj_repl = f"class={self.obj.__class__.__name__}"
 
         return (
-            f"{' '*ind}OcpObject('{self.name}' ({self.kind}), "
+            f"{' '*ind}OcpObject name='{self.name}' kind={self.kind}, "
             f"{obj_repl}, "
-            f"color={self.color}, loc={loc_to_tq(self.loc)})"
+            f"color={self.color}, loc={loc_to_tq(self.loc)}, "
+            f"cache_id={self.cache_id}"
         )
 
     def __repr__(self):
@@ -131,7 +133,7 @@ class OcpObject:
 
 
 class OcpGroup:
-    def __init__(self, objs=None, name="Group", loc=None):
+    def __init__(self, objs=None, name="Group", loc=None, level=0):
         self.id = None
         self.objects = [] if objs is None else objs
         self.name = name
@@ -182,6 +184,17 @@ class OcpGroup:
             return count
 
         return c(self)
+
+    def cleanup(self):
+        if self.length == 1:
+            if isinstance(self.objects[0], OcpObject):
+                self.loc = mul_locations(self.loc, self.objects[0].loc)
+            return self.objects[0]
+
+        elif self.length > 1:
+            self.make_unique_names()
+
+        return self
 
     def collect(
         self, path, instances, loc=None, discretize_edges=None, convert_vertices=None

@@ -850,9 +850,16 @@ class TestConvertMixedCompounds(MyUnitTest):
     def test_unmixed(self):
         c = OcpConverter()
         g = c.to_ocp(unmixed)
-        self.assertEqual(g.length, 1)
+        self.assertEqual(g.length, 2)
         i = c.instances
-        o = g.objects[0]
-        self.assertEqual(o.name, "Solid")
-        self.assertEqual(o.kind, "solid")
-        self.assertTrue(is_topods_compound(i[o.ref][1]))
+        for k in range(2):
+            g2 = g.objects[k]
+            suffix = "" if k == 0 else "(2)"
+            self.assertEqual(g2.name, f"Compound{suffix}")
+            self.assertEqual(g2.kind, "group")
+            for j in range(2):
+                o = g2.objects[j]
+                suffix = "" if j == 0 else "(2)"
+                self.assertTrue(is_topods_solid(i[o.ref][1]))
+                self.assertEqual(o.name, f"Solid{suffix}")
+                self.assertEqual(o.kind, "solid")
