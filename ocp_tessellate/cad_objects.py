@@ -63,7 +63,7 @@ class OcpObject:
             f"{' '*ind}OcpObject name='{self.name}' kind={self.kind}, "
             f"{obj_repl}, "
             f"color={self.color}, loc={loc_to_tq(self.loc)}, "
-            f"cache_id={self.cache_id}"
+            f"cache_id={'' if self.cache_id is None else self.cache_id[:10]}..."
         )
 
     def __repr__(self):
@@ -86,7 +86,7 @@ class OcpObject:
         if self.loc is not None and combined_loc is not None:
             combined_loc = combined_loc * self.loc
 
-        if self.kind in ("solid", "face"):
+        if self.kind in ("solid", "face", "shell"):
             return dict(id=self.id, shape=instances[self.ref], loc=combined_loc), {
                 "id": self.id,
                 "type": "shapes",

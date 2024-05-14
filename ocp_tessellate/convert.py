@@ -1,3 +1,5 @@
+from hashlib import sha256
+
 from ocp_tessellate.cad_objects import CoordAxis, CoordSystem, OcpGroup, OcpObject
 from ocp_tessellate.defaults import get_default, preset
 from ocp_tessellate.ocp_utils import *
@@ -15,11 +17,11 @@ POINT_SIZE = 4
 DEBUG = True
 
 
-def _debug(level, msg, name=None, prefix="debug:", eol="\n"):
+def _debug(level, msg, name=None, prefix="debug:", end="\n"):
     if DEBUG:
         prefix = "  " * level + prefix
-        suffix = f" '{name}'" if name is not None else ""
-        print(f"{prefix} {msg} ({suffix})", end=eol)
+        suffix = f" ('{name}')" if name is not None else ""
+        print(f"{prefix} {msg} {suffix}", end=end, flush=True)
 
 
 def get_name(obj, name, default):
@@ -33,16 +35,28 @@ def get_name(obj, name, default):
     return name
 
 
-def get_kind(obj):
+def get_type(obj):
     kinds = {
-        "TopoDS_Edge": "edge",
-        "TopoDS_Face": "face",
-        "TopoDS_Shell": "shell",
-        "TopoDS_Solid": "solid",
-        "TopoDS_Vertex": "vertex",
-        "TopoDS_Wire": "wire",
+        "TopoDS_Edge": "Edge",
+        "TopoDS_Face": "Face",
+        "TopoDS_Shell": "Shell",
+        "TopoDS_Solid": "Solid",
+        "TopoDS_Vertex": "Vertex",
+        "TopoDS_Wire": "Wire",
     }
     return kinds.get(class_name(obj))
+
+
+def get_kind(typ):
+    kinds = {
+        "Edge": "edge",
+        "Face": "face",
+        "Shell": "face",
+        "Solid": "solid",
+        "Vertex": "vertex",
+        "Wire": "edge",
+    }
+    return kinds.get(typ)
 
 
 def unwrap(obj):
@@ -114,6 +128,15 @@ def get_color_for_object(obj, color=None, alpha=None, kind=None):
     return col_a
 
 
+def create_cache_id(obj):
+    objs = [obj] if not isinstance(obj, (tuple, list)) else obj
+    sha = sha256()
+    for o in objs:
+        sha.update(serialize(o.wrapped if is_wrapped(o) else o))
+    print(f"{sha.hexdigest()=}")
+    return sha.hexdigest()
+
+
 # TODOs:
 # - cache handling
 # - ImageFace
@@ -136,11 +159,13 @@ class OcpConverter:
         is_instance = False
         ocp_obj = None
 
-        obj, loc = relocate(obj)
+        # Create the relocated object as a copy
+        loc = obj.Location()  # Get location
+        obj2 = downcast(obj.Moved(loc.Inverted()))
 
         # check if the same instance is already available
         for i, instance in enumerate(self.instances):
-            if instance[0] == get_tshape(obj):
+            if instance[0] == get_tshape(obj2):
                 # create a referential OcpObject
                 ocp_obj = OcpObject(
                     kind,
@@ -161,7 +186,7 @@ class OcpConverter:
         if not is_instance:
             ref = len(self.instances)
             # append the new instance
-            self.instances.append((get_tshape(obj), obj))
+            self.instances.append((get_tshape(obj2), obj2, cache_id))
             # and create a referential OcpObject
             ocp_obj = OcpObject(
                 kind,
@@ -174,24 +199,39 @@ class OcpConverter:
 
         return ocp_obj
 
-    def unify(self, objs, kind, name, color, alpha=1.0, cache_id=None):
-        if cache_id is None:
-            cache_id = ()
-
-        if len(objs) == 1:  # needs to be the first condition
+    def unify(self, objs, kind, name, color, alpha=1.0):
+        # Try to downcast to one TopoDS_Shape
+        if len(objs) == 1:
             ocp_obj = objs[0]
-        elif kind == "edge" or kind == "vertex":
-            ocp_obj = objs
-        else:
+            # unroll TopoDS_Compound
+            if is_topods_compound(ocp_obj):
+                ocp_objs = list(list_topods_compound(ocp_obj))
+                if len(ocp_objs) == 1:
+                    ocp_obj = downcast(ocp_objs[0])
+
+        # else make a TopoDS_Compound
+        elif kind in ["solid", "face", "shell"]:
             ocp_obj = make_compound(objs)
 
-        color = get_color_for_object(ocp_obj, color, kind=kind)
+        # and for vertices and edges, keep the list
+        else:
+            ocp_obj = objs
+
+        color = get_color_for_object(
+            ocp_obj[0] if isinstance(ocp_obj, list) else ocp_obj,
+            color,
+            kind=kind,
+        )
         if alpha < 1.0:
             color.a = alpha
 
-        if kind in ("solid", "face"):
+        if kind in ("solid", "face", "shell"):
             return self.get_instance(
-                ocp_obj, kind, name, color, (*cache_id, id(ocp_obj))
+                ocp_obj,
+                kind,
+                name,
+                color,
+                cache_id=create_cache_id(objs),
             )
         else:
             return OcpObject(
@@ -206,7 +246,7 @@ class OcpConverter:
         _debug(level, "handle_list_tuple", obj_name)
 
         ocp_obj = OcpGroup(name=get_name(cad_obj, obj_name, "List"))
-        for i, obj in enumerate(cad_obj):
+        for obj in cad_obj:
             name = get_name(cad_obj, obj_name, type_name(obj))
 
             result = self.to_ocp(
@@ -227,14 +267,12 @@ class OcpConverter:
         if is_compound(cad_obj):
             cad_obj = list(cad_obj)
         elif is_topods_compound(cad_obj):
-            cad_obj = list_topods_compound(cad_obj)
+            cad_obj = list(list_topods_compound(cad_obj))
 
         ocp_obj = OcpGroup(name=get_name(cad_obj, obj_name, "Compound"))
-        for i, obj in enumerate(cad_obj):
-            name = get_name(cad_obj, None, type_name(obj))
+        for obj in cad_obj:
             result = self.to_ocp(
                 obj,
-                names=[name],
                 colors=[rgba_color],
                 sketch_local=sketch_local,
                 top_level=False,
@@ -316,36 +354,31 @@ class OcpConverter:
 
         # convert wires to edges
         if len(cad_obj) > 0 and is_topods_wire(cad_obj[0].wrapped):
-            objs = flatten([[e.wrapped for e in o.edges()] for o in cad_obj])
-            kind, wkind = "edge", "wire"
-
-        # convert shells to faces
-        elif len(cad_obj) > 0 and is_topods_shell(cad_obj[0].wrapped):
-            objs = flatten([[f.wrapped for f in o.faces()] for o in cad_obj])
-            kind, wkind = "face", "shell"
+            objs = [e.wrapped for o in cad_obj for e in o.edges()]
+            typ = "Wire"
 
         # unwrap everything else
         else:
             objs = unwrap(cad_obj)
-            kind = wkind = get_kind(objs[0])
+            typ = get_type(objs[0])
 
-        if kind in ("solid", "face"):
+        kind = get_kind(typ)
+
+        if kind in ("solid", "face", "shell"):
             ocp_obj = self.unify(
                 objs,
                 kind=kind,
-                name=get_name(cad_obj, obj_name, f"{name}({wkind})"),
+                name=get_name(cad_obj, obj_name, f"{name}({typ})"),
                 color=get_color_for_object(objs[0], rgba_color),
-                cache_id=tuple(id(o) for o in objs),
             )
         else:
             # keep the array of wrapped edges or vertices
             ocp_obj = OcpObject(
                 kind,
                 obj=objs,
-                name=get_name(cad_obj, obj_name, f"{name}({wkind})"),
+                name=get_name(cad_obj, obj_name, f"{name}({typ})"),
                 color=get_color_for_object(objs[0], rgba_color),
                 width=LINE_WIDTH if kind == "edge" else POINT_SIZE,
-                cache_id=tuple(id(o) for o in objs),
             )
         return ocp_obj
 
@@ -356,32 +389,40 @@ class OcpConverter:
 
         # bild123d BuildPart().part
         if is_build123d_part(cad_obj):
-            name, objs = "Solid", unwrap(cad_obj.part.solids())
+            typ, objs = "Solid", [cad_obj.part.wrapped]
 
         # build123d BuildSketch().sketch
         elif is_build123d_sketch(cad_obj):
-            name, objs = "Face", unwrap(cad_obj.sketch.faces())
+            ocp_objs = cad_obj.sketch.faces()
+            if len(ocp_objs) == 1:
+                objs = [ocp_objs[0].wrapped]
+            else:
+                objs = [cad_obj.sketch.wrapped]
+            typ = "Face"
 
         # build123d BuildLine().line
         elif is_build123d_line(cad_obj):
-            name, objs = "Edge", unwrap(cad_obj.line.edges())
+            typ, objs = "Edge", unwrap(cad_obj.edges())
 
         else:
             raise ValueError(f"Unknown build123d object: {cad_obj}")
 
-        name = get_name(cad_obj, obj_name, name)
+        name = get_name(cad_obj, obj_name, typ)
         ocp_obj = self.unify(
             objs,
-            kind=get_kind(objs[0]),
+            kind=get_kind(typ),
             name=name,
             color=rgba_color,
-            cache_id=tuple(id(o) for o in objs),
         )
 
         if sketch_local and hasattr(cad_obj, "sketch_local"):
             ocp_obj.name = "sketch"
             ocp_obj = OcpGroup([ocp_obj], name=name)
-            objs = unwrap(cad_obj.sketch_local.faces())
+            ocp_objs = cad_obj.sketch_local.faces()
+            if len(ocp_objs) == 1:
+                objs = [ocp_objs[0].wrapped]
+            else:
+                objs = [cad_obj.sketch_local.wrapped]
             ocp_obj.add(
                 self.unify(
                     objs,
@@ -389,43 +430,39 @@ class OcpConverter:
                     name="sketch_local",
                     color=rgba_color,
                     alpha=0.2,
-                    cache_id=tuple(id(o) for o in objs),
                 )
             )
 
         return ocp_obj
 
     def handle_shapes(self, cad_obj, obj_name, rgba_color, sketch_local, level):
+
         if is_topods_shape(cad_obj):
-            t = "TopoDS_Shape"
-
+            t, obj = "TopoDS_Shape", downcast(cad_obj)
         elif is_build123d_shape(cad_obj):
-            t = "build123d Shape"
-            cad_obj = cad_obj.wrapped
-
+            t, obj = "build123d Shape", cad_obj.wrapped
         elif is_cadquery_shape(cad_obj):
-            t = "cadquery Shape"
-            cad_obj = cad_obj.wrapped
-
-        _debug(level, f"handle_shapes ({t}) ({class_name(cad_obj)})", obj_name)
-
-        objs = get_downcasted_shape(cad_obj)
-        if is_topods_wire(objs[0]):
-            objs = [e for o in objs for e in get_edges(o)]
-
-        if is_topods_shell(cad_obj):
-            name = get_name(cad_obj, obj_name, "Shell")
-        elif is_topods_wire(cad_obj):
-            name = get_name(cad_obj, obj_name, "Wire")
+            t, obj = "cadquery Shape", cad_obj.wrapped
         else:
-            name = get_name(cad_obj, obj_name, type_name(objs[0]))
+            raise ValueError(f"Unknown shape type: {cad_obj}")
+
+        _debug(level, f"handle_shapes ({t}) ({class_name(obj)})", obj_name)
+
+        edges = None
+        if is_topods_wire(obj):
+            typ, edges = "Wire", list(get_edges(obj))
+        elif is_topods_compound(obj):
+            typ = get_compound_type(obj)
+        else:
+            typ = type_name(obj)
+
+        name = get_name(cad_obj, obj_name, typ)
 
         ocp_obj = self.unify(
-            objs,
-            kind=get_kind(objs[0]),
+            [obj] if edges is None else edges,
+            kind=get_kind(typ),
             name=name,
             color=rgba_color,
-            cache_id=tuple(id(o) for o in objs),
         )
         return ocp_obj
 
@@ -496,6 +533,8 @@ class OcpConverter:
         default_color=None,
         show_parent=False,
         sketch_local=False,
+        unroll_compounds=False,
+        cache_id=None,
         top_level=True,
         level=0,
     ):
@@ -554,7 +593,13 @@ class OcpConverter:
                 )
 
             # Compounds / topods_compounds
-            elif is_compound(cad_obj) or is_topods_compound(cad_obj):
+            elif (
+                is_compound(cad_obj)
+                and (is_mixed_compound(cad_obj) or unroll_compounds)
+            ) or (
+                is_topods_compound(cad_obj)
+                and (is_mixed_compound(cad_obj) or unroll_compounds)
+            ):
                 ocp_obj = self.handle_compound(
                     cad_obj, obj_name, rgba_color, sketch_local, level
                 )
@@ -668,7 +713,7 @@ def to_assembly(
         show_parent=show_parent,
         sketch_local=show_sketch_local,
     )
-    instances = [i[1] for i in converter.instances]
+    instances = [{"obj": i[1], "cache_id": i[2]} for i in converter.instances]
 
     return ocp_group, instances
 
@@ -736,7 +781,7 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
 
     for i, instance in enumerate(instances):
         with Timer(timeit, f"instance({i})", "compute quality:", 2) as t:
-            shape = instance
+            shape = instance["obj"]
             # A first rough estimate of the bounding box.
             # Will be too large, but is sufficient for computing the quality
             # location is not relevant here
@@ -747,7 +792,7 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
         with Timer(timeit, f"instance({i})", "tessellate:     ", 2) as t:
             mesh = tessellate(
                 shape,
-                id(shape),
+                instance["cache_id"],
                 deviation=deviation,
                 quality=quality,
                 angular_tolerance=angular_tolerance,

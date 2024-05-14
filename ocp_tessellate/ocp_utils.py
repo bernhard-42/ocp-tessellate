@@ -24,7 +24,7 @@ from collections.abc import Iterable
 import numpy as np
 import OCP
 from cachetools import LRUCache, cached
-from OCP.BinTools import BinTools  # type: ignore
+from OCP.BinTools import BinTools, BinTools_FormatVersion_CURRENT  # type: ignore
 from OCP.Bnd import Bnd_Box  # type: ignore
 from OCP.BRep import BRep_Tool  # type: ignore
 from OCP.BRepAdaptor import (  # type: ignore
@@ -92,7 +92,7 @@ from OCP.TopTools import (  # type: ignore
 )
 from quaternion import rotate_vectors
 
-from .utils import Color, class_name, distance, flatten
+from .utils import Color, class_name, distance, flatten, type_name
 
 MAX_HASH_KEY = 2147483647
 
@@ -524,12 +524,14 @@ def serialize(shape):
 
     try:
         bio = io.BytesIO()
-        BinTools.Write_s(shape, bio)
+        BinTools.Write_s(shape, bio, False, False, BinTools_FormatVersion_CURRENT)
         buffer = bio.getvalue()
     except Exception:
         with tempfile.TemporaryDirectory() as tmpdirname:
             filename = os.path.join(tmpdirname, "shape.brep")
-            BinTools.Write_s(shape, filename)
+            BinTools.Write_s(
+                shape, filename, False, False, BinTools_FormatVersion_CURRENT
+            )
             with open(filename, "rb") as fd:
                 buffer = fd.read()
     return buffer
@@ -558,6 +560,14 @@ def deserialize(buffer):
 def is_line(topods_edge):
     c = BRepAdaptor_Curve(topods_edge)
     return c.GetType() == GeomAbs_CurveType.GeomAbs_Line
+
+
+def get_compounds(shape):
+    compound_map = TopTools_IndexedMapOfShape()
+    TopExp.MapShapes_s(shape, TopAbs_COMPOUND, compound_map)
+
+    for i in range(1, compound_map.Extent() + 1):
+        yield TopoDS.Compound_s(compound_map.FindKey(i))
 
 
 def get_solids(shape):
@@ -615,6 +625,9 @@ def get_vertices(shape):
 
 
 def get_downcasted_shape(shape):
+    # if next(get_compounds(shape), None) is not None:
+    #     objs = get_compounds(shape)
+
     if next(get_solids(shape), None) is not None:
         objs = get_solids(shape)
 
@@ -736,7 +749,6 @@ def is_ocp_color(obj):
     return hasattr(obj, "wrapped") and isinstance(obj.wrapped, Quantity_ColorRGBA)
 
 
-# %%
 def list_topods_compound(compound):
     iterator = TopoDS_Iterator(compound)
     while iterator.More():
@@ -777,35 +789,31 @@ def unroll_topods_compound(compound):
     return result
 
 
-def is_mixed(unrolled):
-    mixed = None
-    if len(unrolled) == 0:
-        return False
-    c = class_name(unrolled[0])
-    for obj in unrolled:
-        if isinstance(obj, list):
-            mixed = mixed or is_mixed(obj)
-        else:
-            mixed = mixed or c != class_name(obj)
+def get_compound_type(compound):
 
-    return mixed
+    def get_type(u_objs, types):
+        if len(unrolled) == 0:
+            return None
+        for obj in u_objs:
+            if isinstance(obj, list):
+                types += get_type(obj, types)
+            else:
+                types.append(type_name(obj))
+        return types
 
+    if is_topods_compound(compound):
+        unrolled = unroll_topods_compound(compound)
+    else:
+        unrolled = unroll_compound(compound)
 
-# %%
+    types = get_type(unrolled, [])
+    if len(set(types)) == 1:
+        return types[0]
+    return "mixed"
 
 
 def is_mixed_compound(compound):
-    if not isinstance(compound, Iterable) or not is_compound(compound):
-        return False
-    unrolled = unroll_compound(compound)
-    return is_mixed(unrolled)
-
-
-def is_mixed_topods_compound(compound):
-    if not is_topods_compound(compound):
-        return False
-    unrolled = unroll_topods_compound(compound)
-    return is_mixed(unrolled)
+    return get_compound_type(compound) == "mixed"
 
 
 # Check compounds for containing same types only
@@ -903,6 +911,16 @@ def vertex(obj):
         x, y, z = obj
 
     return downcast(BRepBuilderAPI_MakeVertex(gp_Pnt(x, y, z)).Vertex())
+
+
+MAX_HASH_KEY = 2**31 - 1
+
+
+def ocp_hash(obj):
+    if is_topods_solid(obj) or is_topods_face(obj) or is_topods_shell(obj):
+        return obj.HashCode(MAX_HASH_KEY)
+    else:
+        return ()
 
 
 def vector(xyz):
@@ -1042,13 +1060,13 @@ def relocate(obj):
     if loc is None:
         return obj, identity_location()
 
-    obj = copy_topods_shape(obj)
+    obj2 = copy_topods_shape(obj)
 
-    tshape = get_tshape(obj)
-    obj.Move(loc.Inverted())
-    obj.TShape(tshape)
+    tshape = get_tshape(obj2)
+    obj2.Move(loc.Inverted())
+    obj2.TShape(tshape)
 
-    return obj, loc
+    return obj2, loc
 
 
 def get_location(obj, as_none=True):
@@ -1111,7 +1129,6 @@ def get_location_coord(loc):
 
 def copy_topods_shape(obj):
     result = downcast(BRepBuilderAPI_Copy(obj).Shape())
-    result.TShape(obj.TShape())
     return result
 
 
@@ -1119,7 +1136,6 @@ def copy_shape(obj):
     cls = obj.__class__
     result = cls.__new__(cls)
     result.wrapped = downcast(BRepBuilderAPI_Copy(obj.wrapped).Shape())
-    result.wrapped.TShape(obj.wrapped.TShape())
     return result
 
 

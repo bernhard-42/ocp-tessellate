@@ -96,7 +96,8 @@ def make_key(
         shape = [shape]
 
     key = (
-        tuple(((s.HashCode(MAX_HASH_KEY), cache_key) for s in shape)),
+        # tuple((cache_key, tuple(s.HashCode(MAX_HASH_KEY) for s in shape))),
+        cache_key,
         deviation,
         angular_tolerance,
         compute_edges,
