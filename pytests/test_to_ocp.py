@@ -132,6 +132,58 @@ class TestsConvert(MyUnitTest):
         self.assertEqual(len(i), 0)
         self.assertTrue(is_topods_edge(o.obj))
 
+    def test_buildpart_2(self):
+        """Test that a part is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(bp2)
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Solid")
+        self.assertEqual(o.kind, "solid")
+        self.assertIsNotNone(o.ref)
+        self.assertIsNone(o.obj)
+        self.assertTrue(is_topods_compound(i[o.ref][1]))
+
+    def test_buildsketch_2(self):
+        """Test that a sketch is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(bs2)
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Face")
+        self.assertEqual(o.kind, "face")
+        self.assertIsNotNone(o.ref)
+        self.assertIsNone(o.obj)
+        self.assertTrue(is_topods_compound(i[o.ref][1]))
+
+    def test_buildsketch_local_2(self):
+        """Test that a sketch_local is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(bs2, sketch_local=True)
+        i = c.instances
+        self.assertEqual(g.length, 2)
+        o = g.objects[0]
+        self.assertEqual(g.name, "Face")
+        for o, n in zip(g.objects, ["sketch", "sketch_local"]):
+            self.assertEqual(o.name, n)
+            self.assertEqual(o.kind, "face")
+            self.assertTrue(is_topods_compound(i[o.ref][1]))
+
+    def test_buildline_2(self):
+        """Test that a line is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(bl2)
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Edge")
+        self.assertEqual(o.kind, "edge")
+        self.assertEqual(len(i), 0)
+        for i in range(2):
+            self.assertTrue(is_topods_edge(o.obj[i]))
+
     def test_buildpart_name_color(self):
         """Test that the name and color are set correctly for a part"""
         c = OcpConverter()
@@ -215,6 +267,19 @@ class TestsConvert(MyUnitTest):
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
         self.assertTrue(is_topods_solid(i[o.ref][1]))
+
+    def test_part_wrapped_2(self):
+        """Test that a wrapped part is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(b2.wrapped)
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Solid")
+        self.assertEqual(o.kind, "solid")
+        self.assertIsNotNone(o.ref)
+        self.assertIsNone(o.obj)
+        self.assertTrue(is_topods_compound(i[o.ref][1]))
 
     def test_show_solid_default_colors(self):
         c = OcpConverter()
