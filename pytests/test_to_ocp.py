@@ -962,3 +962,82 @@ class TestConvertMixedCompounds(MyUnitTest):
         self.assertTrue(is_topods_compound(i[o.ref][1]))
         self.assertEqual(o.name, f"Solid")
         self.assertEqual(o.kind, "solid")
+
+
+class TestCompund(MyUnitTest):
+
+    def test_compound_solid(self):
+        c = OcpConverter()
+        g = c.to_ocp(Compound(b2.solids()))
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Solid")
+        self.assertEqual(o.kind, "solid")
+        self.assertIsNotNone(o.ref)
+        self.assertIsNone(o.obj)
+        self.assertTrue(is_topods_compound(i[o.ref][1]))
+
+    def test_compound_shell(self):
+        c = OcpConverter()
+        g = c.to_ocp(Compound(b2.shells()))
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Shell")
+        self.assertEqual(o.kind, "face")
+        self.assertIsNotNone(o.ref)
+        self.assertIsNone(o.obj)
+        self.assertTrue(is_topods_compound(i[o.ref][1]))
+
+    def test_compound_face(self):
+        c = OcpConverter()
+        g = c.to_ocp(Compound(b2.faces()))
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Face")
+        self.assertEqual(o.kind, "face")
+        self.assertIsNotNone(o.ref)
+        self.assertIsNone(o.obj)
+        self.assertTrue(is_topods_compound(i[o.ref][1]))
+
+    def test_compound_wire(self):
+        c = OcpConverter()
+        g = c.to_ocp(Compound(b2.wires()))
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Wire")
+        self.assertEqual(o.kind, "edge")
+        self.assertIsNotNone(o.obj)
+        self.assertTrue(isinstance(o.obj, list))
+        self.assertEqual(len(o.obj), 24)
+        self.assertTrue(is_topods_edge(o.obj[0]))
+
+    def test_compound_edge(self):
+        c = OcpConverter()
+        g = c.to_ocp(Compound(b2.edges()))
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Edge")
+        self.assertEqual(o.kind, "edge")
+        self.assertIsNotNone(o.obj)
+        self.assertTrue(isinstance(o.obj, list))
+        self.assertEqual(len(o.obj), 24)
+        self.assertTrue(is_topods_edge(o.obj[0]))
+
+    def test_compound_solid(self):
+        c = OcpConverter()
+        g = c.to_ocp(Compound(b2.vertices()))
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Vertex")
+        self.assertEqual(o.kind, "vertex")
+        print(o.obj)
+        self.assertIsNotNone(o.obj)
+        self.assertTrue(isinstance(o.obj, list))
+        self.assertEqual(len(o.obj), 16)
+        self.assertTrue(is_topods_vertex(o.obj[0]))

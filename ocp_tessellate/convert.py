@@ -208,6 +208,8 @@ class OcpConverter:
                 ocp_objs = list(list_topods_compound(ocp_obj))
                 if len(ocp_objs) == 1:
                     ocp_obj = downcast(ocp_objs[0])
+                elif kind in ["edge", "vertex"]:
+                    ocp_obj = ocp_objs
 
         # else make a TopoDS_Compound
         elif kind in ["solid", "face", "shell"]:
@@ -453,6 +455,8 @@ class OcpConverter:
             typ, edges = "Wire", list(get_edges(obj))
         elif is_topods_compound(obj):
             typ = get_compound_type(obj)
+            if typ == "Wire":
+                obj = list(get_edges(obj))
         else:
             typ = type_name(obj)
 
