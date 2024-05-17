@@ -136,11 +136,11 @@ def get_color_for_object(obj, color=None, alpha=None, kind=None):
 
 
 def create_cache_id(obj):
-    objs = [obj] if not isinstance(obj, (tuple, list)) else obj
     sha = sha256()
+    objs = [obj] if not isinstance(obj, (tuple, list)) else obj
     for o in objs:
         sha.update(serialize(o.wrapped if is_wrapped(o) else o))
-    print(f"{sha.hexdigest()=}")
+
     return sha.hexdigest()
 
 
