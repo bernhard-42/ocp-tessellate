@@ -486,6 +486,41 @@ class OcpConverter:
         )
         return ocp_obj
 
+    def handle_cadquery_sketch(self, cad_obj, obj_name, rgba_color, level):
+        cad_objs = []
+        for objs, calc_bb in [
+            (cad_obj._faces, False),
+            (cad_obj._edges, False),
+            (cad_obj._wires, True),
+            (cad_obj._selection, False),
+        ]:
+            if objs:
+                c_objs = (
+                    [None] * len(objs)
+                    if is_toploc_location(list(objs)[0].wrapped)
+                    else cad_obj.locs
+                )
+                cad_objs += [
+                    (
+                        o.wrapped
+                        if is_toploc_location(o.wrapped)
+                        else downcast(o.wrapped.Moved(loc.wrapped))
+                    )
+                    for o, loc in zip(list(objs), c_objs)
+                ]
+            if calc_bb:
+                bb = bounding_box(make_compound(cad_objs))
+                size = max(bb.xsize, bb.ysize, bb.zsize)
+
+        name = get_name(cad_obj, obj_name, "Sketch")
+        return self.to_ocp(
+            cad_objs,
+            names=[name],
+            colors=[rgba_color],
+            level=level,
+            helper_scale=size / 20,
+        )
+
     def handle_locations_planes(
         self, cad_obj, obj_name, rgba_color, helper_scale, sketch_local, level
     ):
@@ -665,6 +700,12 @@ class OcpConverter:
             ):
                 ocp_obj = self.handle_shapes(
                     cad_obj, obj_name, rgba_color, sketch_local, level
+                )
+
+            # Cadquery sketches
+            elif is_cadquery_sketch(cad_obj):
+                ocp_obj = self.handle_cadquery_sketch(
+                    cad_obj, obj_name, rgba_color, level
                 )
 
             # build123d Location/Plane or TopLoc_Location or gp_Pln
