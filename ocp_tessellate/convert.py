@@ -733,7 +733,7 @@ def to_assembly(
         show_parent=show_parent,
         sketch_local=show_sketch_local,
     )
-    instances = [{"obj": i[1], "cache_id": i[2]} for i in converter.instances]
+    instances = [{"obj": i[0], "cache_id": i[1]} for i in converter.instances]
 
     return ocp_group, instances
 
