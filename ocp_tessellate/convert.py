@@ -172,8 +172,8 @@ class OcpConverter:
 
         # check if the same instance is already available
         for i, instance in enumerate(self.instances):
-            if instance[0] == get_tshape(obj2):
-                # create a referential OcpObject
+            if instance[0] == obj2:
+                # create an OcpObject referencing instance i
                 ocp_obj = OcpObject(
                     kind,
                     ref=i,
@@ -193,7 +193,7 @@ class OcpConverter:
         if not is_instance:
             ref = len(self.instances)
             # append the new instance
-            self.instances.append((get_tshape(obj2), obj2, cache_id))
+            self.instances.append((obj2, cache_id))
             # and create a referential OcpObject
             ocp_obj = OcpObject(
                 kind,
