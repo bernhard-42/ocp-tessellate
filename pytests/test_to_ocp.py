@@ -92,7 +92,7 @@ class TestsConvert(MyUnitTest):
         self.assertEqual(o.kind, "solid")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_solid(i[o.ref][1]))
+        self.assertTrue(is_topods_solid(i[o.ref][0]))
 
     def test_buildsketch(self):
         """Test that a sketch is converted correctly"""
@@ -105,7 +105,7 @@ class TestsConvert(MyUnitTest):
         self.assertEqual(o.kind, "face")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_face(i[o.ref][1]))
+        self.assertTrue(is_topods_face(i[o.ref][0]))
 
     def test_buildsketch_local(self):
         """Test that a sketch_local is converted correctly"""
@@ -118,7 +118,7 @@ class TestsConvert(MyUnitTest):
         for o, n in zip(g.objects, ["sketch", "sketch_local"]):
             self.assertEqual(o.name, n)
             self.assertEqual(o.kind, "face")
-            self.assertTrue(is_topods_face(i[o.ref][1]))
+            self.assertTrue(is_topods_face(i[o.ref][0]))
 
     def test_buildline(self):
         """Test that a line is converted correctly"""
@@ -143,7 +143,7 @@ class TestsConvert(MyUnitTest):
         self.assertEqual(o.kind, "solid")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_compound(i[o.ref][1]))
+        self.assertTrue(is_topods_compound(i[o.ref][0]))
 
     def test_buildsketch_2(self):
         """Test that a sketch is converted correctly"""
@@ -156,7 +156,7 @@ class TestsConvert(MyUnitTest):
         self.assertEqual(o.kind, "face")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_compound(i[o.ref][1]))
+        self.assertTrue(is_topods_compound(i[o.ref][0]))
 
     def test_buildsketch_local_2(self):
         """Test that a sketch_local is converted correctly"""
@@ -169,7 +169,7 @@ class TestsConvert(MyUnitTest):
         for o, n in zip(g.objects, ["sketch", "sketch_local"]):
             self.assertEqual(o.name, n)
             self.assertEqual(o.kind, "face")
-            self.assertTrue(is_topods_compound(i[o.ref][1]))
+            self.assertTrue(is_topods_compound(i[o.ref][0]))
 
     def test_buildline_2(self):
         """Test that a line is converted correctly"""
@@ -195,7 +195,7 @@ class TestsConvert(MyUnitTest):
         self.assertEqual(o.kind, "solid")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_solid(i[o.ref][1]))
+        self.assertTrue(is_topods_solid(i[o.ref][0]))
 
     def test_buildsketch_name_color(self):
         """Test that the name and color are set correctly for a sketch"""
@@ -208,7 +208,7 @@ class TestsConvert(MyUnitTest):
         self.assertEqual(o.kind, "face")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_face(i[o.ref][1]))
+        self.assertTrue(is_topods_face(i[o.ref][0]))
 
     def test_buildsketch_local_name_color(self):
         """Test that the name and color are set correctly for a sketch_local"""
@@ -222,7 +222,7 @@ class TestsConvert(MyUnitTest):
             self.assertEqual(o.kind, "face")
             self.assertIsNotNone(o.ref)
             self.assertIsNone(o.obj)
-            self.assertTrue(is_topods_face(i[o.ref][1]))
+            self.assertTrue(is_topods_face(i[o.ref][0]))
             loc = loc_to_tq(o.loc)
             self._assertTupleAlmostEquals(loc[0], (0, 0, 0), 6)
             if n == "sketch":
@@ -241,7 +241,7 @@ class TestsConvert(MyUnitTest):
         for o, n in zip(g.objects, ["sketch", "sketch_local"]):
             self.assertEqual(o.name, n)
             self.assertEqual(o.kind, "face")
-            self.assertTrue(is_topods_face(i[o.ref][1]))
+            self.assertTrue(is_topods_face(i[o.ref][0]))
 
     def test_buildline_name_color(self):
         """Test that the name and color are set correctly for a line"""
@@ -266,7 +266,7 @@ class TestsConvert(MyUnitTest):
         self.assertEqual(o.kind, "solid")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_solid(i[o.ref][1]))
+        self.assertTrue(is_topods_solid(i[o.ref][0]))
 
     def test_part_wrapped_2(self):
         """Test that a wrapped part is converted correctly"""
@@ -279,7 +279,7 @@ class TestsConvert(MyUnitTest):
         self.assertEqual(o.kind, "solid")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_compound(i[o.ref][1]))
+        self.assertTrue(is_topods_compound(i[o.ref][0]))
 
     def test_show_solid_default_colors(self):
         c = OcpConverter()
@@ -598,7 +598,7 @@ class TestsConvert2(MyUnitTest):
         self.assertEqual(o.kind, "solid")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_compound(i[o.ref][1]))
+        self.assertTrue(is_topods_compound(i[o.ref][0]))
 
     def test_buildsketch(self):
         """Test that a sketch is converted correctly"""
@@ -611,7 +611,7 @@ class TestsConvert2(MyUnitTest):
         self.assertEqual(o.kind, "face")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_compound(i[o.ref][1]))
+        self.assertTrue(is_topods_compound(i[o.ref][0]))
 
     def test_buildsketch_local(self):
         """Test that a sketch_local is converted correctly"""
@@ -624,7 +624,7 @@ class TestsConvert2(MyUnitTest):
         for o, n in zip(g.objects, ["sketch", "sketch_local"]):
             self.assertEqual(o.name, n)
             self.assertEqual(o.kind, "face")
-            self.assertTrue(is_topods_compound(i[o.ref][1]))
+            self.assertTrue(is_topods_compound(i[o.ref][0]))
 
     def test_buildline(self):
         """Test that a line is converted correctly"""
@@ -652,7 +652,7 @@ class TestsShapeLists(MyUnitTest):
         o = g.objects[0]
         self.assertEqual(o.name, "ShapeList(Solid)")
         self.assertEqual(o.kind, "solid")
-        self.assertTrue(is_topods_solid(i[o.ref][1]))
+        self.assertTrue(is_topods_solid(i[o.ref][0]))
 
     def test_shapelist_shells(self):
         """Test that a shapelist of shells is converted correctly"""
@@ -663,7 +663,7 @@ class TestsShapeLists(MyUnitTest):
         o = g.objects[0]
         self.assertEqual(o.name, "ShapeList(Shell)")
         self.assertEqual(o.kind, "face")
-        self.assertTrue(is_topods_shell(i[o.ref][1]))
+        self.assertTrue(is_topods_shell(i[o.ref][0]))
 
     def test_shapelist_face(self):
         """Test that a shapelist of faces is converted correctly"""
@@ -674,7 +674,7 @@ class TestsShapeLists(MyUnitTest):
         o = g.objects[0]
         self.assertEqual(o.name, "ShapeList(Face)")
         self.assertEqual(o.kind, "face")
-        self.assertTrue(is_topods_compound(i[o.ref][1]))
+        self.assertTrue(is_topods_compound(i[o.ref][0]))
 
     def test_shapelist_edge(self):
         """Test that a shapelist of edges is converted correctly"""
@@ -718,7 +718,7 @@ class TestsShapeLists(MyUnitTest):
         o = g.objects[0]
         self.assertEqual(o.name, "ShapeList(Solid)")
         self.assertEqual(o.kind, "solid")
-        self.assertTrue(is_topods_compound(i[o.ref][1]))
+        self.assertTrue(is_topods_compound(i[o.ref][0]))
 
     def test_shapelist_shells_2(self):
         """Test that a shapelist of shells is converted correctly"""
@@ -729,7 +729,7 @@ class TestsShapeLists(MyUnitTest):
         o = g.objects[0]
         self.assertEqual(o.name, "ShapeList(Shell)")
         self.assertEqual(o.kind, "face")
-        self.assertTrue(is_topods_compound(i[o.ref][1]))
+        self.assertTrue(is_topods_compound(i[o.ref][0]))
 
     def test_shapelist_face_2(self):
         """Test that a shapelist of faces is converted correctly"""
@@ -740,7 +740,7 @@ class TestsShapeLists(MyUnitTest):
         o = g.objects[0]
         self.assertEqual(o.name, "ShapeList(Face)")
         self.assertEqual(o.kind, "face")
-        self.assertTrue(is_topods_compound(i[o.ref][1]))
+        self.assertTrue(is_topods_compound(i[o.ref][0]))
 
     def test_shapelist_edge_2(self):
         """Test that a shapelist of edges is converted correctly"""
@@ -784,7 +784,7 @@ class TestsShapeLists(MyUnitTest):
         for ind, o in enumerate(g.objects):
             self.assertEqual(o.name, "Solid" if ind == 0 else f"Solid({ind+1})")
             self.assertEqual(o.kind, "solid")
-            self.assertTrue(is_topods_solid(i[o.ref][1]))
+            self.assertTrue(is_topods_solid(i[o.ref][0]))
 
     def test_shapelist_shells_2_list(self):
         """Test that a shapelist of shells is converted correctly"""
@@ -795,7 +795,7 @@ class TestsShapeLists(MyUnitTest):
         for ind, o in enumerate(g.objects):
             self.assertEqual(o.name, "Shell" if ind == 0 else f"Shell({ind+1})")
             self.assertEqual(o.kind, "face")
-            self.assertTrue(is_topods_shell(i[o.ref][1]))
+            self.assertTrue(is_topods_shell(i[o.ref][0]))
 
     def test_shapelist_face_2_list(self):
         """Test that a shapelist of faces is converted correctly"""
@@ -807,7 +807,7 @@ class TestsShapeLists(MyUnitTest):
         for ind, o in enumerate(g.objects):
             self.assertEqual(o.name, "Face" if ind == 0 else f"Face({ind+1})")
             self.assertEqual(o.kind, "face")
-            self.assertTrue(is_topods_face(i[o.ref][1]))
+            self.assertTrue(is_topods_face(i[o.ref][0]))
 
     def test_shapelist_edge_2_list(self):
         """Test that a shapelist of edges is converted correctly"""
@@ -856,7 +856,7 @@ class TestsConvertMoved(MyUnitTest):
         self.assertEqual(o.kind, "solid")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_solid(i[o.ref][1]))
+        self.assertTrue(is_topods_solid(i[o.ref][0]))
 
     def test_part_algebra_moved(self):
         """Test that a moved algebra part is converted correctly"""
@@ -868,7 +868,7 @@ class TestsConvertMoved(MyUnitTest):
         self.assertEqual(o.kind, "solid")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_solid(i[o.ref][1]))
+        self.assertTrue(is_topods_solid(i[o.ref][0]))
 
     def test_part_wrapped_algebra_moved(self):
         """Test that a moved algebra wrapped part is converted correctly"""
@@ -880,7 +880,7 @@ class TestsConvertMoved(MyUnitTest):
         self.assertEqual(o.kind, "solid")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_solid(i[o.ref][1]))
+        self.assertTrue(is_topods_solid(i[o.ref][0]))
 
     def test_compoud_algebra_moved(self):
         """Test that a moved algebra compound is converted correctly"""
@@ -892,7 +892,7 @@ class TestsConvertMoved(MyUnitTest):
         self.assertEqual(o.kind, "solid")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_solid(i[o.ref][1]))
+        self.assertTrue(is_topods_solid(i[o.ref][0]))
 
 
 class TestConvertMixedCompounds(MyUnitTest):
@@ -905,11 +905,11 @@ class TestConvertMixedCompounds(MyUnitTest):
         o = g.objects[0]
         self.assertEqual(o.name, "Solid")
         self.assertEqual(o.kind, "solid")
-        self.assertTrue(is_topods_solid(i[o.ref][1]))
+        self.assertTrue(is_topods_solid(i[o.ref][0]))
         o = g.objects[1]
         self.assertEqual(o.name, "Face")
         self.assertEqual(o.kind, "face")
-        self.assertTrue(is_topods_face(i[o.ref][1]))
+        self.assertTrue(is_topods_face(i[o.ref][0]))
         o = g.objects[2]
         self.assertEqual(o.name, "Wire")
         self.assertEqual(o.kind, "edge")
@@ -919,7 +919,7 @@ class TestConvertMixedCompounds(MyUnitTest):
         o = g.objects[0]
         self.assertEqual(o.name, "Solid")
         self.assertEqual(o.kind, "solid")
-        self.assertTrue(is_topods_solid(i[o.ref][1]))
+        self.assertTrue(is_topods_solid(i[o.ref][0]))
         o = g.objects[1]
         self.assertEqual(o.name, "Wire")
         self.assertEqual(o.kind, "edge")
@@ -933,11 +933,11 @@ class TestConvertMixedCompounds(MyUnitTest):
         o = g.objects[0]
         self.assertEqual(o.name, "Solid")
         self.assertEqual(o.kind, "solid")
-        self.assertTrue(is_topods_solid(i[o.ref][1]))
+        self.assertTrue(is_topods_solid(i[o.ref][0]))
         o = g.objects[1]
         self.assertEqual(o.name, "Face")
         self.assertEqual(o.kind, "face")
-        self.assertTrue(is_topods_face(i[o.ref][1]))
+        self.assertTrue(is_topods_face(i[o.ref][0]))
         o = g.objects[2]
         self.assertEqual(o.name, "Wire")
         self.assertEqual(o.kind, "edge")
@@ -947,7 +947,7 @@ class TestConvertMixedCompounds(MyUnitTest):
         o = g.objects[0]
         self.assertEqual(o.name, "Solid")
         self.assertEqual(o.kind, "solid")
-        self.assertTrue(is_topods_solid(i[o.ref][1]))
+        self.assertTrue(is_topods_solid(i[o.ref][0]))
         o = g.objects[1]
         self.assertEqual(o.name, "Wire")
         self.assertEqual(o.kind, "edge")
@@ -959,7 +959,7 @@ class TestConvertMixedCompounds(MyUnitTest):
         self.assertEqual(g.length, 1)
         i = c.instances
         o = g.objects[0]
-        self.assertTrue(is_topods_compound(i[o.ref][1]))
+        self.assertTrue(is_topods_compound(i[o.ref][0]))
         self.assertEqual(o.name, f"Solid")
         self.assertEqual(o.kind, "solid")
 
@@ -976,7 +976,7 @@ class TestCompund(MyUnitTest):
         self.assertEqual(o.kind, "solid")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_compound(i[o.ref][1]))
+        self.assertTrue(is_topods_compound(i[o.ref][0]))
 
     def test_compound_shell(self):
         c = OcpConverter()
@@ -988,7 +988,7 @@ class TestCompund(MyUnitTest):
         self.assertEqual(o.kind, "face")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_compound(i[o.ref][1]))
+        self.assertTrue(is_topods_compound(i[o.ref][0]))
 
     def test_compound_face(self):
         c = OcpConverter()
@@ -1000,7 +1000,7 @@ class TestCompund(MyUnitTest):
         self.assertEqual(o.kind, "face")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_compound(i[o.ref][1]))
+        self.assertTrue(is_topods_compound(i[o.ref][0]))
 
     def test_compound_wire(self):
         c = OcpConverter()
