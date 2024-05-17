@@ -1,3 +1,4 @@
+import enum
 from hashlib import sha256
 
 from ocp_tessellate.cad_objects import CoordAxis, CoordSystem, OcpGroup, OcpObject
@@ -44,7 +45,10 @@ def get_type(obj):
         "TopoDS_Vertex": "Vertex",
         "TopoDS_Wire": "Wire",
     }
-    return kinds.get(class_name(obj))
+    typ = kinds.get(class_name(obj))
+    if typ is None:
+        raise ValueError(f"Unknown type: {type(obj)}")
+    return typ
 
 
 def get_kind(typ):
@@ -56,7 +60,10 @@ def get_kind(typ):
         "Vertex": "vertex",
         "Wire": "edge",
     }
-    return kinds.get(typ)
+    kind = kinds.get(typ)
+    if kind is None:
+        raise ValueError(f"Unknown type: {typ}")
+    return kind
 
 
 def unwrap(obj):
