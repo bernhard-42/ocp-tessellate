@@ -258,7 +258,7 @@ class OcpConverter:
 
         ocp_obj = OcpGroup(name=get_name(cad_obj, obj_name, "List"))
         for obj in cad_obj:
-            name = get_name(cad_obj, obj_name, type_name(obj))
+            name = get_name(cad_obj, None, type_name(obj))
 
             result = self.to_ocp(
                 obj,
@@ -487,27 +487,49 @@ class OcpConverter:
         return ocp_obj
 
     def handle_cadquery_sketch(self, cad_obj, obj_name, rgba_color, level):
-        cad_objs = []
-        for objs in [cad_obj._faces, cad_obj._edges, cad_obj._wires]:
-            if objs:
-                cad_objs += [
-                    downcast(obj.wrapped.Moved(loc.wrapped))
-                    for obj, loc in zip(objs, cad_obj.locs)
-                ]
-            bb = bounding_box(make_compound(cad_objs))
-            size = max(bb.xsize, bb.ysize, bb.zsize)
-        if cad_obj._selection:
-            cad_objs += [obj.wrapped for obj in cad_obj._selection]
+        _debug(level, "cadquery Sketch", obj_name)
+        if not isinstance(cad_obj, (list, tuple)):
+            cad_obj._faces = [cad_obj._faces]
 
-        result = self.to_ocp(
-            cad_objs,
-            colors=[rgba_color],
+        cad_objs = []
+        names = []
+        for typ, objs, calc_bb in [
+            ("Face", list(cad_obj._faces), False),
+            ("Edge", list(cad_obj._edges), False),
+            ("Wire", list(cad_obj._wires), True),
+            ("Selection", list(cad_obj._selection), False),
+        ]:
+            if objs:
+                if is_toploc_location(objs[0].wrapped):
+                    compound = [
+                        loc.wrapped * obj.wrapped
+                        for obj in cad_obj._selection
+                        for loc in cad_obj.locs
+                    ]
+                else:
+                    compound = make_compound(
+                        [
+                            downcast(obj.wrapped.Moved(loc.wrapped))
+                            for obj in objs
+                            for loc in cad_obj.locs
+                        ]
+                    )
+                cad_objs.append(compound)
+                names.append(typ)
+
+            if calc_bb:
+                bb = BoundingBox()
+                for obj in cad_objs:
+                    bb.update(BoundingBox(obj))
+                size = max(bb.xsize, bb.ysize, bb.zsize)
+
+        return self.to_ocp(
+            *cad_objs,
+            names=names,
+            colors=[rgba_color] * len(cad_objs),
             level=level,
             helper_scale=size / 20,
         )
-        name = get_name(cad_obj, obj_name, "Sketch")
-        result.name = name
-        return result
 
     def handle_locations_planes(
         self, cad_obj, obj_name, rgba_color, helper_scale, sketch_local, level
