@@ -488,7 +488,11 @@ class OcpConverter:
 
     def handle_cadquery_sketch(self, cad_obj, obj_name, rgba_color, level):
         _debug(level, "cadquery Sketch", obj_name)
-        if not isinstance(cad_obj, (list, tuple)):
+
+        if not list(cad_obj._faces):  # empty compound
+            cad_obj._faces = []
+
+        if not isinstance(cad_obj._faces, (list, tuple)):
             cad_obj._faces = [cad_obj._faces]
 
         cad_objs = []
@@ -523,13 +527,16 @@ class OcpConverter:
                     bb.update(BoundingBox(obj))
                 size = max(bb.xsize, bb.ysize, bb.zsize)
 
-        return self.to_ocp(
+        name = get_name(cad_obj, obj_name, "Sketch")
+        result = self.to_ocp(
             *cad_objs,
             names=names,
             colors=[rgba_color] * len(cad_objs),
             level=level,
             helper_scale=size / 20,
         )
+        result.name = name
+        return result
 
     def handle_locations_planes(
         self, cad_obj, obj_name, rgba_color, helper_scale, sketch_local, level
