@@ -524,13 +524,13 @@ def write_stl_file(compound, filename, tolerance=None, angular_tolerance=None):
 # TODO replace with https://github.com/MatthiasJ1/ocp_serializer when published
 
 
-def serialize(shape):
+def serialize(shape, triangles=False, normals=False):
     if shape is None:
         return None
 
     try:
         bio = io.BytesIO()
-        BinTools.Write_s(shape, bio, False, False, BinTools_FormatVersion_CURRENT)
+        BinTools.Write_s(shape, bio, triangles, normals, BinTools_FormatVersion_CURRENT)
         buffer = bio.getvalue()
     except Exception:
         with tempfile.TemporaryDirectory() as tmpdirname:
