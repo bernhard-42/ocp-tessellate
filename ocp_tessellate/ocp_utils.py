@@ -171,6 +171,12 @@ def is_cadquery_sketch(obj):
     )
 
 
+def is_cadquery_empty_workplane(obj):
+    return is_cadquery(obj) and len(obj.objects) == 0
+
+    # (len(obj.objects) == 0 or (len(obj.objects) == 1 and is_vector(obj.objects[0])))
+
+
 def is_vector(obj):
     return hasattr(obj, "wrapped") and isinstance(obj.wrapped, gp_Vec)
 

@@ -534,6 +534,9 @@ class OcpConverter:
         ):
             _debug(level, "build123d Plane or gp_Pln", obj_name)
 
+        elif is_cadquery_empty_workplane(cad_obj):
+            _debug(level, "cadquery Workplane", obj_name)
+
         if is_build123d_plane(cad_obj) and hasattr(cad_obj, "location"):
             cad_obj = cad_obj.location
             def_name = "Plane"
@@ -541,6 +544,10 @@ class OcpConverter:
         elif is_gp_plane(cad_obj):
             def_name = "Plane"
             cad_obj = loc_from_gp_pln(cad_obj)
+
+        elif is_cadquery_empty_workplane(cad_obj):
+            def_name = "Workplane"
+            cad_obj = cad_obj.plane.location
 
         else:
             def_name = "Location"
@@ -678,7 +685,9 @@ class OcpConverter:
             # =============================== Conversions =============================== #
 
             # build123d ShapeList
-            elif is_build123d_shapelist(cad_obj) or is_cadquery(cad_obj):
+            elif is_build123d_shapelist(cad_obj) or (
+                is_cadquery(cad_obj) and not is_cadquery_empty_workplane(cad_obj)
+            ):
                 ocp_obj = self.handle_shapelist(
                     cad_obj, obj_name, rgba_color, sketch_local, level
                 )
@@ -709,10 +718,12 @@ class OcpConverter:
                 )
 
             # build123d Location/Plane or TopLoc_Location or gp_Pln
-            elif (is_build123d_location(cad_obj) or is_toploc_location(cad_obj)) or (
-                is_build123d_plane(cad_obj)
-                and hasattr(cad_obj, "location")
+            elif (
+                is_build123d_location(cad_obj)
+                or is_toploc_location(cad_obj)
+                or is_build123d_plane(cad_obj)
                 or is_gp_plane(cad_obj)
+                or is_cadquery_empty_workplane(cad_obj)
             ):
                 ocp_obj = self.handle_locations_planes(
                     cad_obj, obj_name, rgba_color, helper_scale, sketch_local, level
