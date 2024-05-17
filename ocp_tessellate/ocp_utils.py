@@ -762,21 +762,25 @@ def list_topods_compound(compound):
         iterator.Next()
 
 
-def unroll_compound(compound):
+def unroll_compound(compound, typ=None):
     result = []
     for o in compound:
         if is_compound(o):
-            unrolled = unroll_compound(o)
+            unrolled, typ = unroll_compound(o, typ)
             if len(unrolled) == 1:
                 result.append(unrolled[0])
             else:
                 result.append(unrolled)
         else:
             result.append(downcast(o.wrapped))
-    return result
+            if typ is None:
+                typ = type_name(o.wrapped)
+            elif typ != type_name(o.wrapped):
+                typ = "mixed"
+    return result, typ
 
 
-def unroll_topods_compound(compound):
+def unroll_topods_compound(compound, typ=None):
     result = []
 
     iterator = TopoDS_Iterator(compound)
@@ -784,38 +788,28 @@ def unroll_topods_compound(compound):
         obj = downcast(iterator.Value())
 
         if is_topods_compound(obj):
-            unrolled = unroll_topods_compound(obj)
+            unrolled, typ = unroll_topods_compound(obj, typ)
             if len(unrolled) == 1:
                 result.append(unrolled[0])
             else:
                 result.append(unrolled)
         else:
             result.append(downcast(obj))
+            if typ is None:
+                typ = type_name(obj)
+            elif typ != type_name(obj):
+                typ = "mixed"
         iterator.Next()
-    return result
+    return result, typ
 
 
 def get_compound_type(compound):
-
-    def get_type(u_objs, types):
-        if len(unrolled) == 0:
-            return None
-        for obj in u_objs:
-            if isinstance(obj, list):
-                types += get_type(obj, types)
-            else:
-                types.append(type_name(obj))
-        return types
-
     if is_topods_compound(compound):
-        unrolled = unroll_topods_compound(compound)
+        _, typ = unroll_topods_compound(compound)
     else:
-        unrolled = unroll_compound(compound)
+        _, typ = unroll_compound(compound)
 
-    types = get_type(unrolled, [])
-    if len(set(types)) == 1:
-        return types[0]
-    return "mixed"
+    return typ
 
 
 def is_mixed_compound(compound):
