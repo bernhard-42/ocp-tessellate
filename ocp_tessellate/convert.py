@@ -251,7 +251,9 @@ class OcpConverter:
                 width=LINE_WIDTH if kind == "edge" else POINT_SIZE,
             )
 
-    def handle_list_tuple(self, cad_obj, obj_name, rgba_color, sketch_local, level):
+    def handle_list_tuple(
+        self, cad_obj, obj_name, rgba_color, sketch_local, helper_scale, level
+    ):
         _debug(level, "handle_list_tuple", obj_name)
 
         ocp_obj = OcpGroup(name=get_name(cad_obj, obj_name, "List"))
@@ -263,6 +265,7 @@ class OcpConverter:
                 names=[name],
                 colors=[rgba_color],
                 sketch_local=sketch_local,
+                helper_scale=helper_scale,
                 top_level=False,
                 level=level + 1,
             )
@@ -270,7 +273,9 @@ class OcpConverter:
 
         return ocp_obj.make_unique_names().cleanup()
 
-    def handle_compound(self, cad_obj, obj_name, rgba_color, sketch_local, level):
+    def handle_compound(
+        self, cad_obj, obj_name, rgba_color, sketch_local, helper_scale, level
+    ):
         _debug(level, f"handle_compound", obj_name)
 
         if is_compound(cad_obj):
@@ -284,6 +289,7 @@ class OcpConverter:
                 obj,
                 colors=[rgba_color],
                 sketch_local=sketch_local,
+                helper_scale=helper_scale,
                 top_level=False,
                 level=level + 1,
             )
@@ -292,7 +298,9 @@ class OcpConverter:
 
         return ocp_obj.make_unique_names()
 
-    def handle_dict(self, cad_obj, obj_name, rgba_color, sketch_local, level):
+    def handle_dict(
+        self, cad_obj, obj_name, rgba_color, sketch_local, helper_scale, level
+    ):
         _debug(level, "handle_dict", obj_name)
 
         ocp_obj = OcpGroup(name=get_name(cad_obj, obj_name, "Dict"))
@@ -303,6 +311,7 @@ class OcpConverter:
                 colors=[rgba_color],
                 sketch_local=sketch_local,
                 top_level=False,
+                helper_scale=helper_scale,
                 level=level + 1,
             )
             ocp_obj.add(result.cleanup())
@@ -600,7 +609,7 @@ class OcpConverter:
                 cad_obj
             ):
                 ocp_obj = self.handle_list_tuple(
-                    cad_obj, obj_name, rgba_color, sketch_local, level
+                    cad_obj, obj_name, rgba_color, sketch_local, helper_scale, level
                 )
 
             # Compounds / topods_compounds
@@ -612,13 +621,13 @@ class OcpConverter:
                 and (is_mixed_compound(cad_obj) or unroll_compounds)
             ):
                 ocp_obj = self.handle_compound(
-                    cad_obj, obj_name, rgba_color, sketch_local, level
+                    cad_obj, obj_name, rgba_color, sketch_local, helper_scale, level
                 )
 
             # Dicts
             elif isinstance(cad_obj, dict):
                 ocp_obj = self.handle_dict(
-                    cad_obj, obj_name, rgba_color, sketch_local, level
+                    cad_obj, obj_name, rgba_color, sketch_local, helper_scale, level
                 )
 
             # =============================== Assemblies ================================ #
