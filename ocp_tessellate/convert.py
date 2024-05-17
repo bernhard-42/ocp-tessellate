@@ -488,38 +488,26 @@ class OcpConverter:
 
     def handle_cadquery_sketch(self, cad_obj, obj_name, rgba_color, level):
         cad_objs = []
-        for objs, calc_bb in [
-            (cad_obj._faces, False),
-            (cad_obj._edges, False),
-            (cad_obj._wires, True),
-            (cad_obj._selection, False),
-        ]:
+        for objs in [cad_obj._faces, cad_obj._edges, cad_obj._wires]:
             if objs:
-                c_objs = (
-                    [None] * len(objs)
-                    if is_toploc_location(list(objs)[0].wrapped)
-                    else cad_obj.locs
-                )
                 cad_objs += [
-                    (
-                        o.wrapped
-                        if is_toploc_location(o.wrapped)
-                        else downcast(o.wrapped.Moved(loc.wrapped))
-                    )
-                    for o, loc in zip(list(objs), c_objs)
+                    downcast(obj.wrapped.Moved(loc.wrapped))
+                    for obj, loc in zip(objs, cad_obj.locs)
                 ]
-            if calc_bb:
-                bb = bounding_box(make_compound(cad_objs))
-                size = max(bb.xsize, bb.ysize, bb.zsize)
+            bb = bounding_box(make_compound(cad_objs))
+            size = max(bb.xsize, bb.ysize, bb.zsize)
+        if cad_obj._selection:
+            cad_objs += [obj.wrapped for obj in cad_obj._selection]
 
-        name = get_name(cad_obj, obj_name, "Sketch")
-        return self.to_ocp(
+        result = self.to_ocp(
             cad_objs,
-            names=[name],
             colors=[rgba_color],
             level=level,
             helper_scale=size / 20,
         )
+        name = get_name(cad_obj, obj_name, "Sketch")
+        result.name = name
+        return result
 
     def handle_locations_planes(
         self, cad_obj, obj_name, rgba_color, helper_scale, sketch_local, level
