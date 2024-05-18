@@ -538,6 +538,17 @@ class OcpConverter:
         result.name = name
         return result
 
+    def handle_empty_iterables(self, obj_name, level):
+        _debug(level, "Empty object")
+        name = "Object" if obj_name is None else obj_name
+        return OcpObject(
+            "vertex",
+            obj=vertex((0, 0, 0)),
+            name=f"{name} (empty)",
+            color=Color((0, 0, 0, 0.01)),
+            width=0.1,
+        )
+
     def handle_locations_planes(
         self, cad_obj, obj_name, rgba_color, helper_scale, sketch_local, level
     ):
@@ -688,10 +699,18 @@ class OcpConverter:
             elif hasattr(cad_obj, "color") and cad_obj.color is not None:
                 rgba_color = get_rgba(cad_obj.color)
 
+            # ========================= Empty list or compounds ========================= #
+
+            if not is_cadquery_sketch(cad_obj) and (
+                (is_wrapped(cad_obj) and cad_obj.wrapped is None)
+                or (isinstance(cad_obj, Iterable) and len(list(cad_obj)) == 0)
+            ):
+                ocp_obj = self.handle_empty_iterables(obj_name, level)
+
             # ================================ Iterables ================================ #
 
             # Generic iterables (tuple, list, but not ShapeList)
-            if isinstance(cad_obj, (list, tuple)) and not is_build123d_shapelist(
+            elif isinstance(cad_obj, (list, tuple)) and not is_build123d_shapelist(
                 cad_obj
             ):
                 ocp_obj = self.handle_list_tuple(
