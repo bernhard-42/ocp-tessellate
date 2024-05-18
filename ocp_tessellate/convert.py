@@ -682,6 +682,7 @@ class OcpConverter:
                 or is_compound(cad_obj)
                 or is_topods_shape(cad_obj)
                 or is_toploc_location(cad_obj)
+                or is_gp_vec(cad_obj)
             ):
                 print(
                     "Skipping object"
@@ -690,7 +691,7 @@ class OcpConverter:
                 )
                 continue
 
-            # ================================= Prepare ================================= #
+            # ============================== Prepare color ============================== #
 
             # Get object color
             if rgba_color is not None and not isinstance(rgba_color, Color):
@@ -698,6 +699,19 @@ class OcpConverter:
 
             elif hasattr(cad_obj, "color") and cad_obj.color is not None:
                 rgba_color = get_rgba(cad_obj.color)
+
+            # =========================== Map Vector to Vertex ========================== #
+
+            if is_vector(cad_obj) or is_gp_vec(cad_obj):
+                if isinstance(cad_obj, Iterable):
+                    cad_obj = vertex(list(cad_obj))
+                elif hasattr(cad_obj, "toTuple"):
+                    cad_obj = vertex(cad_obj.toTuple())
+                else:
+                    cad_obj = vertex(cad_obj.XYZ().Coord())
+
+                if obj_name is None:
+                    obj_name = "Vector"
 
             # ========================= Empty list or compounds ========================= #
 
