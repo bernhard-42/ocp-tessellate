@@ -74,29 +74,6 @@ def unwrap(obj):
     return obj
 
 
-def get_accuracies(shapes):
-    def _get_accuracies(shapes, lengths):
-        if shapes.get("parts"):
-            for shape in shapes["parts"]:
-                _get_accuracies(shape, lengths)
-        elif shapes.get("type") == "shapes":
-            accuracies[shapes["id"]] = shapes["accuracy"]
-
-    accuracies = {}
-    _get_accuracies(shapes, accuracies)
-    return accuracies
-
-
-def get_normal_len(render_normals, shapes, deviation):
-    if render_normals:
-        accuracies = get_accuracies(shapes)
-        normal_len = max(accuracies.values()) / deviation * 4
-    else:
-        normal_len = 0
-
-    return normal_len
-
-
 def get_color_for_object(obj, color=None, alpha=None, kind=None):
     default_colors = {
         # ocp types
@@ -269,7 +246,8 @@ class OcpConverter:
                 top_level=False,
                 level=level + 1,
             )
-            ocp_obj.add(result.cleanup())
+            if result.length > 0:
+                ocp_obj.add(result.cleanup())
 
         return ocp_obj.make_unique_names().cleanup()
 
@@ -813,12 +791,18 @@ class OcpConverter:
                 )
 
             else:
-                raise ValueError(f"Unknown object type: {cad_obj}")
+                print(
+                    "Unknown object"
+                    + ("" if obj_name is None else f" '{obj_name}'")
+                    + f" of type {type(cad_obj)}"
+                )
+                continue
 
             if DEBUG:
                 print(f"{'  '*level}=>", ocp_obj)
 
-            group.add(ocp_obj)
+            if not (isinstance(ocp_obj, OcpGroup) and ocp_obj.length == 0):
+                group.add(ocp_obj)
 
         group.make_unique_names()
 
@@ -927,6 +911,9 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
     angular_tolerance = preset("angular_tolerance", kwargs.get("angular_tolerance"))
 
     render_edges = preset("render_edges", kwargs.get("render_edges"))
+    render_normals = preset("render_normals", kwargs.get("render_normals"))
+
+    max_accuracy = 0.0
 
     for i, instance in enumerate(instances):
         with Timer(timeit, f"instance({i})", "compute quality:", 2) as t:
@@ -937,6 +924,9 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
             bb = bounding_box(shape, loc=None, optimal=False)
             quality = compute_quality(bb, deviation=deviation)
             t.info = str(bb)
+
+            if quality > max_accuracy:
+                max_accuracy = quality
 
         with Timer(timeit, f"instance({i})", "tessellate:     ", 2) as t:
             mesh = tessellate(
@@ -955,6 +945,9 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
                 f"{{quality:{quality:.4f}, angular_tolerance:{angular_tolerance:.2f}}}"
             )
     _add_bb(shapes)
+
+    shapes["normal_len"] = max_accuracy / deviation * 4 if render_normals else 0
+
     # print("overall_bb =", overall_bb.to_dict())
     # shapes["bb"] = bb
 
@@ -989,6 +982,11 @@ def combined_bb(shapes):
 
     bb = c_bb(shapes, None)
     return bb
+
+
+# TODO: change show.py to directly get normal_length from shapes
+def get_normal_len(render_normals, shapes, deviation):
+    return shapes["normal_len"]
 
 
 def conv():
