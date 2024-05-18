@@ -350,7 +350,7 @@ class OcpConverter:
             ocp_obj.add(sub_obj)
         return ocp_obj
 
-    def handle_shapelist(
+    def handle_build123d_shapelist(
         self,
         cad_obj,
         obj_name,
@@ -765,7 +765,7 @@ class OcpConverter:
             elif is_build123d_shapelist(cad_obj) or (
                 is_cadquery(cad_obj) and not is_cadquery_empty_workplane(cad_obj)
             ):
-                ocp_obj = self.handle_shapelist(
+                ocp_obj = self.handle_build123d_shapelist(
                     cad_obj, obj_name, rgba_color, sketch_local, level
                 )
 
