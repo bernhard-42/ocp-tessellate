@@ -329,7 +329,7 @@ class OcpConverter:
         return ocp_obj
 
     def handle_build123d_assembly(
-        self, cad_obj, obj_name, rgba_color, helper_scale, sketch_local, level
+        self, cad_obj, obj_name, rgba_color, helper_scale, level
     ):
         # TODO: Fix global location
         _debug(level, "handle_build123d_assembly", obj_name)
@@ -469,7 +469,7 @@ class OcpConverter:
 
         return ocp_obj
 
-    def handle_shapes(self, cad_obj, obj_name, rgba_color, sketch_local, level):
+    def handle_shapes(self, cad_obj, obj_name, rgba_color, level):
 
         if is_topods_shape(cad_obj):
             t, obj = "TopoDS_Shape", downcast(cad_obj)
@@ -769,7 +769,7 @@ class OcpConverter:
 
             elif is_build123d_assembly(cad_obj):
                 ocp_obj = self.handle_build123d_assembly(
-                    cad_obj, obj_name, rgba_color, sketch_local, level
+                    cad_obj, obj_name, rgba_color, helper_scale, level
                 )
                 ocp_obj = self.handle_build123d_assembly(
                     cad_obj, obj_name, rgba_color, helper_scale, sketch_local, level
@@ -800,9 +800,7 @@ class OcpConverter:
                 or is_build123d_shape(cad_obj)
                 or is_cadquery_shape(cad_obj)
             ):
-                ocp_obj = self.handle_shapes(
-                    cad_obj, obj_name, rgba_color, sketch_local, level
-                )
+                ocp_obj = self.handle_shapes(cad_obj, obj_name, rgba_color, level)
 
             # Cadquery sketches
             elif is_cadquery_sketch(cad_obj):
