@@ -848,6 +848,11 @@ class OcpConverter:
         return group
 
 
+#
+# Interface functions
+#
+
+
 class Progress:
     def update(self, mark):
         print(mark, end="", flush=True)
