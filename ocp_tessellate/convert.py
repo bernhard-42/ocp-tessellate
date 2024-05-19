@@ -781,7 +781,7 @@ class OcpConverter:
             elif is_build123d_shapelist(cad_obj) or (
                 is_cadquery(cad_obj) and not is_cadquery_empty_workplane(cad_obj)
             ):
-                ocp_obj = self.handle_build123d_shapelist(
+                ocp_obj = self.handle_shape_list(
                     cad_obj, obj_name, rgba_color, show_parent, level
                 )
 
