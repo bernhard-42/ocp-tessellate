@@ -684,6 +684,10 @@ def is_gp_axis(obj):
     return isinstance(obj, gp_Ax1)
 
 
+def is_gp_vec(obj):
+    return isinstance(obj, gp_Vec)
+
+
 # Check TopoDS shapes
 
 
