@@ -139,9 +139,8 @@ class OcpConverter:
         self.ocp = None
         self.progress = progress
 
-    def get_instance(self, obj, kind, name, color, cache_id):
-        is_instance = False
-        ocp_obj = None
+    def get_instance(self, obj, cache_id):
+        ref = None
 
         # Create the relocated object as a copy
         loc = obj.Location()  # Get location
@@ -150,38 +149,19 @@ class OcpConverter:
         # check if the same instance is already available
         for i, instance in enumerate(self.instances):
             if instance[0] == obj2:
-                # create an OcpObject referencing instance i
-                ocp_obj = OcpObject(
-                    kind,
-                    ref=i,
-                    name=name,
-                    loc=loc,
-                    color=color,
-                    cache_id=cache_id,
-                )
-                # and stop the loop
-                is_instance = True
+                ref = i
 
                 if self.progress is not None:
                     self.progress.update("-")
 
                 break
 
-        if not is_instance:
-            ref = len(self.instances)
+        if ref is None:
             # append the new instance
+            ref = len(self.instances)
             self.instances.append((obj2, cache_id))
-            # and create a referential OcpObject
-            ocp_obj = OcpObject(
-                kind,
-                ref=ref,
-                name=name,
-                loc=loc,
-                color=color,
-                cache_id=cache_id,
-            )
 
-        return ocp_obj
+        return ref, loc
 
     def unify(self, objs, kind, name, color, alpha=1.0):
         # Try to downcast to one TopoDS_Shape
@@ -212,12 +192,15 @@ class OcpConverter:
             color.a = alpha
 
         if kind in ("solid", "face", "shell"):
-            return self.get_instance(
-                ocp_obj,
+            cache_id = create_cache_id(objs)
+            ref, loc = self.get_instance(ocp_obj, cache_id)
+            return OcpObject(
                 kind,
-                name,
-                color,
-                cache_id=create_cache_id(objs),
+                ref=ref,
+                name=name,
+                loc=loc,
+                color=color,
+                cache_id=cache_id,
             )
         else:
             return OcpObject(
