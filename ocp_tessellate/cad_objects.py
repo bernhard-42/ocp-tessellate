@@ -5,6 +5,8 @@ import imagesize
 
 from ocp_tessellate.ocp_utils import (
     axis_to_vecs,
+    copy_location,
+    copy_topods_shape,
     line,
     loc_to_tq,
     loc_to_vecs,
@@ -69,6 +71,20 @@ class OcpObject:
     def __repr__(self):
         return self.dump()
 
+    def copy(self):
+        return OcpObject(
+            self.kind,
+            copy_topods_shape(self.obj),
+            self.ref,
+            self.cache_id,
+            self.name,
+            copy_location(self.loc),
+            Color(self.color),
+            self.width,
+            self.state_faces,
+            self.state_edges,
+        )
+
     def set_states(self, show_faces, show_edges):
         self.state_faces = SELECTED if show_faces else UNSELECTED
         self.state_edges = SELECTED if show_edges else UNSELECTED
@@ -85,6 +101,10 @@ class OcpObject:
         combined_loc = loc
         if self.loc is not None and combined_loc is not None:
             combined_loc = combined_loc * self.loc
+
+        if isinstance(self, ImageFace):
+            image = {"data": self.image, "format": self.image_type}
+            texture = {"image": image, "width": self.width, "height": self.height}
 
         if self.kind in ("solid", "face", "shell"):
             return dict(id=self.id, shape=instances[self.ref], loc=combined_loc), {
@@ -272,9 +292,13 @@ class ImageFace(OcpObject):
         location=None,
         name="ImagePlane",
     ):
-        self.image_width, self.image_height = imagesize.get(image_path)
-        x = origin_pixels[0]
-        y = self.image_height - origin_pixels[1]
+        if image_path is not None:
+            self.image_width, self.image_height = imagesize.get(image_path)
+            x = origin_pixels[0]
+            y = self.image_height - origin_pixels[1]
+        else:
+            self.image_width, self.image_height = 1, 1
+            x, y = 0, 0
 
         if isinstance(scale, (int, float)):
             scale = (scale, scale)
@@ -286,15 +310,17 @@ class ImageFace(OcpObject):
 
         plane = rect(ws, hs)
         super().__init__(
-            [plane],
-            id(plane),
+            "face",
+            plane,
             name=name,
             show_edges=True,
         )
 
-        with open(image_path, "rb") as f:
-            self.image = base64.b64encode(f.read()).decode("utf-8")
-            self.image_type = image_path.split(".")[-1]
+        if image_path is not None:
+            with open(image_path, "rb") as f:
+                self.image = base64.b64encode(f.read()).decode("utf-8")
+                self.image_type = image_path.split(".")[-1]
+        self.color = Color("white")
         self.name = name
         self.width = ws
         self.height = hs
@@ -302,6 +328,26 @@ class ImageFace(OcpObject):
         loc = location.wrapped if hasattr(location, "wrapped") else location
         o = tq_to_loc((ws / 2 - xs, hs / 2 - ys, 0), (0, 0, 0, 1))
         self.loc = loc * o if loc is not None else o
+
+    def copy(self):
+        obj = ImageFace(
+            None,
+            1.0,
+            (0, 0),
+            location=(None if self.loc is None else copy_location(self.loc)),
+            name=self.name,
+        )
+        obj.obj = copy_topods_shape(self.obj)
+        obj.ref = self.ref
+        obj.id = self.id
+        obj.color = None if self.color is None else Color(self.color)
+        obj.image = self.image
+        obj.image_type = self.image_type
+        obj.image_width = self.image_width
+        obj.image_height = self.image_height
+        obj.width = self.width
+        obj.height = self.height
+        return obj
 
 
 class OCP_Part: ...

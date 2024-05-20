@@ -1,7 +1,13 @@
 import enum
 from hashlib import sha256
 
-from ocp_tessellate.cad_objects import CoordAxis, CoordSystem, OcpGroup, OcpObject
+from ocp_tessellate.cad_objects import (
+    CoordAxis,
+    CoordSystem,
+    ImageFace,
+    OcpGroup,
+    OcpObject,
+)
 from ocp_tessellate.defaults import get_default, preset
 from ocp_tessellate.ocp_utils import *
 from ocp_tessellate.tessellator import (
@@ -759,6 +765,21 @@ class OcpConverter:
                 )
 
             # =============================== Conversions =============================== #
+
+            # OcpGroup
+            elif isinstance(cad_obj, OcpGroup):
+                name = get_name(cad_obj, obj_name, "Group")
+                cad_obj.name = name
+                ocp_obj = cad_obj
+
+            # OcpObject
+            elif isinstance(cad_obj, OcpObject):
+                name = get_name(cad_obj, obj_name, "Object")
+                ref, loc = self.get_instance(cad_obj.obj, create_cache_id(cad_obj.obj))
+                ocp_obj = cad_obj.copy()
+                ocp_obj.ref = ref
+                ocp_obj.loc = loc
+                ocp_obj.obj = None
 
             # build123d ShapeList
             elif is_build123d_shapelist(cad_obj) or (

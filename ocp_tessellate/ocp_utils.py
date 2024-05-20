@@ -1106,6 +1106,10 @@ def mul_locations(loc1, loc2):
     return loc1 * loc2
 
 
+def copy_location(loc):
+    return TopLoc_Location(loc.Transformation())
+
+
 def get_axis_coord(axis):
     return {
         "origin": axis.Location().Coord(),
