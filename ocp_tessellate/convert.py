@@ -320,7 +320,6 @@ class OcpConverter:
     def handle_build123d_assembly(
         self, cad_obj, obj_name, rgba_color, helper_scale, level
     ):
-        # TODO: Fix global location
         _debug(level, "handle_build123d_assembly", obj_name)
 
         name = get_name(cad_obj, obj_name, "Assembly")
@@ -330,23 +329,16 @@ class OcpConverter:
             sub_obj = self.to_ocp(
                 child,
                 names=[child.label],
+                colors=[rgba_color],
                 helper_scale=helper_scale,
                 top_level=False,
                 level=level + 1,
             )
-            if isinstance(sub_obj, OcpGroup) and sub_obj.length == 1:
-                sub_obj.objects[0].loc = mul_locations(
-                    sub_obj.objects[0].loc, sub_obj.loc
-                )
-                # if sub_obj.objects[0].loc is None:
-                #     sub_obj.objects[0].loc = sub_obj.loc
-                # else:
-                #     sub_obj.objects[0].loc = (
-                #         sub_obj.loc * sub_obj.objects[0].loc
-                #     )
-                sub_obj = sub_obj.objects[0]
+            if sub_obj.length == 1 and len(child.children) == 0:
+                ocp_obj.add(sub_obj.objects[0])
+            else:
+                ocp_obj.add(sub_obj)
 
-            ocp_obj.add(sub_obj)
         return ocp_obj
 
     def handle_shape_list(
@@ -699,8 +691,9 @@ class OcpConverter:
             # ============================== Prepare color ============================== #
 
             # Get object color
-            if rgba_color is not None and not isinstance(rgba_color, Color):
-                rgba_color = get_rgba(rgba_color)
+            if rgba_color is not None:
+                if not isinstance(rgba_color, Color):
+                    rgba_color = get_rgba(rgba_color)
 
             elif hasattr(cad_obj, "color") and cad_obj.color is not None:
                 rgba_color = get_rgba(cad_obj.color)
@@ -897,27 +890,33 @@ def to_assembly(
 
 
 def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False):
-    overall_bb = BoundingBox()
 
-    def _add_bb(shapes):
+    def get_bb_max(shapes, meshed_instances, loc=None, bbox=None):
+        if loc is None:
+            loc = identity_location()
         for shape in shapes["parts"]:
+            loc2 = loc * tq_to_loc(*shape["loc"])
             if shape.get("parts") is None:
-                if shape["type"] == "shapes":
-                    ind = shape["shape"]["ref"]
-                    with Timer(
-                        timeit,
-                        f"instance({ind})",
-                        "create bounding boxes:     ",
-                        2,
-                    ) as t:
-                        shape["bb"] = np_bbox(
-                            meshed_instances[ind]["vertices"],
-                            *shape["loc"],
-                        )
-                        overall_bb.update(shape["bb"])
-
+                ind = shape["shape"]["ref"]
+                bb = np_bbox(
+                    meshed_instances[ind]["vertices"],
+                    *loc_to_tq(loc2),
+                )
+                print(shape["name"], bb)
+                if bbox is None:
+                    bbox = bb
+                else:
+                    bbox = {
+                        "xmin": min(bbox["xmin"], bb["xmin"]),
+                        "xmax": max(bbox["xmax"], bb["xmax"]),
+                        "ymin": min(bbox["ymin"], bb["ymin"]),
+                        "ymax": max(bbox["ymax"], bb["ymax"]),
+                        "zmin": min(bbox["zmin"], bb["zmin"]),
+                        "zmax": max(bbox["zmax"], bb["zmax"]),
+                    }
             else:
-                _add_bb(shape)
+                bbox = get_bb_max(shape, meshed_instances, loc2, bbox)
+        return bbox
 
     def _discretize_edges(obj, name, id_):
         with Timer(timeit, name, "bounding box:", 2) as t:
@@ -989,43 +988,24 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
             t.info = (
                 f"{{quality:{quality:.4f}, angular_tolerance:{angular_tolerance:.2f}}}"
             )
-    _add_bb(shapes)
 
     shapes["normal_len"] = max_accuracy / deviation * 4 if render_normals else 0
 
-    # print("overall_bb =", overall_bb.to_dict())
-    # shapes["bb"] = bb
-
-    # print(bb)
+    bb = get_bb_max(shapes, meshed_instances)
+    shapes["bb"] = bb
 
     return meshed_instances, shapes, states, mapping
 
 
 #
-# Interface functions
+# Obsolete functions
 #
 
 
+# TODO: change show.py to directly get bb from shapes
 def combined_bb(shapes):
-    def c_bb(shapes, bb):
-        for shape in shapes["parts"]:
-            if shape.get("parts") is None:
-                if bb is None:
-                    if shape["bb"] is None:
-                        bb = BoundingBox()
-                    else:
-                        bb = BoundingBox(shape["bb"])
-                else:
-                    if shape["bb"] is not None:
-                        bb.update(shape["bb"])
-
-                # after updating the global bounding box, remove the local
-                del shape["bb"]
-            else:
-                bb = c_bb(shape, bb)
-        return bb
-
-    bb = c_bb(shapes, None)
+    bb = BoundingBox()
+    bb.update(shapes["bb"])
     return bb
 
 
@@ -1034,5 +1014,6 @@ def get_normal_len(render_normals, shapes, deviation):
     return shapes["normal_len"]
 
 
+# TODO: remove import from show.py
 def conv():
     raise NotImplementedError("conv is not implemented any more")
