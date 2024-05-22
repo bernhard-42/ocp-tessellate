@@ -145,7 +145,7 @@ class OcpConverter:
         self.ocp = None
         self.progress = progress
 
-    def get_instance(self, obj, cache_id):
+    def get_instance(self, obj, cache_id, name):
         ref = None
 
         # Create the relocated object as a copy
@@ -154,7 +154,7 @@ class OcpConverter:
 
         # check if the same instance is already available
         for i, instance in enumerate(self.instances):
-            if instance[0] == obj2:
+            if instance["obj"] == obj2:
                 ref = i
 
                 if self.progress is not None:
@@ -165,7 +165,7 @@ class OcpConverter:
         if ref is None:
             # append the new instance
             ref = len(self.instances)
-            self.instances.append((obj2, cache_id))
+            self.instances.append({"obj": obj2, "cache_id": cache_id, "name": name})
 
         return ref, loc
 
@@ -199,7 +199,7 @@ class OcpConverter:
 
         if kind in ("solid", "face", "shell"):
             cache_id = create_cache_id(objs)
-            ref, loc = self.get_instance(ocp_obj, cache_id)
+            ref, loc = self.get_instance(ocp_obj, cache_id, name)
             return OcpObject(
                 kind,
                 ref=ref,
@@ -884,9 +884,8 @@ def to_assembly(
         show_parent=show_parent,
         sketch_local=show_sketch_local,
     )
-    instances = [{"obj": i[0], "cache_id": i[1]} for i in converter.instances]
 
-    return ocp_group, instances
+    return ocp_group, converter.instances
 
 
 def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False):
@@ -978,7 +977,9 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
             if quality > max_accuracy:
                 max_accuracy = quality
 
-        with Timer(timeit, f"instance({i})", "tessellate:     ", 2) as t:
+        with Timer(
+            timeit, f"instance({i}):{instance['name']}", "tessellate:     ", 2
+        ) as t:
             mesh = tessellate(
                 shape,
                 instance["cache_id"],
@@ -987,7 +988,7 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
                 angular_tolerance=angular_tolerance,
                 debug=timeit,
                 compute_edges=render_edges,
-                progress=progress,
+                progress=None if timeit else progress,
                 shape_id="n/a",
             )
             meshed_instances.append(mesh)
@@ -996,7 +997,9 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
             )
 
     shapes["normal_len"] = max_accuracy / deviation * 4 if render_normals else 0
-    shapes["bb"] = get_bb_max(shapes, meshed_instances)
+    with Timer(timeit, "", "compute bounding box:", 2) as t:
+        shapes["bb"] = get_bb_max(shapes, meshed_instances)
+        t.info = str(BoundingBox(shapes["bb"]))
 
     return meshed_instances, shapes, states, mapping
 

@@ -145,7 +145,8 @@ class Timer:
                     self.activity,
                     self.name,
                     self.info,
-                )
+                ),
+                flush=True,
             )
 
 

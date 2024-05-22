@@ -33,7 +33,7 @@ class TestCadQuerySketch(MyUnitTest):
         self.assertEqual(o.kind, "face")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_compound(i[o.ref][0]))
+        self.assertTrue(is_topods_compound(i[o.ref]["obj"]))
         self.assertEqual(g.objects[0].color.web_color, "#ee82ee")
         o = g.objects[1]
         self.assertEqual(o.name, "Selection")
@@ -65,7 +65,7 @@ class TestCadQuerySketch(MyUnitTest):
         self.assertEqual(o.kind, "face")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_compound(i[o.ref][0]))
+        self.assertTrue(is_topods_compound(i[o.ref]["obj"]))
         self.assertEqual(g.objects[0].color.web_color, "#ee82ee")
         g2 = g.objects[1]
         self.assertEqual(g2.length, 5)
@@ -99,7 +99,7 @@ class TestCadQuerySketch(MyUnitTest):
         self.assertEqual(o.kind, "face")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_compound(i[o.ref][0]))
+        self.assertTrue(is_topods_compound(i[o.ref]["obj"]))
         self.assertEqual(g.objects[0].color.web_color, "#ee82ee")
 
     def test_multi_segment(self):
@@ -141,3 +141,28 @@ class TestCadQuerySketch(MyUnitTest):
         self.assertTrue(isinstance(o.obj, list))
         self.assertEqual(len(o.obj), 16)
         self.assertEqual(o.color.web_color, "#ba55d3")
+
+
+class TestVector(MyUnitTest):
+
+    def test_vector(self):
+        c = OcpConverter()
+        g = c.to_ocp(cq.Vector(1, 1, 1))
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Vector")
+        self.assertEqual(o.kind, "vertex")
+        self.assertTrue(is_topods_vertex(o.obj))
+
+    def test_vectors(self):
+        c = OcpConverter()
+        g = c.to_ocp(cq.Vector(1, 1, 1), cq.Vector(2, 2, 2))
+        self.assertEqual(g.length, 2)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Vector")
+        self.assertEqual(o.kind, "vertex")
+        self.assertTrue(is_topods_vertex(o.obj))
+        o = g.objects[1]
+        self.assertEqual(o.name, "Vector(2)")
+        self.assertEqual(o.kind, "vertex")
+        self.assertTrue(is_topods_vertex(o.obj))
