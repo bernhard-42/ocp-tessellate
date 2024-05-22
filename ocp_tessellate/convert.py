@@ -895,14 +895,20 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
         if loc is None:
             loc = identity_location()
         for shape in shapes["parts"]:
-            loc2 = loc * tq_to_loc(*shape["loc"])
+            new_loc = loc if shape["loc"] is None else loc * tq_to_loc(*shape["loc"])
             if shape.get("parts") is None:
-                ind = shape["shape"]["ref"]
-                bb = np_bbox(
-                    meshed_instances[ind]["vertices"],
-                    *loc_to_tq(loc2),
-                )
-                print(shape["name"], bb)
+                if shape["type"] == "shapes":
+                    # Solids, shells and faces are instances and need to calculate
+                    # the bounding box at the accumulated location
+                    ind = shape["shape"]["ref"]
+                    vertices = meshed_instances[ind]["vertices"]
+                    bb = np_bbox(vertices, *loc_to_tq(new_loc))
+                else:
+                    # wires, edges, vertices already have a bounding box
+                    bb = shape["bb"].to_dict()
+                    # delete the BoundingBox object, it can't be serialized
+                    del shape["bb"]
+
                 if bbox is None:
                     bbox = bb
                 else:
@@ -915,7 +921,7 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
                         "zmax": max(bbox["zmax"], bb["zmax"]),
                     }
             else:
-                bbox = get_bb_max(shape, meshed_instances, loc2, bbox)
+                bbox = get_bb_max(shape, meshed_instances, new_loc, bbox)
         return bbox
 
     def _discretize_edges(obj, name, id_):
@@ -990,9 +996,7 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
             )
 
     shapes["normal_len"] = max_accuracy / deviation * 4 if render_normals else 0
-
-    bb = get_bb_max(shapes, meshed_instances)
-    shapes["bb"] = bb
+    shapes["bb"] = get_bb_max(shapes, meshed_instances)
 
     return meshed_instances, shapes, states, mapping
 
