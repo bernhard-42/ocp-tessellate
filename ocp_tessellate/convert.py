@@ -217,38 +217,6 @@ class OcpConverter:
                 width=LINE_WIDTH if kind == "edge" else POINT_SIZE,
             )
 
-    def handle_parent(self, cad_obj, obj_name, rgba_color, level):
-        parent = None
-        if hasattr(cad_obj, "parent"):
-            parent = cad_obj.parent
-            topo = False
-        elif hasattr(cad_obj, "topo_parent"):
-            parent = cad_obj.topo_parent
-            topo = True
-        elif (
-            isinstance(cad_obj, Iterable)
-            and len(cad_obj) > 0
-            and hasattr(cad_obj[0], "topo_parent")
-        ):
-            parent = cad_obj[0].topo_parent
-            topo = True
-
-        ind = 0
-        parents = []
-        while parent is not None:
-            pname = "parent" if ind == 0 else f"parent({ind})"
-            p = self.to_ocp(parent, names=[pname], colors=[rgba_color], level=level + 1)
-            p = p.objects[0]
-            if p.kind == "solid":
-                p.state_faces = 0
-            elif p.kind == "face":
-                p.state_edges = 0
-            parents.insert(0, p)
-            parent = parent.topo_parent if topo else None
-            ind -= 1
-
-        return parents
-
     def handle_list_tuple(
         self, cad_obj, obj_name, rgba_color, sketch_local, helper_scale, level
     ):
@@ -340,6 +308,38 @@ class OcpConverter:
                 ocp_obj.add(sub_obj)
 
         return ocp_obj
+
+    def handle_parent(self, cad_obj, obj_name, rgba_color, level):
+        parent = None
+        if hasattr(cad_obj, "parent"):
+            parent = cad_obj.parent
+            topo = False
+        elif hasattr(cad_obj, "topo_parent"):
+            parent = cad_obj.topo_parent
+            topo = True
+        elif (
+            isinstance(cad_obj, Iterable)
+            and len(cad_obj) > 0
+            and hasattr(cad_obj[0], "topo_parent")
+        ):
+            parent = cad_obj[0].topo_parent
+            topo = True
+
+        ind = 0
+        parents = []
+        while parent is not None:
+            pname = "parent" if ind == 0 else f"parent({ind})"
+            p = self.to_ocp(parent, names=[pname], colors=[rgba_color], level=level + 1)
+            p = p.objects[0]
+            if p.kind == "solid":
+                p.state_faces = 0
+            elif p.kind == "face":
+                p.state_edges = 0
+            parents.insert(0, p)
+            parent = parent.topo_parent if topo else None
+            ind -= 1
+
+        return parents
 
     def handle_shape_list(
         self,
