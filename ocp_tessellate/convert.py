@@ -398,59 +398,49 @@ class OcpConverter:
             return ocp_obj
 
     def handle_build123d_builder(
-        self, cad_obj, obj_name, rgba_color, sketch_local, level
+        self, cad_obj, obj_name, rgba_color, sketch_local, render_joints, level
     ):
         _debug(level, f"handle_build123d_builder {cad_obj._obj_name}", obj_name)
 
         # bild123d BuildPart().part
         if is_build123d_part(cad_obj):
-            typ, objs = "Solid", [cad_obj.part.wrapped]
+            obj = cad_obj.part
 
         # build123d BuildSketch().sketch
         elif is_build123d_sketch(cad_obj):
-            ocp_objs = cad_obj.sketch.faces()
-            if len(ocp_objs) == 1:
-                objs = [ocp_objs[0].wrapped]
-            else:
-                objs = [cad_obj.sketch.wrapped]
-            typ = "Face"
+            obj = cad_obj.sketch.faces()
+            obj_name = "Face" if obj_name is None else obj_name
 
         # build123d BuildLine().line
         elif is_build123d_line(cad_obj):
-            typ, objs = "Edge", unwrap(cad_obj.edges())
+            obj = cad_obj.edges()
+            obj_name = "Edge" if obj_name is None else obj_name
 
-        else:
-            raise ValueError(f"Unknown build123d object: {cad_obj}")
-
-        name = get_name(cad_obj, obj_name, typ)
-        ocp_obj = self.unify(
-            objs,
-            kind=get_kind(typ),
-            name=name,
-            color=rgba_color,
+        ocp_obj = self.to_ocp(
+            obj,
+            names=[obj_name],
+            colors=[rgba_color],
+            render_joints=render_joints,
+            level=level + 1,
         )
 
         if sketch_local and hasattr(cad_obj, "sketch_local"):
-            ocp_obj.name = "sketch"
-            ocp_obj = OcpGroup([ocp_obj], name=name)
-            ocp_objs = cad_obj.sketch_local.faces()
-            if len(ocp_objs) == 1:
-                objs = [ocp_objs[0].wrapped]
-            else:
-                objs = [cad_obj.sketch_local.wrapped]
-            ocp_obj.add(
-                self.unify(
-                    objs,
-                    kind="face",
-                    name="sketch_local",
-                    color=rgba_color,
-                    alpha=0.2,
-                )
-            )
+            obj = cad_obj.sketch_local.faces()
+            ocp_obj.name = ocp_obj.objects[0].name
+            ocp_obj.objects[0].name = "sketch"
+            ocp_obj_local = self.to_ocp(
+                obj,
+                names=["sketch_local"],
+                colors=[rgba_color],
+                render_joints=render_joints,
+                level=level + 1,
+            ).objects[0]
+            ocp_obj_local.color.a = 0.2
+            ocp_obj.add(ocp_obj_local)
 
         return ocp_obj
 
-    def handle_shapes(self, cad_obj, obj_name, rgba_color, level):
+    def handle_shapes(self, cad_obj, obj_name, render_joints, rgba_color, level):
 
         if is_topods_shape(cad_obj):
             t, obj = "TopoDS_Shape", downcast(cad_obj)
@@ -481,6 +471,16 @@ class OcpConverter:
             name=name,
             color=rgba_color,
         )
+
+        if render_joints and hasattr(cad_obj, "joints") and len(cad_obj.joints) > 0:
+            joints = self.to_ocp(
+                *[j.symbol for j in cad_obj.joints.values()],
+                names=list(cad_obj.joints.keys()),
+                level=level + 1,
+            )
+            joints.name = "joints"
+            ocp_obj = OcpGroup([ocp_obj, joints], name=name)
+
         return ocp_obj
 
     def handle_cadquery_sketch(self, cad_obj, obj_name, rgba_color, level):
@@ -785,7 +785,7 @@ class OcpConverter:
             # build123d BuildPart, BuildSketch, BuildLine
             elif is_build123d(cad_obj):
                 ocp_obj = self.handle_build123d_builder(
-                    cad_obj, obj_name, rgba_color, sketch_local, level
+                    cad_obj, obj_name, rgba_color, sketch_local, render_joints, level
                 )
 
             # TopoDS_Shape, TopoDS_Compound, TopoDS_Edge, TopoDS_Face, TopoDS_Shell,
@@ -797,7 +797,9 @@ class OcpConverter:
                 or is_build123d_shape(cad_obj)
                 or is_cadquery_shape(cad_obj)
             ):
-                ocp_obj = self.handle_shapes(cad_obj, obj_name, rgba_color, level)
+                ocp_obj = self.handle_shapes(
+                    cad_obj, obj_name, render_joints, rgba_color, level
+                )
 
             # Cadquery sketches
             elif is_cadquery_sketch(cad_obj):
