@@ -145,6 +145,8 @@ class OcpConverter:
         self.ocp = None
         self.progress = progress
 
+    # ============================== Create instances =============================== #
+
     def get_instance(self, obj, cache_id, name):
         ref = None
 
@@ -216,6 +218,8 @@ class OcpConverter:
                 color=color,
                 width=LINE_WIDTH if kind == "edge" else POINT_SIZE,
             )
+
+    # ============================= Iterate Containers ============================== #
 
     def handle_list_tuple(
         self, cad_obj, obj_name, rgba_color, sketch_local, helper_scale, level
@@ -309,6 +313,8 @@ class OcpConverter:
                 ocp_obj.add(sub_obj)
 
         return ocp_obj
+
+    # ================================= Conversions ================================= #
 
     def handle_parent(self, cad_obj, obj_name, rgba_color, level):
         parent = None
