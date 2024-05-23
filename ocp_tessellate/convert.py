@@ -286,7 +286,7 @@ class OcpConverter:
         return ocp_obj
 
     def handle_build123d_assembly(
-        self, cad_obj, obj_name, rgba_color, helper_scale, level
+        self, cad_obj, obj_name, rgba_color, render_joints, helper_scale, level
     ):
         _debug(level, "handle_build123d_assembly", obj_name)
 
@@ -299,6 +299,7 @@ class OcpConverter:
                 names=[child.label],
                 colors=[rgba_color],
                 helper_scale=helper_scale,
+                render_joints=render_joints,
                 top_level=False,
                 level=level + 1,
             )
@@ -751,10 +752,12 @@ class OcpConverter:
 
             elif is_build123d_assembly(cad_obj):
                 ocp_obj = self.handle_build123d_assembly(
-                    cad_obj, obj_name, rgba_color, helper_scale, level
-                )
-                ocp_obj = self.handle_build123d_assembly(
-                    cad_obj, obj_name, rgba_color, helper_scale, sketch_local, level
+                    cad_obj,
+                    obj_name,
+                    rgba_color,
+                    render_joints,
+                    helper_scale,
+                    level,
                 )
 
             # =============================== Conversions =============================== #
