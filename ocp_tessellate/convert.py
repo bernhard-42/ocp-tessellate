@@ -625,7 +625,7 @@ class OcpConverter:
         ocp_obj = cad_obj.copy()
         ocp_obj.ref = name
         ocp_obj.ref = ref
-        ocp_obj.loc = loc
+        ocp_obj.loc = cad_obj.loc * loc
         ocp_obj.obj = None
         return ocp_obj
 
