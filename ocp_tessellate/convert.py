@@ -614,6 +614,23 @@ class OcpConverter:
         )
         return ocp_obj
 
+    def handle_ocp_group(self, cad_obj, obj_name):
+        name = get_name(cad_obj, obj_name, "Group")
+        cad_obj.name = name
+        return cad_obj
+
+    def handle_ocp_obj(self, cad_obj, obj_name):
+        name = get_name(cad_obj, obj_name, "Object")
+        ref, loc = self.get_instance(cad_obj.obj, create_cache_id(cad_obj.obj), name)
+        ocp_obj = cad_obj.copy()
+        ocp_obj.ref = name
+        ocp_obj.ref = ref
+        ocp_obj.loc = loc
+        ocp_obj.obj = None
+        return ocp_obj
+
+    # ======================== Iterate and identify objects ========================= #
+
     def to_ocp(
         self,
         *cad_objs,
@@ -770,18 +787,11 @@ class OcpConverter:
 
             # OcpGroup
             elif isinstance(cad_obj, OcpGroup):
-                name = get_name(cad_obj, obj_name, "Group")
-                cad_obj.name = name
-                ocp_obj = cad_obj
+                ocp_obj = self.handle_ocp_group(cad_obj, obj_name)
 
             # OcpObject
             elif isinstance(cad_obj, OcpObject):
-                name = get_name(cad_obj, obj_name, "Object")
-                ref, loc = self.get_instance(cad_obj.obj, create_cache_id(cad_obj.obj))
-                ocp_obj = cad_obj.copy()
-                ocp_obj.ref = ref
-                ocp_obj.loc = loc
-                ocp_obj.obj = None
+                ocp_obj = self.handle_ocp_obj(cad_obj, obj_name)
 
             # build123d ShapeList
             elif is_build123d_shapelist(cad_obj) or (
