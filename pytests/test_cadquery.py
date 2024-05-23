@@ -14,6 +14,175 @@ class MyUnitTest(unittest.TestCase):
             self.assertAlmostEqual(i, j, places, msg=msg)
 
 
+colormap = list(webcolors.CSS3_NAMES_TO_HEX.items())
+
+
+class TestWorkplane(MyUnitTest):
+    def test_box(self):
+        result = cq.Workplane().box(1, 1, 1)
+        c = OcpConverter()
+        g = c.to_ocp(result, names=["Box"], colors=["red"])
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Box")
+        self.assertEqual(o.kind, "solid")
+        self.assertIsNotNone(o.ref)
+        self.assertIsNone(o.obj)
+        self.assertTrue(is_topods_solid(i[o.ref]["obj"]))
+        self.assertEqual(o.color.web_color, "#ff0000")
+
+    def test_boxes_compound(self):
+        result = cq.Workplane().box(1, 1, 1).cut(cq.Workplane().box(2, 2, 0.2))
+        c = OcpConverter()
+        g = c.to_ocp(result, names=["Box"], colors=["red"])
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Box")
+        self.assertEqual(o.kind, "solid")
+        self.assertIsNotNone(o.ref)
+        self.assertIsNone(o.obj)
+        self.assertTrue(is_topods_compound(i[o.ref]["obj"]))
+        self.assertEqual(o.color.web_color, "#ff0000")
+
+    def test_boxes(self):
+        result = cq.Workplane().box(1, 1, 1).cut(cq.Workplane().box(2, 2, 0.2))
+        c = OcpConverter()
+        g = c.to_ocp(*result.val(), names=["Box0", "Box1"], colors=["red", "green"])
+        i = c.instances
+        self.assertEqual(g.length, 2)
+        cols = ["#ff0000", "#008000"]
+        for ind in range(2):
+            o = g.objects[ind]
+            self.assertEqual(o.name, f"Box{ind}")
+            self.assertEqual(o.kind, "solid")
+            self.assertIsNotNone(o.ref)
+            self.assertIsNone(o.obj)
+            self.assertTrue(is_topods_solid(i[o.ref]["obj"]))
+            self.assertEqual(o.color.web_color, cols[ind])
+
+    def test_faces_compound(self):
+        result = cq.Workplane().box(1, 1, 1).cut(cq.Workplane().box(2, 2, 0.2)).faces()
+        c = OcpConverter()
+        g = c.to_ocp(result, names=["Faces"], colors=["cyan"])
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Faces")
+        self.assertEqual(o.kind, "face")
+        self.assertIsNotNone(o.ref)
+        self.assertIsNone(o.obj)
+        self.assertTrue(is_topods_compound(i[o.ref]["obj"]))
+        self.assertEqual(o.color.web_color, "#00ffff")
+
+    def test_wires_compound(self):
+        result = cq.Workplane().box(1, 1, 1).cut(cq.Workplane().box(2, 2, 0.2)).wires()
+        c = OcpConverter()
+        g = c.to_ocp(result, names=["Wires"], colors=["cyan"])
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Wires")
+        self.assertEqual(o.kind, "edge")
+        self.assertIsNone(o.ref)
+        self.assertIsNotNone(o.obj)
+        self.assertEqual(len(o.obj), 48)
+        self.assertTrue(is_topods_edge(o.obj[0]))
+        self.assertEqual(o.color.web_color, "#00ffff")
+
+    def test_edges_compound(self):
+        result = cq.Workplane().box(1, 1, 1).cut(cq.Workplane().box(2, 2, 0.2)).edges()
+        c = OcpConverter()
+        g = c.to_ocp(result, names=["Edges"], colors=["cyan"])
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Edges")
+        self.assertEqual(o.kind, "edge")
+        self.assertIsNone(o.ref)
+        self.assertIsNotNone(o.obj)
+        self.assertEqual(len(o.obj), 24)
+        self.assertTrue(is_topods_edge(o.obj[0]))
+        self.assertEqual(o.color.web_color, "#00ffff")
+
+    def test_vertices_compound(self):
+        result = (
+            cq.Workplane().box(1, 1, 1).cut(cq.Workplane().box(2, 2, 0.2)).vertices()
+        )
+        c = OcpConverter()
+        g = c.to_ocp(result, names=["Vertex"], colors=["cyan"])
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Vertex")
+        self.assertEqual(o.kind, "vertex")
+        self.assertIsNone(o.ref)
+        self.assertIsNotNone(o.obj)
+        self.assertEqual(len(o.obj), 16)
+        self.assertTrue(is_topods_vertex(o.obj[0]))
+        self.assertEqual(o.color.web_color, "#00ffff")
+
+    def test_faces(self):
+        result = cq.Workplane().box(1, 1, 1).cut(cq.Workplane().box(2, 2, 0.2)).faces()
+        c = OcpConverter()
+        g = c.to_ocp(
+            *result.vals(),
+            names=[f"face{i}" for i in range(12)],
+            colors=[c[0] for c in colormap[:12]],
+        )
+        i = c.instances
+        self.assertEqual(g.length, 12)
+        for ind in range(12):
+            o = g.objects[ind]
+            self.assertEqual(o.name, f"face{ind}")
+            self.assertEqual(o.kind, "face")
+            self.assertIsNotNone(o.ref)
+            self.assertIsNone(o.obj)
+            self.assertTrue(is_topods_face(i[o.ref]["obj"]))
+            self.assertEqual(o.color.web_color, colormap[ind][1])
+
+    def test_edges(self):
+        result = cq.Workplane().box(1, 1, 1).cut(cq.Workplane().box(2, 2, 0.2)).edges()
+        c = OcpConverter()
+        g = c.to_ocp(
+            *result.vals(),
+            names=[f"edge{i}" for i in range(24)],
+            colors=[c[0] for c in colormap[:24]],
+        )
+        i = c.instances
+        self.assertEqual(g.length, 24)
+        for ind in range(12):
+            o = g.objects[ind]
+            self.assertEqual(o.name, f"edge{ind}")
+            self.assertEqual(o.kind, "edge")
+            self.assertIsNone(o.ref)
+            self.assertIsNotNone(o.obj)
+            self.assertTrue(is_topods_edge(o.obj))
+            self.assertEqual(o.color.web_color, colormap[ind][1])
+
+    def test_vertices(self):
+        result = (
+            cq.Workplane().box(1, 1, 1).cut(cq.Workplane().box(2, 2, 0.2)).vertices()
+        )
+        c = OcpConverter()
+        g = c.to_ocp(
+            *result.vals(),
+            names=[f"vertex{i}" for i in range(16)],
+            colors=[c[0] for c in colormap[:16]],
+        )
+        i = c.instances
+        self.assertEqual(g.length, 16)
+        for ind in range(12):
+            o = g.objects[ind]
+            self.assertEqual(o.name, f"vertex{ind}")
+            self.assertEqual(o.kind, "vertex")
+            self.assertIsNone(o.ref)
+            self.assertIsNotNone(o.obj)
+            self.assertTrue(is_topods_vertex(o.obj))
+            self.assertEqual(o.color.web_color, colormap[ind][1])
+
+
 class TestCadQuerySketch(MyUnitTest):
     def test_trapezoid_vertices(self):
         result = (

@@ -737,9 +737,13 @@ class OcpConverter:
 
             # ========================= Empty list or compounds ========================= #
 
-            if not is_cadquery_sketch(cad_obj) and (
-                (is_wrapped(cad_obj) and cad_obj.wrapped is None)
-                or (isinstance(cad_obj, Iterable) and len(list(cad_obj)) == 0)
+            if (
+                (
+                    (is_wrapped(cad_obj) and cad_obj.wrapped is None)
+                    or (isinstance(cad_obj, Iterable) and len(list(cad_obj)) == 0)
+                )
+                and not is_cadquery_sketch(cad_obj)
+                and not (is_wrapped(cad_obj) and is_topods_vertex(cad_obj.wrapped))
             ):
                 ocp_obj = self.handle_empty_iterables(obj_name, level)
 
