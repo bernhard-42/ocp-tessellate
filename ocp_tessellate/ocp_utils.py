@@ -747,12 +747,36 @@ def is_edge_list(topods_list):
     return all([is_topods_edge(obj) for obj in topods_list])
 
 
-def is_vertex_list(topods_list):
-    return all([is_topods_vertex(obj) for obj in topods_list])
+def is_shape(obj):
+    return hasattr(obj, "wrapped") and is_topods_shape(obj.wrapped)
 
 
 def is_compound(obj):
     return hasattr(obj, "wrapped") and is_topods_compound(obj.wrapped)
+
+
+def is_solid(obj):
+    return hasattr(obj, "wrapped") and is_topods_solid(obj.wrapped)
+
+
+def is_shell(obj):
+    return hasattr(obj, "wrapped") and is_topods_shell(obj.wrapped)
+
+
+def is_face(obj):
+    return hasattr(obj, "wrapped") and is_topods_face(obj.wrapped)
+
+
+def is_wire(obj):
+    return hasattr(obj, "wrapped") and is_topods_wire(obj.wrapped)
+
+
+def is_edge(obj):
+    return hasattr(obj, "wrapped") and is_topods_edge(obj.wrapped)
+
+
+def is_vertex(obj):
+    return hasattr(obj, "wrapped") and is_topods_vertex(obj.wrapped)
 
 
 def is_ocp_color(obj):

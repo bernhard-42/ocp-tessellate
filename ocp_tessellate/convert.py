@@ -367,11 +367,11 @@ class OcpConverter:
 
             # Resolve cadquery Workplane
             cad_obj = cad_obj.vals()
-            if len(cad_obj) > 0 and is_topods_compound(cad_obj[0].wrapped):
+            if len(cad_obj) > 0 and is_compound(cad_obj[0]):
                 cad_obj = flatten([list(obj) for obj in cad_obj])
 
         # convert wires to edges
-        if len(cad_obj) > 0 and is_topods_wire(cad_obj[0].wrapped):
+        if len(cad_obj) > 0 and is_wire(cad_obj[0]):
             objs = [e.wrapped for o in cad_obj for e in o.edges()]
             typ = "Wire"
 
@@ -509,7 +509,7 @@ class OcpConverter:
             ("Selection", list(cad_obj._selection), False),
         ]:
             if objs:
-                if is_toploc_location(objs[0].wrapped):
+                if is_location(objs[0]):
                     compound = [
                         loc.wrapped * obj.wrapped
                         for obj in cad_obj._selection
@@ -744,7 +744,7 @@ class OcpConverter:
                     or (isinstance(cad_obj, Iterable) and len(list(cad_obj)) == 0)
                 )
                 and not is_cadquery_sketch(cad_obj)
-                and not (is_wrapped(cad_obj) and is_topods_vertex(cad_obj.wrapped))
+                and not is_vertex(cad_obj)
             ):
                 ocp_obj = self.handle_empty_iterables(obj_name, level)
 
