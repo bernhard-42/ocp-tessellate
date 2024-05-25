@@ -547,21 +547,6 @@ class OcpConverter:
         result.name = name
         return result
 
-    # ================================ Empty objects ================================ #
-
-    def handle_empty_iterables(self, obj_name, level):
-        _debug(level, "Empty object")
-        name = "Object" if obj_name is None else obj_name
-        return OcpObject(
-            "vertex",
-            obj=vertex((0, 0, 0)),
-            name=f"{name} (empty)",
-            color=Color((0, 0, 0, 0.01)),
-            width=0.1,
-        )
-
-    # ============================ OcpObj's and OcpGroup ============================ #
-
     def handle_locations_planes(
         self, cad_obj, obj_name, rgba_color, helper_scale, sketch_local, level
     ):
@@ -622,6 +607,21 @@ class OcpConverter:
             size=helper_scale,
         )
         return ocp_obj
+
+    # ================================ Empty objects ================================ #
+
+    def handle_empty_iterables(self, obj_name, level):
+        _debug(level, "Empty object")
+        name = "Object" if obj_name is None else obj_name
+        return OcpObject(
+            "vertex",
+            obj=vertex((0, 0, 0)),
+            name=f"{name} (empty)",
+            color=Color((0, 0, 0, 0.01)),
+            width=0.1,
+        )
+
+    # ============================ OcpObj's and OcpGroup ============================ #
 
     def handle_ocp_group(self, cad_obj, obj_name):
         name = get_name(cad_obj, obj_name, "Group")
