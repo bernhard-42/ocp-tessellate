@@ -19,7 +19,7 @@ from ocp_tessellate.tessellator import (
 from ocp_tessellate.utils import *
 
 LINE_WIDTH = 2
-POINT_SIZE = 4
+POINT_SIZE = 6
 
 EDGE_COLOR = "Silver"
 THICK_EDGE_COLOR = "MediumOrchid"
