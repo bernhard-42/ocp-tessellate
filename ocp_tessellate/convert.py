@@ -405,6 +405,49 @@ class OcpConverter:
         else:
             return ocp_obj
 
+    def handle_shapes(self, cad_obj, obj_name, render_joints, rgba_color, level):
+
+        if is_topods_shape(cad_obj):
+            t, obj = "TopoDS_Shape", downcast(cad_obj)
+        elif is_build123d_shape(cad_obj):
+            t, obj = "build123d Shape", cad_obj.wrapped
+        elif is_cadquery_shape(cad_obj):
+            t, obj = "cadquery Shape", cad_obj.wrapped
+        else:
+            raise ValueError(f"Unknown shape type: {cad_obj}")
+
+        _debug(level, f"handle_shapes ({t}) ({class_name(obj)})", obj_name)
+
+        edges = None
+        if is_topods_wire(obj):
+            typ, edges = "Wire", list(get_edges(obj))
+        elif is_topods_compound(obj):
+            typ = get_compound_type(obj)
+            if typ == "Wire":
+                obj = list(get_edges(obj))
+        else:
+            typ = type_name(obj)
+
+        name = get_name(cad_obj, obj_name, typ)
+
+        ocp_obj = self.unify(
+            [obj] if edges is None else edges,
+            kind=get_kind(typ),
+            name=name,
+            color=rgba_color,
+        )
+
+        if render_joints and hasattr(cad_obj, "joints") and len(cad_obj.joints) > 0:
+            joints = self.to_ocp(
+                *[j.symbol for j in cad_obj.joints.values()],
+                names=list(cad_obj.joints.keys()),
+                level=level + 1,
+            )
+            joints.name = "joints"
+            ocp_obj = OcpGroup([ocp_obj, joints], name=name)
+
+        return ocp_obj
+
     def handle_build123d_builder(
         self, cad_obj, obj_name, rgba_color, sketch_local, render_joints, level
     ):
@@ -448,49 +491,6 @@ class OcpConverter:
             ocp_obj.add(ocp_obj_local)
 
         return ocp_obj.cleanup()
-
-    def handle_shapes(self, cad_obj, obj_name, render_joints, rgba_color, level):
-
-        if is_topods_shape(cad_obj):
-            t, obj = "TopoDS_Shape", downcast(cad_obj)
-        elif is_build123d_shape(cad_obj):
-            t, obj = "build123d Shape", cad_obj.wrapped
-        elif is_cadquery_shape(cad_obj):
-            t, obj = "cadquery Shape", cad_obj.wrapped
-        else:
-            raise ValueError(f"Unknown shape type: {cad_obj}")
-
-        _debug(level, f"handle_shapes ({t}) ({class_name(obj)})", obj_name)
-
-        edges = None
-        if is_topods_wire(obj):
-            typ, edges = "Wire", list(get_edges(obj))
-        elif is_topods_compound(obj):
-            typ = get_compound_type(obj)
-            if typ == "Wire":
-                obj = list(get_edges(obj))
-        else:
-            typ = type_name(obj)
-
-        name = get_name(cad_obj, obj_name, typ)
-
-        ocp_obj = self.unify(
-            [obj] if edges is None else edges,
-            kind=get_kind(typ),
-            name=name,
-            color=rgba_color,
-        )
-
-        if render_joints and hasattr(cad_obj, "joints") and len(cad_obj.joints) > 0:
-            joints = self.to_ocp(
-                *[j.symbol for j in cad_obj.joints.values()],
-                names=list(cad_obj.joints.keys()),
-                level=level + 1,
-            )
-            joints.name = "joints"
-            ocp_obj = OcpGroup([ocp_obj, joints], name=name)
-
-        return ocp_obj
 
     def handle_cadquery_sketch(self, cad_obj, obj_name, rgba_color, level):
         _debug(level, "cadquery Sketch", obj_name)
