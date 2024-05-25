@@ -693,26 +693,6 @@ class OcpConverter:
             ):
                 continue
 
-            # ===== Filter: Only process CAD objects and print a skipping message else ====== #
-            if not (
-                is_wrapped(cad_obj)
-                or isinstance(cad_obj, (Iterable, dict))
-                or is_cadquery(cad_obj)
-                or is_cadquery_assembly(cad_obj)
-                or is_cadquery_sketch(cad_obj)
-                or is_build123d(cad_obj)
-                or is_compound(cad_obj)
-                or is_topods_shape(cad_obj)
-                or is_toploc_location(cad_obj)
-                or is_gp_vec(cad_obj)
-            ):
-                print(
-                    "Skipping object"
-                    + ("" if obj_name is None else f" '{obj_name}'")
-                    + f" of type {type(cad_obj)}"
-                )
-                continue
-
             # ============================== Prepare color ============================== #
 
             # Get object color
