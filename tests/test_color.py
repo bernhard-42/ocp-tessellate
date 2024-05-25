@@ -1,9 +1,10 @@
 # %%
-import cadquery as cq
 import build123d as bd
-from ocp_tessellate.utils import Color
-from ocp_tessellate.ocp_utils import get_rgba
+import cadquery as cq
 from ocp_vscode import show
+
+from ocp_tessellate.ocp_utils import get_rgba
+from ocp_tessellate.utils import Color
 
 # %%
 
@@ -39,10 +40,10 @@ show(
     b.faces(),
     b.edges(),
     b.vertices(),
-    default_facecolor="yellow",
-    default_thickedgecolor=(0, 0.2, 0.8),
+    default_facecolor="green",
+    default_thickedgecolor=(0, 0.0, 1.0),
     default_vertexcolor="red",
-    default_edgecolor="magenta",
-    default_color=(0, 0, 255),
+    default_edgecolor="cyan",
+    default_color=(255, 0, 255),
 )
 # %%
