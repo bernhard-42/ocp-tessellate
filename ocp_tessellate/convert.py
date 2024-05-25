@@ -21,6 +21,11 @@ from ocp_tessellate.utils import *
 LINE_WIDTH = 2
 POINT_SIZE = 4
 
+EDGE_COLOR = "Silver"
+THICK_EDGE_COLOR = "MediumOrchid"
+VERTEX_COLOR = "MediumOrchid"
+FACE_COLOR = "Violet"
+
 DEBUG = True
 
 
@@ -80,44 +85,6 @@ def unwrap(obj):
     return obj
 
 
-def get_color_for_object(obj, color=None, alpha=None, kind=None):
-    default_colors = {
-        # ocp types
-        "TopoDS_Edge": "MediumOrchid",
-        "TopoDS_Face": "Violet",
-        "TopoDS_Shell": "Violet",
-        "TopoDS_Solid": (232, 176, 36),
-        "TopoDS_Vertex": "MediumOrchid",
-        "TopoDS_Wire": "MediumOrchid",
-        # kind of objects
-        "edge": "MediumOrchid",
-        "wire": "MediumOrchid",
-        "face": "Violet",
-        "shell": "Violet",
-        "solid": (232, 176, 36),
-        "vertex": "MediumOrchid",
-    }
-
-    if color is not None:
-        col_a = Color(color)
-
-    elif hasattr(obj, "color") and obj.color is not None:
-        col_a = Color(obj.color)
-
-    # elif color is None and is_topods_compound(obj) and kind is not None:
-    elif color is None and kind is not None:
-        col_a = Color(default_colors[kind])
-
-    # else return default color
-    else:
-        col_a = Color(default_colors.get(class_name(unwrap(obj))))
-
-    if alpha is not None:
-        col_a.a = alpha
-
-    return col_a
-
-
 def create_cache_id(obj):
     sha = sha256()
     objs = [obj] if not isinstance(obj, (tuple, list)) else obj
@@ -144,6 +111,7 @@ class OcpConverter:
         self.instances = []
         self.ocp = None
         self.progress = progress
+        self.default_color = get_default("default_color")
 
     # ============================== Create instances =============================== #
 
@@ -191,7 +159,7 @@ class OcpConverter:
         else:
             ocp_obj = objs
 
-        color = get_color_for_object(
+        color = self.get_color_for_object(
             ocp_obj[0] if isinstance(ocp_obj, list) else ocp_obj,
             color,
             kind=kind,
@@ -218,6 +186,43 @@ class OcpConverter:
                 color=color,
                 width=LINE_WIDTH if kind == "edge" else POINT_SIZE,
             )
+
+    def get_color_for_object(self, obj, color=None, alpha=None, kind=None):
+        default_colors = {
+            # ocp types
+            "TopoDS_Edge": THICK_EDGE_COLOR,
+            "TopoDS_Face": FACE_COLOR,
+            "TopoDS_Shell": FACE_COLOR,
+            "TopoDS_Solid": self.default_color,
+            "TopoDS_Vertex": VERTEX_COLOR,
+            "TopoDS_Wire": THICK_EDGE_COLOR,
+            # kind of objects
+            "edge": THICK_EDGE_COLOR,
+            "wire": THICK_EDGE_COLOR,
+            "face": FACE_COLOR,
+            "shell": FACE_COLOR,
+            "solid": self.default_color,
+            "vertex": VERTEX_COLOR,
+        }
+
+        if color is not None:
+            col_a = Color(color)
+
+        elif hasattr(obj, "color") and obj.color is not None:
+            col_a = Color(obj.color)
+
+        # elif color is None and is_topods_compound(obj) and kind is not None:
+        elif color is None and kind is not None:
+            col_a = Color(default_colors[kind])
+
+        # else return default color
+        else:
+            col_a = Color(default_colors.get(class_name(unwrap(obj))))
+
+        if alpha is not None:
+            col_a.a = alpha
+
+        return col_a
 
     # ============================= Iterate Containers ============================== #
 
@@ -390,7 +395,7 @@ class OcpConverter:
                 objs,
                 kind=kind,
                 name=get_name(cad_obj, obj_name, f"{name}({typ})"),
-                color=get_color_for_object(objs[0], rgba_color),
+                color=self.get_color_for_object(objs[0], rgba_color),
             )
         else:
             # keep the array of wrapped edges or vertices
@@ -398,7 +403,7 @@ class OcpConverter:
                 kind,
                 obj=objs,
                 name=get_name(cad_obj, obj_name, f"{name}({typ})"),
-                color=get_color_for_object(objs[0], rgba_color),
+                color=self.get_color_for_object(objs[0], rgba_color),
                 width=LINE_WIDTH if kind == "edge" else POINT_SIZE,
             )
         if show_parent:
@@ -681,14 +686,14 @@ class OcpConverter:
                 )
             colors = [get_rgba(c, a) for c, a in zip(colors, alphas)]
 
-        if default_color is None:
-            default_color = get_default("default_color")
+        if default_color is not None:
+            self.default_color = default_color
 
         # =========================== Loop over all objects ========================== #
 
         for cad_obj, obj_name, rgba_color in zip(cad_objs, names, colors):
 
-            # ===================== Silently skip enums and known types ===================== #
+            # =================== Silently skip enums and known types =================== #
             if (
                 isinstance(cad_obj, enum.Enum)
                 or is_ocp_color(cad_obj)
