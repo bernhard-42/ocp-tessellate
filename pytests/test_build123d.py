@@ -184,8 +184,8 @@ class TestsConvert(MyUnitTest):
         for i in range(2):
             self.assertTrue(is_topods_edge(o.obj[i]))
 
-    def test_buildpart_name_color(self):
-        """Test that the name and color are set correctly for a part"""
+    def test_buildpart_name(self):
+        """Test that the name is set correctly for a part"""
         c = OcpConverter()
         g = c.to_ocp(bp, names=["bp"])
         i = c.instances
@@ -197,8 +197,8 @@ class TestsConvert(MyUnitTest):
         self.assertIsNone(o.obj)
         self.assertTrue(is_topods_solid(i[o.ref]["obj"]))
 
-    def test_buildsketch_name_color(self):
-        """Test that the name and color are set correctly for a sketch"""
+    def test_buildsketch_name(self):
+        """Test that the name is set correctly for a sketch"""
         c = OcpConverter()
         g = c.to_ocp(bs, names=["bs"])
         i = c.instances
@@ -210,8 +210,8 @@ class TestsConvert(MyUnitTest):
         self.assertIsNone(o.obj)
         self.assertTrue(is_topods_face(i[o.ref]["obj"]))
 
-    def test_buildsketch_local_name_color(self):
-        """Test that the name and color are set correctly for a sketch_local"""
+    def test_buildsketch_local_name(self):
+        """Test that the name is set correctly for a sketch_local"""
         c = OcpConverter()
         g = c.to_ocp(bs, names=["bs"], sketch_local=True)
         i = c.instances
@@ -563,6 +563,19 @@ class TestsConvert(MyUnitTest):
         for ind, o in enumerate(g.objects):
             self.assertEqual(o.color.web_color, colormap[ind][1])
             self.assertEqual(o.name, f"MyVertex_{ind}")
+
+    #
+
+    def test_show_mixed_builder_shape(self):
+        c = OcpConverter()
+        g = c.to_ocp(bl, Box(0.1, 0.1, 0.1))
+        self.assertEqual(g.length, 2)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Edge")
+        self.assertEqual(o.kind, "edge")
+        o = g.objects[1]
+        self.assertEqual(o.name, "Solid")
+        self.assertEqual(o.kind, "solid")
 
     #
 
