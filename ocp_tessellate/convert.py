@@ -445,7 +445,7 @@ class OcpConverter:
             ocp_obj_local.color.a = 0.2
             ocp_obj.add(ocp_obj_local)
 
-        return ocp_obj
+        return ocp_obj.cleanup()
 
     def handle_shapes(self, cad_obj, obj_name, render_joints, rgba_color, level):
 
