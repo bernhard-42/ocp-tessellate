@@ -412,16 +412,17 @@ class OcpConverter:
         # bild123d BuildPart().part
         if is_build123d_part(cad_obj):
             obj = cad_obj.part
+            obj_name = get_name(cad_obj, obj_name, "Solid")
 
         # build123d BuildSketch().sketch
         elif is_build123d_sketch(cad_obj):
             obj = cad_obj.sketch.faces()
-            obj_name = "Face" if obj_name is None else obj_name
+            obj_name = get_name(cad_obj, obj_name, "Face")
 
         # build123d BuildLine().line
         elif is_build123d_line(cad_obj):
             obj = cad_obj.edges()
-            obj_name = "Edge" if obj_name is None else obj_name
+            obj_name = get_name(cad_obj, obj_name, "Edge")
 
         ocp_obj = self.to_ocp(
             obj,
