@@ -1020,9 +1020,7 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
 
 # TODO: change show.py to directly get bb from shapes
 def combined_bb(shapes):
-    bb = BoundingBox()
-    bb.update(shapes["bb"])
-    return bb
+    return BoundingBox(shapes["bb"])
 
 
 # TODO: change show.py to directly get normal_length from shapes
