@@ -226,14 +226,12 @@ class OcpConverter:
 
     # ============================= Iterate Containers ============================== #
 
-    def handle_list_tuple(
-        self, cad_obj, obj_name, rgba_color, sketch_local, helper_scale, level
+    def _unroll_iterable(
+        self, objs, obj_name, rgba_color, sketch_local, helper_scale, level
     ):
-        _debug(level, "handle_list_tuple", obj_name)
-
-        ocp_obj = OcpGroup(name=get_name(cad_obj, obj_name, "List"))
-        for obj in cad_obj:
-            name = get_name(cad_obj, None, type_name(obj))
+        ocp_obj = OcpGroup(name=obj_name)
+        for name, obj in objs:
+            name = get_name(objs, name, None)
 
             result = self.to_ocp(
                 obj,
@@ -249,6 +247,33 @@ class OcpConverter:
 
         return ocp_obj.make_unique_names().cleanup()
 
+    def handle_list_tuple(
+        self, cad_obj, obj_name, rgba_color, sketch_local, helper_scale, level
+    ):
+        _debug(level, "handle_list_tuple", obj_name)
+        return self._unroll_iterable(
+            zip([None] * len(cad_obj), cad_obj),
+            get_name(cad_obj, obj_name, "List"),
+            rgba_color,
+            sketch_local,
+            helper_scale,
+            level,
+        )
+
+    def handle_dict(
+        self, cad_obj, obj_name, rgba_color, sketch_local, helper_scale, level
+    ):
+        _debug(level, "handle_dict", obj_name)
+
+        return self._unroll_iterable(
+            cad_obj.items(),
+            get_name(cad_obj, obj_name, "Dict"),
+            rgba_color,
+            sketch_local,
+            helper_scale,
+            level,
+        )
+
     def handle_compound(
         self, cad_obj, obj_name, rgba_color, sketch_local, helper_scale, level
     ):
@@ -259,37 +284,14 @@ class OcpConverter:
         elif is_topods_compound(cad_obj):
             cad_obj = list(list_topods_compound(cad_obj))
 
-        ocp_obj = OcpGroup(name=get_name(cad_obj, obj_name, "Compound"))
-        for obj in cad_obj:
-            result = self.to_ocp(
-                obj,
-                colors=[rgba_color],
-                sketch_local=sketch_local,
-                helper_scale=helper_scale,
-                top_level=False,
-                level=level + 1,
-            )
-
-            ocp_obj.add(result.cleanup())
-
-        return ocp_obj.make_unique_names()
-
-    def handle_dict(
-        self, cad_obj, obj_name, rgba_color, sketch_local, helper_scale, level
-    ):
-        _debug(level, "handle_dict", obj_name)
-
-        ocp_obj = OcpGroup(name=get_name(cad_obj, obj_name, "Dict"))
-        for name, el in cad_obj.items():
-            result = self.to_ocp(
-                el,
-                names=[name],
-                colors=[rgba_color],
-                sketch_local=sketch_local,
-                top_level=False,
-                helper_scale=helper_scale,
-                level=level + 1,
-            )
+        return self._unroll_iterable(
+            zip([None] * len(cad_obj), cad_obj),
+            get_name(cad_obj, obj_name, "Compound"),
+            rgba_color,
+            sketch_local,
+            helper_scale,
+            level,
+        )
             ocp_obj.add(result.cleanup())
 
         return ocp_obj
