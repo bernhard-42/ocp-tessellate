@@ -206,7 +206,11 @@ class OcpConverter:
         }
 
         if color is not None:
-            col_a = Color(color)
+            if isinstance(color, (list, tuple)):
+                # return triple color array for CoordSystems
+                return color
+            else:
+                col_a = Color(color)
 
         elif hasattr(obj, "color") and obj.color is not None:
             col_a = Color(obj.color)
