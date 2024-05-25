@@ -367,8 +367,11 @@ class OcpConverter:
 
             # Resolve cadquery Workplane
             cad_obj = cad_obj.vals()
-            if len(cad_obj) > 0 and is_compound(cad_obj[0]):
-                cad_obj = flatten([list(obj) for obj in cad_obj])
+            if len(cad_obj) > 0:
+                if is_compound(cad_obj[0]):
+                    cad_obj = flatten([list(obj) for obj in cad_obj])
+                elif is_cadquery_sketch(cad_obj[0]):
+                    return self.to_ocp(cad_obj).cleanup()
 
         # convert wires to edges
         if len(cad_obj) > 0 and is_wire(cad_obj[0]):

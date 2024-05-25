@@ -311,6 +311,32 @@ class TestCadQuerySketch(MyUnitTest):
         self.assertEqual(len(o.obj), 16)
         self.assertEqual(o.color.web_color, "#ba55d3")
 
+    def test_multi_workplane_sketch(self):
+
+        result = (
+            cq.Workplane()
+            .transformed((0, 90, 90), (2, 0, 0))
+            .sketch()
+            .trapezoid(4, 3, 90)
+            .vertices()
+            .circle(0.5, mode="s")
+            .reset()
+            .vertices()
+            .fillet(0.25)
+            .reset()
+            .rarray(0.6, 1, 5, 1)
+            .slot(01.5, 0.4, mode="s", angle=90)
+            .reset()
+            .finalize()
+        )
+        c = OcpConverter()
+        g = c.to_ocp(result)
+        self.assertTrue(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Face")
+        self.assertIsNotNone(o.ref)
+        self.assertIsNone(o.obj)
+
 
 class TestVector(MyUnitTest):
 
