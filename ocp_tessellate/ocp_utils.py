@@ -670,6 +670,10 @@ def is_toploc_location(obj):
     return isinstance(obj, TopLoc_Location)
 
 
+def is_location(obj):
+    return hasattr(obj, "wrapped") and is_toploc_location(obj.wrapped)
+
+
 # Check gp_Pln
 
 
