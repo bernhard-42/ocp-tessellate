@@ -336,7 +336,7 @@ class OcpConverter:
         parents = []
         while parent is not None:
             pname = "parent" if ind == 0 else f"parent({ind})"
-            p = self.to_ocp(parent, names=[pname], colors=[rgba_color], level=level + 1)
+            p = self.to_ocp(parent, names=[pname], colors=None, level=level + 1)
             p = p.objects[0]
             if p.kind == "solid":
                 p.state_faces = 0
