@@ -392,22 +392,13 @@ class OcpConverter:
 
         kind = get_kind(typ)
 
-        if kind in ("solid", "face", "shell"):
-            ocp_obj = self.unify(
-                objs,
-                kind=kind,
-                name=get_name(cad_obj, obj_name, f"{name}({typ})"),
-                color=self.get_color_for_object(objs[0], rgba_color),
-            )
-        else:
-            # keep the array of wrapped edges or vertices
-            ocp_obj = OcpObject(
-                kind,
-                obj=objs,
-                name=get_name(cad_obj, obj_name, f"{name}({typ})"),
-                color=self.get_color_for_object(objs[0], rgba_color),
-                width=LINE_WIDTH if kind == "edge" else POINT_SIZE,
-            )
+        ocp_obj = self.unify(
+            objs,
+            kind=kind,
+            name=get_name(cad_obj, obj_name, f"{name}({typ})"),
+            color=self.get_color_for_object(objs[0], rgba_color),
+        )
+
         if show_parent:
             parents = self.handle_parent(parent_obj, obj_name, rgba_color, level)
             return OcpGroup(parents + [ocp_obj], name=ocp_obj.name)
