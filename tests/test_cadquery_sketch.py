@@ -58,10 +58,10 @@ result = (
     .fillet(0.25)
     .reset()
     .rarray(0.6, 1, 5, 1)
-    .slot(01.5, 0.4, mode="s", angle=90)
+    .slot(1.5, 0.4, mode="s", angle=90)
     .reset()
     .finalize()
 )
 
-show(result)
+show(result, timeit=True)
 # %%
