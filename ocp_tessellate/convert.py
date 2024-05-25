@@ -294,7 +294,7 @@ class OcpConverter:
         )
             ocp_obj.add(result.cleanup())
 
-        return ocp_obj
+    # ================================= Assemblies ================================== #
 
     def handle_build123d_assembly(
         self, cad_obj, obj_name, rgba_color, render_joints, helper_scale, level
@@ -544,6 +544,8 @@ class OcpConverter:
         result.name = name
         return result
 
+    # ================================ Empty objects ================================ #
+
     def handle_empty_iterables(self, obj_name, level):
         _debug(level, "Empty object")
         name = "Object" if obj_name is None else obj_name
@@ -554,6 +556,8 @@ class OcpConverter:
             color=Color((0, 0, 0, 0.01)),
             width=0.1,
         )
+
+    # ============================ OcpObj's and OcpGroup ============================ #
 
     def handle_locations_planes(
         self, cad_obj, obj_name, rgba_color, helper_scale, sketch_local, level
@@ -630,6 +634,9 @@ class OcpConverter:
         ocp_obj.loc = cad_obj.loc * loc
         ocp_obj.obj = None
         return ocp_obj
+
+        cad_obj.name = name
+        return cad_obj
 
     # ======================== Iterate and identify objects ========================= #
 
