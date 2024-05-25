@@ -296,7 +296,6 @@ class OcpConverter:
             helper_scale,
             level,
         )
-            ocp_obj.add(result.cleanup())
 
     # ================================= Assemblies ================================== #
 
