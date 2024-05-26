@@ -1,5 +1,4 @@
 import base64
-from textwrap import indent
 
 import imagesize
 

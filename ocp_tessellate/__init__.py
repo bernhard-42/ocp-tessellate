@@ -19,13 +19,14 @@ import warnings
 from ._version import __version__ as ot_version
 from ._version import __version_info__ as ot_version_info
 from .cad_objects import (
+    ImageFace,
     OCP_Edges,
     OCP_Faces,
     OCP_Part,
     OCP_PartGroup,
     OCP_Vertices,
-    OcpObject,
     OcpGroup,
+    OcpObject,
 )
 
 # from .convert import web_color

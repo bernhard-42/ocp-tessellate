@@ -860,7 +860,7 @@ class Progress:
         print(mark, end="", flush=True)
 
 
-def to_assembly(
+def to_ocpgroup(
     *cad_objs,
     names=None,
     colors=None,
@@ -1010,8 +1010,41 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
 
 
 #
-# Obsolete functions
+# Obsolete functions, just for compatibility
 #
+
+
+def to_assembly(
+    *cad_objs,
+    names=None,
+    colors=None,
+    alphas=None,
+    render_mates=None,
+    render_joints=None,
+    helper_scale=1,
+    default_color=None,
+    show_parent=False,
+    show_sketch_local=True,
+    loc=None,
+    mates=None,
+    progress=None,
+):
+    warn("to_assembly is obsolete, use to_ocpgroup")
+    return to_ocpgroup(
+        *cad_objs,
+        names=names,
+        colors=colors,
+        alphas=alphas,
+        render_mates=render_mates,
+        render_joints=render_joints,
+        helper_scale=helper_scale,
+        default_color=default_color,
+        show_parent=show_parent,
+        show_sketch_local=show_sketch_local,
+        loc=loc,
+        mates=mates,
+        progress=progress,
+    )
 
 
 # TODO: change show.py to directly get bb from shapes
