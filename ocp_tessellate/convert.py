@@ -588,7 +588,7 @@ class OcpConverter:
             coord["x_dir"],
             coord["z_dir"],
             size=helper_scale,
-        )
+        ).to_ocp()
         return ocp_obj
 
     def handle_axis(
@@ -605,7 +605,7 @@ class OcpConverter:
             coord["origin"],
             coord["z_dir"],
             size=helper_scale,
-        )
+        ).to_ocp()
         return ocp_obj
 
     # ================================ Empty objects ================================ #
@@ -623,23 +623,17 @@ class OcpConverter:
 
     # ============================ OcpObj's and OcpGroup ============================ #
 
-    def handle_ocp_group(self, cad_obj, obj_name):
-        name = get_name(cad_obj, obj_name, "Group")
-        cad_obj.name = name
-        return cad_obj
-
-    def handle_ocp_obj(self, cad_obj, obj_name):
-        name = get_name(cad_obj, obj_name, "Object")
-        ref, loc = self.get_instance(cad_obj.obj, create_cache_id(cad_obj.obj), name)
-        ocp_obj = cad_obj.copy()
-        ocp_obj.ref = name
+    def handle_imageface(self, cad_obj, obj_name):
+        name = get_name(cad_obj, obj_name, "ImageFace")
+        ocp_obj = cad_obj.to_ocp()
+        ocp_obj.name = name
+        ref, loc = self.get_instance(
+            cad_obj.objs[0], create_cache_id(cad_obj.objs[0]), obj_name
+        )
         ocp_obj.ref = ref
-        ocp_obj.loc = cad_obj.loc * loc
         ocp_obj.obj = None
+        ocp_obj.loc = cad_obj.loc * loc
         return ocp_obj
-
-        cad_obj.name = name
-        return cad_obj
 
     # ======================== Iterate and identify objects ========================= #
 
@@ -781,13 +775,9 @@ class OcpConverter:
 
             # =============================== Conversions =============================== #
 
-            # OcpGroup
-            elif isinstance(cad_obj, OcpGroup):
-                ocp_obj = self.handle_ocp_group(cad_obj, obj_name)
-
-            # OcpObject
-            elif isinstance(cad_obj, OcpObject):
-                ocp_obj = self.handle_ocp_obj(cad_obj, obj_name)
+            # ImageFace
+            elif isinstance(cad_obj, ImageFace):
+                ocp_obj = self.handle_imageface(cad_obj, obj_name)
 
             # build123d ShapeList
             elif is_build123d_shapelist(cad_obj) or (
