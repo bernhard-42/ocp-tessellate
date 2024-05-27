@@ -277,7 +277,7 @@ class CoordAxis(OcpWrapper):
         a3 = line(o + size * z, o + size * 0.9 * z + size * 0.025 * x)
         a4 = line(o + size * z, o + size * 0.9 * z - size * 0.025 * y)
         a5 = line(o + size * z, o + size * 0.9 * z + size * 0.025 * y)
-        super().__init__([edge, a2, a3, a4, a5], "edge", name, Color("black"), 3)
+        super().__init__([edge, a2, a3, a4, a5], "edge", name, Color("black"), width=3)
 
 
 class CoordSystem(OcpWrapper):
@@ -288,7 +288,7 @@ class CoordSystem(OcpWrapper):
         z_edge = line(o, o + size * z)
 
         colors = [Color("red"), Color("green"), Color("blue")]
-        super().__init__([x_edge, y_edge, z_edge], "edge", name, colors, 3)
+        super().__init__([x_edge, y_edge, z_edge], "edge", name, colors, width=3)
 
 
 class ImageFace(OcpWrapper):

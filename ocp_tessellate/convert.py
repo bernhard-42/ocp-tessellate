@@ -324,6 +324,66 @@ class OcpConverter:
 
         return ocp_obj
 
+    def handle_cadquery_assembly(
+        self,
+        cad_obj,
+        obj_name,
+        rgba_color,
+        render_mates,
+        helper_scale,
+        level,
+    ):
+        _debug(level, "handle_cadquery_assembly", obj_name)
+        name = get_name(cad_obj, obj_name, "Assembly")
+
+        ocp_obj = OcpGroup(name=name, loc=get_location(cad_obj, as_none=False))
+        if cad_obj.obj is not None:
+            sub_obj = self.to_ocp(
+                cad_obj.obj,
+                names=[cad_obj.name],
+                colors=[cad_obj.color],
+                helper_scale=helper_scale,
+                render_mates=render_mates,
+                level=level + 1,
+            )
+            ocp_obj.add(sub_obj.objects[0])
+
+        if render_mates:
+            top = cad_obj
+            while top.parent is not None:
+                top = top.parent
+            if top.mates is not None:
+                mates = OcpGroup(
+                    [
+                        CoordSystem(
+                            name,
+                            get_tuple(mate_def.mate.origin),
+                            get_tuple(mate_def.mate.x_dir),
+                            get_tuple(mate_def.mate.z_dir),
+                            helper_scale,
+                        ).to_ocp()
+                        for name, mate_def in top.mates.items()
+                        if mate_def.assembly == cad_obj
+                    ],
+                    name=f"{cad_obj.name}_mates",
+                    loc=identity_location(),  # mates inherit the parent location, so actually add a no-op
+                )
+                ocp_obj.add(mates)
+
+        for child in cad_obj.children:
+            sub_obj = self.to_ocp(
+                child,
+                names=[child.name],
+                colors=[rgba_color],
+                helper_scale=helper_scale,
+                render_mates=render_mates,
+                top_level=False,
+                level=level + 1,
+            )
+            ocp_obj.add(sub_obj)
+
+        return ocp_obj
+
     # ================================= Conversions ================================= #
 
     def handle_parent(self, cad_obj, obj_name, rgba_color, level):
@@ -771,6 +831,15 @@ class OcpConverter:
                     level,
                 )
 
+            elif is_cadquery_assembly(cad_obj):
+                ocp_obj = self.handle_cadquery_assembly(
+                    cad_obj,
+                    obj_name,
+                    rgba_color,
+                    render_mates,
+                    helper_scale,
+                    level,
+                )
             # =============================== Conversions =============================== #
 
             # ImageFace
