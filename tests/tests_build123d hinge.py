@@ -1,6 +1,6 @@
 # %%
 from build123d import *
-from ocp_vscode import show_object, set_defaults
+from ocp_vscode import set_defaults, show, show_object
 
 # %%
 set_defaults(render_joints=True)
@@ -192,7 +192,7 @@ lid = lid_builder.part
 # %%
 
 # [A screw to attach the hinge to the box]
-m6_screw = import_step("M6-1x12-countersunk-screw.step")
+m6_screw = import_step("tests/M6-1x12-countersunk-screw.step")
 m6_joint = RigidJoint("head", m6_screw, Location((0, 0, 0), (0, 0, 0)))
 # [End of screw creation]
 
@@ -232,7 +232,9 @@ child_intersect, children, volume = box_assembly.do_children_intersect(
 print(f"do children intersect: {child_intersect}")
 if child_intersect:
     print(f"{children} by {volume:0.3f} mm^3")
+show(box_assembly, render_joints=True)
 
+# %%
 if "show_object" in locals():
     # show_object(box, name="box", options={"alpha": 0.8})
     # show_object(hinge_outer, name="hinge_outer")
@@ -243,7 +245,7 @@ if "show_object" in locals():
         show_object(
             hinge_inner.joints["hole" + str(hole)].symbol,
             name="hinge_inner hole " + str(hole),
-            clear=True,
+            clear=False,
         )
         show_object(
             hinge_outer.joints["hole" + str(hole)].symbol,

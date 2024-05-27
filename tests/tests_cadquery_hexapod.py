@@ -2,11 +2,23 @@
 import cadquery as cq
 import numpy as np
 from cadquery_massembly import MAssembly
-from ocp_vscode import show, Animation, set_defaults
+from ocp_vscode import Animation, set_defaults, show
+
+
+def lrepl(self):
+    return loc_to_tq(self.wrapped)
+
+
+import cadquery
+
+from ocp_tessellate.ocp_utils import loc_to_tq
+
+cadquery.occ_impl.geom.Location.__repl__ = lrepl
+
+from ocp_tessellate import Color
 
 set_defaults(render_mates=True, helper_scale=5)
 
-from ocp_tessellate import web_color
 
 # %%
 
@@ -15,7 +27,7 @@ from ocp_tessellate import web_color
 
 thickness = 2
 height = 40
-width = 65
+width = 60
 length = 100
 diam = 4
 tol = 0.05
@@ -181,7 +193,6 @@ stand = create_stand()
 upper_leg = create_upper_leg()
 lower_leg = create_lower_leg()
 
-# %%
 
 show(base, stand, upper_leg, lower_leg, timeit=False)
 
@@ -192,7 +203,7 @@ show(base, stand, upper_leg, lower_leg, timeit=False)
 def create_hexapod():
     # Some shortcuts
     L = lambda *args: cq.Location(cq.Vector(*args))
-    C = lambda name: web_color(name)
+    C = lambda name: Color(name).web_color
 
     # Leg assembly
     leg = MAssembly(upper_leg, name="upper", color=C("orange")).add(

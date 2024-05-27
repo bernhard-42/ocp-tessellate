@@ -1,6 +1,7 @@
 # %%
 from ocp_vscode import show
-from ocp_tessellate.cad_objects import CoordSystem, CoordAxis
+
+from ocp_tessellate.cad_objects import CoordAxis, CoordSystem
 
 c1 = CoordSystem("xyz", (0.1, 0.2, 0.3), x_dir=(0, 1, 0), z_dir=(1, 0, 0), size=1)
 
@@ -41,11 +42,9 @@ az = CoordAxis("az", oz, z_dir=dz)
 show(c, ax, ay, az)
 
 # %%
-
-# %%
 p = Plane(Location((1, 2, 3), (10, 20, 30)), helper_scale=1)
 show(p)
 # %%
 b = Box(1, 2, 3)
-show(b, Location())
+show(b, Location(), helper_scale=0.5)
 # %%

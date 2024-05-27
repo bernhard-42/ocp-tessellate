@@ -2,7 +2,6 @@
 from build123d import *
 from ocp_vscode import show
 
-
 # %%
 with BuildPart() as box:
     Box(1, 2, 3)
@@ -21,7 +20,7 @@ with BuildLine() as line:
 
 with BuildLine() as pline:
     Polyline((0, 0), (0, 1), (1, 1))
-
+pline.label = "pline"
 # %%
 
 # Parts
@@ -134,6 +133,10 @@ show(*box.edges(), *box.faces(), *box.vertices())
 
 # %%
 
+show(box.edges(), box.faces(), box.vertices(), names=["E", "F", "V"])
+
+# %%
+
 # Mixed Compounds
 
 mixed = Compound.make_compound(box.faces() + box.edges())
@@ -158,9 +161,6 @@ show(box, sym, axes=False, transparent=True)
 compound = Compound.make_compound([box.part, sphere.part])
 
 show(compound)
-# %%
-
-show(*compound)
 # %%
 
 

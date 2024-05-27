@@ -1,7 +1,8 @@
 # %%
 from build123d import *
-from ocp_tessellate.convert import to_assembly, tessellate_group
-from ocp_vscode import show, disable_native_tessellator, enable_native_tessellator
+from ocp_vscode import disable_native_tessellator, enable_native_tessellator, show
+
+from ocp_tessellate.convert import tessellate_group, to_assembly
 
 enable_native_tessellator()
 
@@ -30,11 +31,11 @@ os.remove(stl_name)
 
 # %%
 
-f = import_stl("/Users/bernhard/Development/robot-dog/stl/base.stl")
+f = import_stl("/Users/bernhard/Development/robot-dog/stl/housing.stl")
 # f = import_stl("/tmp/base.stl")
 pg, instances = to_assembly(f)
 result = tessellate_group(pg, instances)
-
+##
 show(
     f,
     # colors=["orange"],

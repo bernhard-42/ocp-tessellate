@@ -1,7 +1,20 @@
 # %%
 from os.path import expanduser
+
 import cadquery as cq
 from ocp_vscode import show
+
+
+def lrepl(self):
+    return loc_to_tq(self.wrapped)
+
+
+import cadquery
+
+from ocp_tessellate.ocp_utils import loc_to_tq
+
+cadquery.occ_impl.geom.Location.__repl__ = lrepl
+
 
 # %%
 
