@@ -130,7 +130,7 @@ class TestsConvert(MyUnitTest):
         self.assertEqual(o.name, "Edge")
         self.assertEqual(o.kind, "edge")
         self.assertEqual(len(i), 0)
-        self.assertTrue(is_topods_edge(o.obj[0]))
+        self.assertTrue(is_topods_edge(o.obj))
 
     def test_buildpart_2(self):
         """Test that a part is converted correctly"""
@@ -253,7 +253,7 @@ class TestsConvert(MyUnitTest):
         self.assertEqual(o.name, "bl")
         self.assertEqual(o.kind, "edge")
         self.assertEqual(len(i), 0)
-        self.assertTrue(is_topods_edge(o.obj[0]))
+        self.assertTrue(is_topods_edge(o.obj))
 
     def test_part_wrapped(self):
         """Test that a wrapped part is converted correctly"""

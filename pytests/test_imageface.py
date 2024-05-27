@@ -26,7 +26,7 @@ class TestsImageFace(MyUnitTest):
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.name, "imageplane")
-        self.assertEqual(o.kind, "face")
+        self.assertEqual(o.kind, "imageface")
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
         self.assertTrue(is_topods_face(i[o.ref]["obj"]))
@@ -55,7 +55,7 @@ class TestsImageFace(MyUnitTest):
         for ind in range(2):
             o = g.objects[ind]
             self.assertEqual(o.name, f"face{ind}")
-            self.assertEqual(o.kind, "face")
+            self.assertEqual(o.kind, "imageface")
             self.assertIsNotNone(o.ref)
             self.assertIsNone(o.obj)
             self.assertTrue(is_topods_face(i[o.ref]["obj"]))
