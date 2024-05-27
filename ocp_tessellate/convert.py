@@ -4,9 +4,9 @@ from hashlib import sha256
 from ocp_tessellate.cad_objects import (
     CoordAxis,
     CoordSystem,
-    ImageFace,
     OcpGroup,
     OcpObject,
+    OcpWrapper,
 )
 from ocp_tessellate.defaults import get_default, preset
 from ocp_tessellate.ocp_utils import *
@@ -656,16 +656,17 @@ class OcpConverter:
         ).to_ocp()
         return ocp_obj
 
-    def handle_imageface(self, cad_obj, obj_name):
+    def handle_ocp_wrapper(self, cad_obj, obj_name):
         name = get_name(cad_obj, obj_name, "ImageFace")
         ocp_obj = cad_obj.to_ocp()
         ocp_obj.name = name
-        ref, loc = self.get_instance(
-            cad_obj.objs[0], create_cache_id(cad_obj.objs[0]), obj_name
-        )
-        ocp_obj.ref = ref
-        ocp_obj.obj = None
-        ocp_obj.loc = cad_obj.loc * loc
+        if ocp_obj.kind in ["solid", "imageface", "face", "shell"]:
+            ref, loc = self.get_instance(
+                cad_obj.objs[0], create_cache_id(cad_obj.objs[0]), obj_name
+            )
+            ocp_obj.loc = cad_obj.loc * loc
+            ocp_obj.ref = ref
+            ocp_obj.obj = None
         return ocp_obj
 
     # ================================ Empty objects ================================ #
@@ -830,9 +831,9 @@ class OcpConverter:
                 )
             # =============================== Conversions =============================== #
 
-            # ImageFace
-            elif isinstance(cad_obj, ImageFace):
-                ocp_obj = self.handle_imageface(cad_obj, obj_name)
+            # OcpWrapper (ImageFace, CoordSystem, CoordAxis, etc.)
+            elif isinstance(cad_obj, OcpWrapper):
+                ocp_obj = self.handle_ocp_wrapper(cad_obj, obj_name)
 
             # build123d ShapeList
             elif is_build123d_shapelist(cad_obj) or (

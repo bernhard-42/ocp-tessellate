@@ -298,7 +298,7 @@ class ImageFace(OcpWrapper):
         scale=1.0,
         origin_pixels=(0, 0),
         location=None,
-        name="ImagePlane",
+        name="ImageFace",
     ):
         self.image_width, self.image_height = imagesize.get(image_path)
         x = origin_pixels[0]
