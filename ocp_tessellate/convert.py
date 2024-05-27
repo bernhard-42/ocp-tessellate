@@ -94,18 +94,6 @@ def create_cache_id(obj):
     return sha.hexdigest()
 
 
-# TODOs:
-# - cache handling
-# - ImageFace
-# - render mates
-# - render joints
-# - render parent
-# - render normals
-#
-# - CadQuery objects
-# - CadQuery assemblies
-
-
 class OcpConverter:
     def __init__(self, progress=None):
         self.instances = []
