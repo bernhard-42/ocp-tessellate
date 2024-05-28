@@ -1132,86 +1132,23 @@ def deserialize(buffer):
     return shape
 
 
-#
-# %% Unused
-#
-
-# def is_compound_list(topods_list):
-#     return all([is_topods_compound(obj) for obj in topods_list])
+from OCP.STEPControl import STEPControl_Reader
 
 
-# def is_solid_list(topods_list):
-#     return all([is_topods_solid(obj) for obj in topods_list])
+def import_step_as_single_compound(file_name):
 
+    reader = STEPControl_Reader()
+    read_status = reader.ReadFile(file_name)
+    if read_status != OCP.IFSelect.IFSelect_RetDone:
+        raise ValueError(f"STEP File {file_name} could not be loaded")
+    for i in range(reader.NbRootsForTransfer()):
+        reader.TransferRoot(i + 1)
 
-# def is_shell_list(topods_list):
-#     return all([is_topods_shell(obj) for obj in topods_list])
+    occ_shapes = []
+    for i in range(reader.NbShapes()):
+        occ_shapes.append(reader.Shape(i + 1))
 
-
-# def is_face_list(topods_list):
-#     return all([is_topods_face(obj) for obj in topods_list])
-
-
-# def is_wire_list(topods_list):
-#     return all([is_topods_wire(obj) for obj in topods_list])
-
-
-# def is_edge_list(topods_list):
-#     return all([is_topods_edge(obj) for obj in topods_list])
-
-
-# def is_vertex_list(topods_list):
-#     return all([is_topods_vertex(obj) for obj in topods_list])
-
-
-# Check compounds for containing same types only
-
-
-# def is_solids_compound(topods_shape):
-#     if isinstance(topods_shape, TopoDS_Compound):
-#         e = get_solids(topods_shape)
-#         return next(e, None) is not None
-#     return False
-
-
-# def is_faces_compound(topods_shape):
-#     if isinstance(topods_shape, TopoDS_Compound):
-#         e = get_faces(topods_shape)
-#         return next(e, None) is not None
-#     return False
-
-
-# def is_wires_compound(topods_shape):
-#     if isinstance(topods_shape, TopoDS_Compound):
-#         e = get_wires(topods_shape)
-#         return next(e, None) is not None
-#     return False
-
-
-# def is_edges_compound(topods_shape):
-#     if isinstance(topods_shape, TopoDS_Compound):
-#         e = get_edges(topods_shape)
-#         return next(e, None) is not None
-#     return False
-
-
-# def is_vertices_compound(topods_shape):
-#     if isinstance(topods_shape, TopoDS_Compound):
-#         e = get_vertices(topods_shape)
-#         return next(e, None) is not None
-#     return False
-
-# def write_stl_file(compound, filename, tolerance=None, angular_tolerance=None):
-#     # Remove previous mesh data
-#     BRepTools.Clean_s(compound)
-
-#     mesh = BRepMesh_IncrementalMesh(compound, tolerance, True, angular_tolerance)
-#     mesh.Perform()
-
-#     writer = StlAPI_Writer()
-
-#     result = writer.Write(compound, filename)
-
-#     # Remove the mesh data again
-#     BRepTools.Clean_s(compound)
-#     return result
+    if len(occ_shapes) == 1:
+        return occ_shapes[0]
+    else:
+        return make_compound(occ_shapes)
