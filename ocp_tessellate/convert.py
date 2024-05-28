@@ -26,7 +26,7 @@ THICK_EDGE_COLOR = "MediumOrchid"
 VERTEX_COLOR = "MediumOrchid"
 FACE_COLOR = "Violet"
 
-DEBUG = True
+DEBUG = False
 
 
 def _debug(level, msg, name=None, prefix="debug:", end="\n"):
