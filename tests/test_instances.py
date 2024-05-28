@@ -69,6 +69,7 @@ show(
     alphas=[0.8, 0.6, 0.4, 1.0, 0.2],
     timeit=False,
 )
+# expected --**c
 
 # %%
 
@@ -85,7 +86,7 @@ show(
     alphas=[0.8, 0.6, 0.4, 1.0, 0.2],
     timeit=False,
 )
-
+# expected -***c
 # %%
 
 show(Pos(X=1.5) * b, Pos(X=-1.5) * b, timeit=False)

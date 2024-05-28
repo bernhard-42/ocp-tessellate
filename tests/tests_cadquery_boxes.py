@@ -1,7 +1,7 @@
 # %%
 import cadquery as cq
-from ocp_vscode import show
 from cadquery_massembly import MAssembly
+from ocp_vscode import show
 
 # %%
 # MAssembly Test
@@ -101,7 +101,7 @@ for obj, name in (
 show(assy, render_mates=True)
 
 
-# ##
+# %%
 
 
 assy.relocate()
