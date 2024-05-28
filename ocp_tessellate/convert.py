@@ -299,7 +299,6 @@ class OcpConverter:
             sub_obj = self.to_ocp(
                 child,
                 names=[child.label],
-                colors=[rgba_color],
                 helper_scale=helper_scale,
                 render_joints=render_joints,
                 top_level=False,
@@ -310,7 +309,7 @@ class OcpConverter:
             else:
                 ocp_obj.add(sub_obj)
 
-        return ocp_obj
+        return ocp_obj.make_unique_names()
 
     def handle_cadquery_assembly(
         self,
