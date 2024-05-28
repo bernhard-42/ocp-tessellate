@@ -112,7 +112,7 @@ class OcpConverter:
 
         # check if the same instance is already available
         for i, instance in enumerate(self.instances):
-            if instance["obj"] == obj2:
+            if instance["obj"].TShape() == obj2.TShape():
                 ref = i
 
                 if self.progress is not None:

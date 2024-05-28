@@ -1,7 +1,10 @@
 # %%
 import copy
+
 from build123d import *
 from ocp_vscode import *
+
+from ocp_tessellate.tessellator import cache
 
 
 def reference(obj, label, loc=None):
@@ -49,18 +52,21 @@ show(
 )
 
 # %%
-
+cache.clear()
 s = Sphere(1)
+s2 = Sphere(1)
 b = Box(1, 2, 3)
 b1 = reference(b, label="b1", loc=Pos(X=3))
 b2 = reference(b, label="b2", loc=Pos(X=-3))
 
 show(
     s,
+    b,
     b1,
     b2,
-    colors=["red", "green", "blue"],
-    alphas=[0.8, 0.6, 0.4],
+    s2,
+    colors=["red", "green", "blue", "cyan", "yellow"],
+    alphas=[0.8, 0.6, 0.4, 1.0, 0.2],
     timeit=False,
 )
 
@@ -70,11 +76,13 @@ b2 = b2 - Pos(X=-3) * Box(5, 0.2, 0.2)
 
 show(
     s,
+    b,
     b1,
     b2,
-    names=["s", "b1", "b2"],
-    colors=["red", "green", "blue"],
-    alphas=[0.8, 0.6, 0.4],
+    s2,
+    names=["s", "b", "b1", "b2", "s2"],
+    colors=["red", "green", "blue", "cyan", "yellow"],
+    alphas=[0.8, 0.6, 0.4, 1.0, 0.2],
     timeit=False,
 )
 
