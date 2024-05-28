@@ -954,8 +954,6 @@ def to_ocpgroup(
 def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False):
 
     def get_bb_max(shapes, meshed_instances, loc=None, bbox=None):
-        if loc is None:
-            loc = identity_location()
         for shape in shapes["parts"]:
             new_loc = loc if shape["loc"] is None else loc * tq_to_loc(*shape["loc"])
             if shape.get("parts") is None:
@@ -1061,7 +1059,11 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
 
     shapes["normal_len"] = max_accuracy / deviation * 4 if render_normals else 0
     with Timer(timeit, "", "compute bounding box:", 2) as t:
-        shapes["bb"] = get_bb_max(shapes, meshed_instances)
+        top_loc = (
+            identity_location() if shapes["loc"] is None else tq_to_loc(*shapes["loc"])
+        )
+        shapes["bb"] = get_bb_max(shapes, meshed_instances, top_loc)
+        print(shapes["bb"])
         t.info = str(BoundingBox(shapes["bb"]))
 
     return meshed_instances, shapes, states, mapping
