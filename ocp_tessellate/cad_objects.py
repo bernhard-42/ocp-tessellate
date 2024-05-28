@@ -2,13 +2,16 @@ import base64
 
 import imagesize
 
+from ocp_tessellate.defaults import get_default
 from ocp_tessellate.ocp_utils import (
     axis_to_vecs,
     copy_location,
     copy_topods_shape,
+    identity_location,
     line,
     loc_to_tq,
     loc_to_vecs,
+    make_compound,
     mul_locations,
     rect,
     tq_to_loc,
@@ -250,22 +253,36 @@ class OcpGroup:
 
 class OcpWrapper:
 
-    def __init__(self, objs, kind, name, color, loc=None, width=None, show_edges=True):
+    def __init__(
+        self,
+        objs,
+        kind,
+        name,
+        color,
+        loc=None,
+        width=None,
+        show_edges=True,
+        show_faces=True,
+    ):
         self.objs = objs
         self.kind = kind
         self.name = name
         self.color = color
-        self.loc = loc
+        self.loc = identity_location() if loc is None else loc
         self.width = width
         self.show_edges = show_edges
+        self.show_faces = show_faces
 
     def to_ocp(self):
         return OcpObject(
             self.kind,
             self.objs,
             name=self.name,
+            loc=self.loc,
             color=self.color,
             width=self.width,
+            show_edges=self.show_edges,
+            show_faces=self.show_faces,
         )
 
 
@@ -339,16 +356,78 @@ class ImageFace(OcpWrapper):
         return result
 
 
-class OCP_Part: ...
+class OCP_Part(OcpWrapper):
+    def __init__(
+        self,
+        shape,
+        cache_id=None,
+        name="Part",
+        color=None,
+        show_faces=True,
+        show_edges=True,
+    ):
+        if color is None:
+            color = Color(get_default("default_color"))
+
+        super().__init__(
+            [shape], "solid", name, color, show_faces=show_faces, show_edges=show_edges
+        )
 
 
-class OCP_Faces: ...
+class OCP_Faces(OCP_Part):
+    def __init__(
+        self,
+        faces,
+        cache_id=None,
+        name="Faces",
+        color=None,
+        show_faces=True,
+        show_edges=True,
+    ):
+        if color is None:
+            color = Color("Violet")
+        obj = make_compound(faces)
+        super().__init__(obj, cache_id, name, color, show_faces, show_edges)
 
 
-class OCP_Edges: ...
+class OCP_Edges(OcpWrapper):
+    def __init__(self, edges, name="Edges", color=None, width=1):
+        if color is None:
+            color = Color("MediumOrchid")
+        super().__init__(edges, "edge", name, color, width=width)
+        self.width = 2
 
 
-class OCP_Vertices: ...
+class OCP_Vertices(OcpWrapper):
+    def __init__(self, vertices, name="Vertices", color=None, size=1):
+        if color is None:
+            color = Color("MediumOrchid")
+        super().__init__(vertices, "vertex", name, color, width=size)
+        self.width = 6
 
 
-class OCP_PartGroup: ...
+class OCP_PartGroup(list):
+    def __init__(self, objects, name="Group", loc=None):
+        super().__init__(objects)
+        self.objs = objects
+        self.loc = loc
+        self.name = name
+        self.index = 0
+
+    def __iter__(self):
+        self.index = 0
+        return self
+
+    def __next__(self):
+        if self.index < len(self.objs):
+            result = self.objs[self.index]
+            self.index += 1
+            return result
+        else:
+            raise StopIteration
+
+    def __getitem__(self, i):
+        return self.objs[i]
+
+    def __len__(self):
+        return len(self.objs)

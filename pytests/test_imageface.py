@@ -3,7 +3,8 @@ import unittest
 import pytest
 from build123d import *
 
-from ocp_tessellate.convert import ImageFace, OcpConverter
+from ocp_tessellate.cad_objects import ImageFace
+from ocp_tessellate.convert import OcpConverter
 from ocp_tessellate.ocp_utils import *
 
 
