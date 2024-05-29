@@ -360,7 +360,6 @@ class OCP_Part(OcpWrapper):
     def __init__(
         self,
         shape,
-        cache_id=None,
         name="Part",
         color=None,
         show_faces=True,
@@ -378,7 +377,6 @@ class OCP_Faces(OCP_Part):
     def __init__(
         self,
         faces,
-        cache_id=None,
         name="Faces",
         color=None,
         show_faces=True,
@@ -387,7 +385,7 @@ class OCP_Faces(OCP_Part):
         if color is None:
             color = Color("Violet")
         obj = make_compound(faces)
-        super().__init__(obj, cache_id, name, color, show_faces, show_edges)
+        super().__init__(obj, name, color, show_faces, show_edges)
 
 
 class OCP_Edges(OcpWrapper):
