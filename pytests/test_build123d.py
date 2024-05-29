@@ -1104,3 +1104,34 @@ class TestVector(MyUnitTest):
         self.assertEqual(o.name, "Vector(2)")
         self.assertEqual(o.kind, "vertex")
         self.assertTrue(is_topods_vertex(o.obj))
+
+
+class TestMultipleObjects(MyUnitTest):
+    def test_multiple_objects(self):
+        s = bd.Sphere(1)
+        b = bd.Box(1, 2, 3)
+        b1 = bd.Pos(X=3) * b
+        b2 = bd.Pos(X=-3) * b
+
+        c = OcpConverter()
+        g = c.to_ocp(
+            s,
+            b1,
+            b2,
+            names=["s", "b1", "b2"],
+            colors=["red", "green", "blue"],
+            alphas=[0.8, 0.6, 0.4],
+        )
+        self.assertEqual(g.length, 3)
+        o = g.objects[0]
+        self.assertEqual(o.name, "s")
+        self.assertEqual(o.color.web_color, "#ff0000")
+        self.assertEqual(o.color.a, 0.8)
+        o = g.objects[1]
+        self.assertEqual(o.name, "b1")
+        self.assertEqual(o.color.web_color, "#008000")
+        self.assertEqual(o.color.a, 0.6)
+        o = g.objects[2]
+        self.assertEqual(o.name, "b2")
+        self.assertEqual(o.color.web_color, "#0000ff")
+        self.assertEqual(o.color.a, 0.4)
