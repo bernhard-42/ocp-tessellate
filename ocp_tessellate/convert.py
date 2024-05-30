@@ -1,4 +1,5 @@
 import enum
+import math
 from hashlib import sha256
 
 from ocp_tessellate.cad_objects import (
@@ -223,7 +224,6 @@ class OcpConverter:
     ):
         ocp_obj = OcpGroup(name=obj_name)
         for name, obj in objs:
-            name = get_name(objs, name, None)
 
             result = self.to_ocp(
                 obj,
@@ -237,7 +237,7 @@ class OcpConverter:
             if result.length > 0:
                 ocp_obj.add(result.cleanup())
 
-        return ocp_obj.make_unique_names().cleanup()
+        return ocp_obj.make_unique_names()
 
     def handle_list_tuple(
         self, cad_obj, obj_name, rgba_color, sketch_local, helper_scale, level
@@ -651,6 +651,7 @@ class OcpConverter:
             name,
             coord["origin"],
             coord["z_dir"],
+            rgba_color,
             size=helper_scale,
         ).to_ocp()
         return ocp_obj
@@ -754,18 +755,24 @@ class OcpConverter:
             elif hasattr(cad_obj, "color") and cad_obj.color is not None:
                 rgba_color = get_rgba(cad_obj.color)
 
-            # =========================== Map Vector to Vertex ========================== #
+            # ============================ Map Vector to Axis =========================== #
 
             if is_vector(cad_obj) or is_gp_vec(cad_obj):
                 if isinstance(cad_obj, Iterable):
-                    cad_obj = vertex(list(cad_obj))
+                    target = list(cad_obj)
                 elif hasattr(cad_obj, "toTuple"):
-                    cad_obj = vertex(cad_obj.toTuple())
+                    target = cad_obj.toTuple()
                 else:
-                    cad_obj = vertex(cad_obj.XYZ().Coord())
+                    target = cad_obj.XYZ().Coord()
+
+                cad_obj = axis((0, 0, 0), target)
+                helper_scale = math.sqrt(sum([x**2 for x in target]))
 
                 if obj_name is None:
                     obj_name = "Vector"
+
+                if rgba_color is None:
+                    rgba_color = get_rgba(THICK_EDGE_COLOR)
 
             # ========================= Empty list or compounds ========================= #
 
@@ -1062,7 +1069,7 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
             identity_location() if shapes["loc"] is None else tq_to_loc(*shapes["loc"])
         )
         shapes["bb"] = get_bb_max(shapes, meshed_instances, top_loc)
-        print(shapes["bb"])
+
         t.info = str(BoundingBox(shapes["bb"]))
 
     return meshed_instances, shapes, states, mapping

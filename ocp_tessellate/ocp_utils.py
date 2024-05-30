@@ -625,6 +625,10 @@ def vector(xyz):
     return gp_Vec(*xyz)
 
 
+def axis(origin, z_dir):
+    return gp_Ax1(gp_Pnt(*origin), gp_Dir(*z_dir))
+
+
 def rect(width, height):
     return BRepBuilderAPI_MakeFace(
         gp_Pln(gp_Ax3(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1), gp_Dir(1, 0, 0))),
