@@ -1,4 +1,5 @@
 import base64
+import math
 
 import imagesize
 
@@ -287,14 +288,29 @@ class OcpWrapper:
 
 
 class CoordAxis(OcpWrapper):
-    def __init__(self, name, origin, z_dir, size=1):
+    def __init__(self, name, origin, z_dir, color=None, size=1):
+        if color is None:
+            color = Color("black")
         o, x, y, z = axis_to_vecs(origin, z_dir)
         edge = line(o, o + size * z)
-        a2 = line(o + size * z, o + size * 0.9 * z - size * 0.025 * x)
-        a3 = line(o + size * z, o + size * 0.9 * z + size * 0.025 * x)
-        a4 = line(o + size * z, o + size * 0.9 * z - size * 0.025 * y)
-        a5 = line(o + size * z, o + size * 0.9 * z + size * 0.025 * y)
-        super().__init__([edge, a2, a3, a4, a5], "edge", name, Color("black"), width=3)
+        f = 0.8 + math.atan(size * 0.6) / (math.pi / 2) / 6
+        dz = size * f * z
+        dx = size * ((1 - f) / 4) * x
+        dy = size * ((1 - f) / 4) * y
+        a = [
+            line(o + size * z, o + dz - dx),
+            line(o + size * z, o + dz + dx),
+            line(o + size * z, o + dz - dy),
+            line(o + size * z, o + dz + dy),
+            line(o + dz - dx, o + dz + dx),
+            line(o + dz - dy, o + dz + dy),
+            line(o + dz - dy, o + dz + dx),
+            line(o + dz - dy, o + dz - dx),
+            line(o + dz + dy, o + dz + dx),
+            line(o + dz + dy, o + dz - dx),
+        ]
+
+        super().__init__([edge] + a, "edge", name, color, width=2)
 
 
 class CoordSystem(OcpWrapper):
@@ -305,7 +321,7 @@ class CoordSystem(OcpWrapper):
         z_edge = line(o, o + size * z)
 
         colors = [Color("red"), Color("green"), Color("blue")]
-        super().__init__([x_edge, y_edge, z_edge], "edge", name, colors, width=3)
+        super().__init__([x_edge, y_edge, z_edge], "edge", name, colors, width=2)
 
 
 class ImageFace(OcpWrapper):
