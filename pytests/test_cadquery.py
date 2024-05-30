@@ -346,8 +346,9 @@ class TestVector(MyUnitTest):
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.name, "Vector")
-        self.assertEqual(o.kind, "vertex")
-        self.assertTrue(is_topods_vertex(o.obj))
+        self.assertEqual(o.kind, "edge")
+        self.assertTrue(is_topods_edge(o.obj[0]))
+        self.assertEqual(len(o.obj), 11)
 
     def test_vectors(self):
         c = OcpConverter()
@@ -355,9 +356,11 @@ class TestVector(MyUnitTest):
         self.assertEqual(g.length, 2)
         o = g.objects[0]
         self.assertEqual(o.name, "Vector")
-        self.assertEqual(o.kind, "vertex")
-        self.assertTrue(is_topods_vertex(o.obj))
+        self.assertEqual(o.kind, "edge")
+        self.assertTrue(is_topods_edge(o.obj[0]))
+        self.assertEqual(len(o.obj), 11)
         o = g.objects[1]
         self.assertEqual(o.name, "Vector(2)")
-        self.assertEqual(o.kind, "vertex")
-        self.assertTrue(is_topods_vertex(o.obj))
+        self.assertEqual(o.kind, "edge")
+        self.assertTrue(is_topods_edge(o.obj[0]))
+        self.assertEqual(len(o.obj), 11)
