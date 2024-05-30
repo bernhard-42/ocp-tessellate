@@ -27,6 +27,7 @@ from .cad_objects import (
     OCP_Vertices,
     OcpGroup,
     OcpObject,
+    PartGroup,
 )
 
 # from .convert import web_color
