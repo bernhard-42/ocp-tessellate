@@ -765,8 +765,11 @@ class OcpConverter:
                 else:
                     target = cad_obj.XYZ().Coord()
 
-                cad_obj = axis((0, 0, 0), target)
-                helper_scale = math.sqrt(sum([x**2 for x in target]))
+                if target[0] == 0 and target[1] == 0 and target[2] == 0:
+                    cad_obj = vertex(target)
+                else:
+                    cad_obj = axis((0, 0, 0), target)
+                    helper_scale = math.sqrt(sum([x**2 for x in target]))
 
                 if obj_name is None:
                     obj_name = "Vector"
@@ -988,6 +991,14 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
                     }
             else:
                 bbox = get_bb_max(shape, meshed_instances, new_loc, bbox)
+
+        # Increase bounding box dimensions that are too small
+        # Will only be used to calculate the viewing box size of the group
+        for a in ["x", "y", "z"]:
+            if bbox[f"{a}max"] - bbox[f"{a}min"] < 1e-6:
+                bbox[f"{a}max"] += 0.1
+                bbox[f"{a}min"] -= 0.1
+
         return bbox
 
     def _discretize_edges(obj, name, id_):
