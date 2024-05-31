@@ -768,14 +768,13 @@ class OcpConverter:
                 if target[0] == 0 and target[1] == 0 and target[2] == 0:
                     cad_obj = vertex(target)
                 else:
-                    cad_obj = axis((0, 0, 0), target)
-                    helper_scale = math.sqrt(sum([x**2 for x in target]))
-
-                if obj_name is None:
-                    obj_name = "Vector"
-
-                if rgba_color is None:
-                    rgba_color = get_rgba(THICK_EDGE_COLOR)
+                    cad_obj = CoordAxis(
+                        "Vector" if obj_name is None else obj_name,
+                        (0, 0, 0),
+                        target,
+                        color=get_rgba(THICK_EDGE_COLOR),
+                        size=math.sqrt(sum([x**2 for x in target])),
+                    )
 
             # ========================= Empty list or compounds ========================= #
 
