@@ -1,6 +1,7 @@
 import enum
 import math
 from hashlib import sha256
+from typing import Any, Dict, List, Tuple, Union
 
 from ocp_tessellate.cad_objects import (
     CoordAxis,
@@ -29,6 +30,16 @@ FACE_COLOR = "Violet"
 
 DEBUG = False
 
+# Alias for every object containing a "wrapped" attribute of type TopaDS_Shape
+Wrapped = Any
+# can be build123d or CadQuery shapes
+ShapeLike = Union[TopoDS_Shape, Wrapped]
+
+
+class Progress:
+    def update(self, mark):
+        print(mark, end="", flush=True)
+
 
 def _debug(level, msg, name=None, prefix="debug:", end="\n"):
     if DEBUG:
@@ -37,7 +48,17 @@ def _debug(level, msg, name=None, prefix="debug:", end="\n"):
         print(f"{prefix} {msg} {suffix}", end=end, flush=True)
 
 
-def get_name(obj, name, default):
+def get_name(obj: TopoDS_Shape, name: str, default: str) -> str:
+    """
+    Get the name of the object. If the name is None, use the default name.
+    If the object has a name or label attribute, use that.
+
+    @param obj: The object of type TopoDS_Shape or a subclass
+    @param name: The name of the object
+    @param default: The default name
+
+    @return: The derived name of the object
+    """
     if name is None:
         if hasattr(obj, "name") and obj.name is not None and obj.name != "":
             name = obj.name
@@ -48,7 +69,14 @@ def get_name(obj, name, default):
     return name
 
 
-def get_type(obj):
+def get_type(obj: TopoDS_Shape) -> str:
+    """
+    Get the type of the object based on its TopoDS type
+
+    @param obj: The object of type TopoDS_Shape or a subclass
+
+    @return: The type of the object
+    """
     kinds = {
         "TopoDS_Edge": "Edge",
         "TopoDS_Face": "Face",
@@ -63,7 +91,16 @@ def get_type(obj):
     return typ
 
 
-def get_kind(typ):
+def get_kind(typ: str) -> str:
+    """
+    Get the kind of the object based on its type.
+    The kinds "edge", "face", "solid", "vertex" are used for selecting the right
+    tessellation algorithm
+
+    @param typ: The type of the object (see get_type)
+
+    @return: The kind of the object
+    """
     kinds = {
         "Edge": "edge",
         "Face": "face",
@@ -78,7 +115,16 @@ def get_kind(typ):
     return kind
 
 
-def unwrap(obj):
+def unwrap(
+    obj: Union[TopoDS_Shape, List[TopoDS_Shape], ShapeLike, List[ShapeLike]]
+) -> Union[TopoDS_Shape, List[TopoDS_Shape]]:
+    """
+    Unwrap the object or objects in a list  if it is wrapped.
+
+    @param obj: The object or list of objects
+
+    @return: The unwrapped object or list of objects
+    """
     if hasattr(obj, "wrapped"):
         return obj.wrapped
     elif isinstance(obj, (list, tuple)):
@@ -86,7 +132,14 @@ def unwrap(obj):
     return obj
 
 
-def create_cache_id(obj):
+def create_cache_id(obj: TopoDS_Shape) -> str:
+    """
+    The TopoDS_Shape objects are serialized and hashed to create a unique id.
+
+    @param obj: The object of type TopoDS_Shape or a subclass
+
+    @return: The unique id of the object
+    """
     sha = sha256()
     objs = [obj] if not isinstance(obj, (tuple, list)) else obj
     for o in objs:
@@ -96,7 +149,12 @@ def create_cache_id(obj):
 
 
 class OcpConverter:
-    def __init__(self, progress=None):
+    """The class to filter obejcts and convert them to OcpObject and OcpGroup hierarchies."""
+
+    def __init__(self, progress: Progress = None):
+        """The initializer of the OcpConverter.
+        @param progress: The progress class to provide updates during the conversion
+        """
         self.instances = []
         self.ocp = None
         self.progress = progress
@@ -104,7 +162,20 @@ class OcpConverter:
 
     # ============================== Create instances =============================== #
 
-    def get_instance(self, obj, cache_id, name):
+    def get_instance(
+        self, obj: TopoDS_Shape, cache_id: str, name: str
+    ) -> Tuple[int, TopLoc_Location]:
+        """
+        Identify if the object is already available in the instances list based on
+        comparing their TShapes.
+        If not, create a new instance and add it to the list.
+
+        @param obj: The object of type TopoDS_Shape or a subclass
+        @param cache_id: The unique id of the object
+        @param name: The name of the object
+
+        @return: The reference to the object in the instances list and the location
+        """
         ref = None
 
         # Create the relocated object as a copy
@@ -128,7 +199,26 @@ class OcpConverter:
 
         return ref, loc
 
-    def unify(self, objs, kind, name, color, alpha=1.0):
+    def unify(
+        self,
+        objs: Union[TopoDS_Shape, List[TopoDS_Shape]],
+        kind: str,
+        name: str,
+        color: Color,
+        alpha: float = 1.0,
+    ) -> OcpObject:
+        """
+        Unify the objects in a list to a single TopoDS_Shape or a TopoDS_Compound for
+        solids, shells and faces or to a list of edges or vertices.
+
+        @param objs: The list of objects
+        @param kind: The kind of the objects
+        @param name: The name of the object
+        @param color: The color of the object
+        @param alpha: The alpha value of the object
+
+        @return: The unified OcpObject
+        """
         # Try to downcast to one TopoDS_Shape
         if len(objs) == 1:
             ocp_obj = objs[0]
@@ -176,7 +266,23 @@ class OcpConverter:
                 width=LINE_WIDTH if kind == "edge" else POINT_SIZE,
             )
 
-    def get_color_for_object(self, obj, color=None, alpha=None, kind=None):
+    def get_color_for_object(
+        self,
+        obj: TopoDS_Shape,
+        color: Color = None,
+        alpha: float = None,
+        kind: str = None,
+    ) -> Color:
+        """
+        Get the color of the object based on the object type and the default colors.
+
+        @param obj: The object of type TopoDS_Shape or a subclass
+        @param color: The color of the object
+        @param alpha: The alpha value of the object
+        @param kind: The kind of the object
+
+        @return: The color of the object
+        """
         default_colors = {
             # ocp types
             "TopoDS_Edge": THICK_EDGE_COLOR,
@@ -220,8 +326,26 @@ class OcpConverter:
     # ============================= Iterate Containers ============================== #
 
     def _unroll_iterable(
-        self, objs, obj_name, rgba_color, sketch_local, helper_scale, level
-    ):
+        self,
+        objs: Union[TopoDS_Compound, List[TopoDS_Shape], Dict[str, TopoDS_Shape]],
+        obj_name: str,
+        rgba_color: Color,
+        sketch_local: bool,
+        helper_scale: bool,
+        level: int,
+    ) -> OcpGroup:
+        """
+        Unroll the objects in an iterable and convert them to OcpObject and OcpGroup hierarchies.
+
+        @param objs: The list of objects
+        @param obj_name: The name of the object
+        @param rgba_color: The color of the object
+        @param sketch_local: The flag to render the sketch local
+        @param helper_scale: The scale of the helper objects
+        @param level: The level of the hierarchy
+
+        @return: The OcpGroup hierarchy
+        """
         ocp_obj = OcpGroup(name=obj_name)
         for name, obj in objs:
 
@@ -919,11 +1043,6 @@ class OcpConverter:
 #
 # Interface functions
 #
-
-
-class Progress:
-    def update(self, mark):
-        print(mark, end="", flush=True)
 
 
 def to_ocpgroup(
