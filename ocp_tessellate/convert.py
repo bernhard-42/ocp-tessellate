@@ -801,7 +801,7 @@ class OcpConverter:
             # Compounds / topods_compounds
             elif (
                 is_compound(cad_obj)
-                and (is_mixed_compound(cad_obj) or unroll_compounds)
+                and (is_mixed_compound(cad_obj.wrapped) or unroll_compounds)
             ) or (
                 is_topods_compound(cad_obj)
                 and (is_mixed_compound(cad_obj) or unroll_compounds)
