@@ -6,7 +6,7 @@ import pytest
 import webcolors
 from build123d import *
 
-from ocp_tessellate.convert import OcpConverter, tessellate_group, to_assembly
+from ocp_tessellate.convert import OcpConverter, tessellate_group, to_ocpgroup
 from ocp_tessellate.ocp_utils import *
 from ocp_tessellate.tessellator import cache
 
@@ -96,76 +96,76 @@ class TestsConvertCache(MyUnitTest):
 
     def test_buildpart(self):
         cache.clear()
-        g, i = to_assembly(bp)
+        g, i = to_ocpgroup(bp)
         for run in range(5):
             result = tessellate_group(g, i, progress=Progress(run, self))
 
     def test_buildsketch(self):
         cache.clear()
-        g, i = to_assembly(bs)
+        g, i = to_ocpgroup(bs)
         for run in range(5):
             result = tessellate_group(g, i, progress=Progress(run, self))
 
     def test_mixed(self):
         cache.clear()
-        g1, i1 = to_assembly(bp)
-        g2, i2 = to_assembly(bs)
+        g1, i1 = to_ocpgroup(bp)
+        g2, i2 = to_ocpgroup(bs)
         for run in range(5):
             result = tessellate_group(g1, i1, progress=Progress(run, self))
             result = tessellate_group(g2, i2, progress=Progress(run, self))
 
     def test_buildpart_part(self):
         cache.clear()
-        g, i = to_assembly(bp.part)
+        g, i = to_ocpgroup(bp.part)
         for run in range(5):
             result = tessellate_group(g, i, progress=Progress(run, self))
 
     def test_buildsketch_sketch(self):
         cache.clear()
-        g, i = to_assembly(bs.sketch)
+        g, i = to_ocpgroup(bs.sketch)
         for run in range(5):
             result = tessellate_group(g, i, progress=Progress(run, self))
 
     def test_build_shape_3d(self):
         cache.clear()
-        g, i = to_assembly(b2)
+        g, i = to_ocpgroup(b2)
         for run in range(5):
             result = tessellate_group(g, i, progress=Progress(run, self))
 
     def test_build_shape_2d(self):
         cache.clear()
-        g, i = to_assembly(s2)
+        g, i = to_ocpgroup(s2)
         for run in range(5):
             result = tessellate_group(g, i, progress=Progress(run, self))
 
     def test_build_shape_3d_wrapped(self):
         cache.clear()
-        g1, i1 = to_assembly(b2)
-        g2, i2 = to_assembly(b2.wrapped)
+        g1, i1 = to_ocpgroup(b2)
+        g2, i2 = to_ocpgroup(b2.wrapped)
         result = tessellate_group(g1, i2, progress=Progress(0, self))
         result = tessellate_group(g2, i2, progress=Progress(1, self))
 
     def test_build_shape_2d_wrapped(self):
         cache.clear()
-        g1, i1 = to_assembly(s2)
-        g2, i2 = to_assembly(s2.wrapped)
+        g1, i1 = to_ocpgroup(s2)
+        g2, i2 = to_ocpgroup(s2.wrapped)
         result = tessellate_group(g1, i2, progress=Progress(0, self))
         result = tessellate_group(g2, i2, progress=Progress(1, self))
 
     def test_build_shapelist_solid(self):
         cache.clear()
-        g, i = to_assembly(b2.solids())
+        g, i = to_ocpgroup(b2.solids())
         for run in range(5):
             result = tessellate_group(g, i, progress=Progress(run, self))
 
     def test_build_shapelist_shell(self):
         cache.clear()
-        g, i = to_assembly(b2.shells())
+        g, i = to_ocpgroup(b2.shells())
         for run in range(5):
             result = tessellate_group(g, i, progress=Progress(run, self))
 
     def test_build_shapelist_face(self):
         cache.clear()
-        g, i = to_assembly(b2.faces())
+        g, i = to_ocpgroup(b2.faces())
         for run in range(5):
             result = tessellate_group(g, i, progress=Progress(run, self))
