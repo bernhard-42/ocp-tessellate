@@ -1,7 +1,7 @@
 import enum
 import math
 from hashlib import sha256
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union, Sized, Iterable
 
 from ocp_tessellate.cad_objects import (
     CoordAxis,
@@ -30,10 +30,29 @@ FACE_COLOR = "Violet"
 
 DEBUG = False
 
-# Alias for every object containing a "wrapped" attribute of type TopaDS_Shape
+# Alias for every object containing a "wrapped" attribute of type TopoDS_Shape
 Wrapped = Any
+# Alias for build123d and CadQuery compounds
+Compound = Wrapped
+# Alias for CadQuery objects
+Workplane = Any
+# Alias for CadQuery sketches
+CadquerySketch = Any
+# Alias for CadQuery assemblies
+Assembly = Any
+# Alias for build123d shape lists
+ShapeList = List[Wrapped]
+# Alias for build123d Builder Objects
+BuilderObject = Any
+# Alias for build123d or Cadquery Locations or Planes
+LocationLike = Wrapped
+# Alias for build123d Axis
+Axis = Wrapped
 # can be build123d or CadQuery shapes
 ShapeLike = Union[TopoDS_Shape, Wrapped]
+CompoundLike = Union[TopoDS_Compound, Wrapped]
+
+ColorLike = Union[str, List[float], Color]
 
 
 class Progress:
@@ -48,7 +67,7 @@ def _debug(level, msg, name=None, prefix="debug:", end="\n"):
         print(f"{prefix} {msg} {suffix}", end=end, flush=True)
 
 
-def get_name(obj: TopoDS_Shape, name: str, default: str) -> str:
+def get_name(obj: TopoDS_Shape, name: Union[str, None], default: str) -> str:
     """
     Get the name of the object. If the name is None, use the default name.
     If the object has a name or label attribute, use that.
@@ -135,6 +154,7 @@ def unwrap(
 def create_cache_id(obj: TopoDS_Shape) -> str:
     """
     The TopoDS_Shape objects are serialized and hashed to create a unique id.
+    The current approach is to use the sha256 hash of the serialized object.
 
     @param obj: The object of type TopoDS_Shape or a subclass
 
@@ -151,11 +171,11 @@ def create_cache_id(obj: TopoDS_Shape) -> str:
 class OcpConverter:
     """The class to filter obejcts and convert them to OcpObject and OcpGroup hierarchies."""
 
-    def __init__(self, progress: Progress = None):
+    def __init__(self, progress: Union[Progress, None] = None):
         """The initializer of the OcpConverter.
         @param progress: The progress class to provide updates during the conversion
         """
-        self.instances = []
+        self.instances: List[TopoDS_Shape] = []
         self.ocp = None
         self.progress = progress
         self.default_color = get_default("default_color")
@@ -204,7 +224,7 @@ class OcpConverter:
         objs: Union[TopoDS_Shape, List[TopoDS_Shape]],
         kind: str,
         name: str,
-        color: Color,
+        color: Union[ColorLike, Tuple[ColorLike, ColorLike, ColorLike], None],
         alpha: float = 1.0,
     ) -> OcpObject:
         """
@@ -243,7 +263,7 @@ class OcpConverter:
             color,
             kind=kind,
         )
-        if alpha < 1.0:
+        if isinstance(color, Color) and alpha < 1.0:
             color.a = alpha
 
         if kind in ("solid", "face", "shell"):
@@ -269,10 +289,10 @@ class OcpConverter:
     def get_color_for_object(
         self,
         obj: TopoDS_Shape,
-        color: Color = None,
-        alpha: float = None,
-        kind: str = None,
-    ) -> Color:
+        color: Union[ColorLike, Tuple[ColorLike, ColorLike, ColorLike], None] = None,
+        alpha: Union[float, None] = None,
+        kind: Union[str, None] = None,
+    ) -> Union[Color, Tuple[ColorLike, ColorLike, ColorLike]]:
         """
         Get the color of the object based on the object type and the default colors.
 
@@ -301,7 +321,7 @@ class OcpConverter:
         }
 
         if color is not None:
-            if isinstance(color, (list, tuple)):
+            if isinstance(color, tuple):
                 # return triple color array for CoordSystems
                 return color
             else:
@@ -327,11 +347,16 @@ class OcpConverter:
 
     def _unroll_iterable(
         self,
-        objs: Union[TopoDS_Compound, List[TopoDS_Shape], Dict[str, TopoDS_Shape]],
-        obj_name: str,
-        rgba_color: Color,
+        objs: Iterable[
+            Tuple[
+                Union[str, None],
+                Union[ShapeLike, List[ShapeLike], Dict[str, ShapeLike]],
+            ]
+        ],
+        obj_name: Union[str, None],
+        rgba_color: Union[ColorLike, None],
         sketch_local: bool,
-        helper_scale: bool,
+        helper_scale: float,
         level: int,
     ) -> OcpGroup:
         """
@@ -346,7 +371,7 @@ class OcpConverter:
 
         @return: The OcpGroup hierarchy
         """
-        ocp_obj = OcpGroup(name=obj_name)
+        ocp_obj: OcpGroup = OcpGroup(name=obj_name)
         for name, obj in objs:
 
             result = self.to_ocp(
@@ -355,7 +380,7 @@ class OcpConverter:
                 colors=[rgba_color],
                 sketch_local=sketch_local,
                 helper_scale=helper_scale,
-                top_level=False,
+                # top_level=False,
                 level=level + 1,
             )
             if result.length > 0:
@@ -364,8 +389,26 @@ class OcpConverter:
         return ocp_obj.make_unique_names()
 
     def handle_list_tuple(
-        self, cad_obj, obj_name, rgba_color, sketch_local, helper_scale, level
-    ):
+        self,
+        cad_obj: Union[ShapeLike, List[ShapeLike]],
+        obj_name: Union[str, None],
+        rgba_color: Union[ColorLike, None],
+        sketch_local: bool,
+        helper_scale: float,
+        level: int,
+    ) -> OcpGroup:
+        """
+        Handle lists and tuples of objects.
+
+        @param cad_obj: The list or tuple of objects
+        @param obj_name: The name of the object
+        @param rgba_color: The color of the object
+        @param sketch_local: The flag to render the sketch_local
+        @param helper_scale: The scale of the helper objects
+        @param level: The level of the hierarchy
+
+        @return: The OcpGroup hierarchy
+        """
         _debug(level, "handle_list_tuple", obj_name)
         return self._unroll_iterable(
             zip([None] * len(cad_obj), cad_obj),
@@ -377,8 +420,25 @@ class OcpConverter:
         )
 
     def handle_dict(
-        self, cad_obj, obj_name, rgba_color, sketch_local, helper_scale, level
-    ):
+        self,
+        cad_obj: Dict[str, ShapeLike],
+        obj_name: Union[str, None],
+        rgba_color: Union[ColorLike, None],
+        sketch_local: bool,
+        helper_scale: float,
+        level: int,
+    ) -> OcpGroup:
+        """
+        Handle dictionaries of objects.
+
+        @param cad_obj: The dictionary of objects
+        @param obj_name: The name of the object
+        @param rgba_color: The color of the object
+        @param sketch_local: The flag to render the sketch_local
+        @param helper_scale: The scale of the helper objects
+
+        @return: The OcpGroup hierarchy
+        """
         _debug(level, "handle_dict", obj_name)
 
         return self._unroll_iterable(
@@ -391,8 +451,26 @@ class OcpConverter:
         )
 
     def handle_compound(
-        self, cad_obj, obj_name, rgba_color, sketch_local, helper_scale, level
-    ):
+        self,
+        cad_obj: CompoundLike,
+        obj_name: Union[str, None],
+        rgba_color: Union[ColorLike, None],
+        sketch_local: bool,
+        helper_scale: float,
+        level: int,
+    ) -> OcpGroup:
+        """
+        Handle compounds and topods_compounds.
+
+        @param cad_obj: The compound or topods_compound
+        @param obj_name: The name of the object
+        @param rgba_color: The color of the object
+        @param sketch_local: The flag to render the sketch_local
+        @param helper_scale: The scale of the helper objects
+        @param level: The level of the hierarchy
+
+        @return: The OcpGroup hierarchy
+        """
         _debug(level, f"handle_compound", obj_name)
 
         if is_compound(cad_obj):
@@ -412,8 +490,26 @@ class OcpConverter:
     # ================================= Assemblies ================================== #
 
     def handle_build123d_assembly(
-        self, cad_obj, obj_name, rgba_color, render_joints, helper_scale, level
-    ):
+        self,
+        cad_obj: Compound,
+        obj_name: Union[str, None],
+        rgba_color: Union[ColorLike, None],
+        render_joints: bool,
+        helper_scale: float,
+        level: int,
+    ) -> OcpGroup:
+        """
+        Handle build123d assemblies.
+
+        @param cad_obj: The build123d assembly (Compound with children)
+        @param obj_name: The name of the object
+        @param rgba_color: The color of the object
+        @param render_joints: The flag to render the joints
+        @param helper_scale: The scale of the helper objects
+        @param level: The level of the hierarchy
+
+        @return: The OcpGroup hierarchy
+        """
         _debug(level, "handle_build123d_assembly", obj_name)
 
         name = get_name(cad_obj, obj_name, "Assembly")
@@ -425,7 +521,7 @@ class OcpConverter:
                 names=[child.label],
                 helper_scale=helper_scale,
                 render_joints=render_joints,
-                top_level=False,
+                # top_level=False,
                 level=level + 1,
             )
             if sub_obj.length == 1 and len(child.children) == 0:
@@ -437,13 +533,25 @@ class OcpConverter:
 
     def handle_cadquery_assembly(
         self,
-        cad_obj,
-        obj_name,
-        rgba_color,
-        render_mates,
-        helper_scale,
-        level,
-    ):
+        cad_obj: Assembly,
+        obj_name: Union[str, None],
+        rgba_color: Union[ColorLike, None],
+        render_mates: bool,
+        helper_scale: float,
+        level: int,
+    ) -> OcpGroup:
+        """
+        Handle cadquery assemblies.
+
+        @param cad_obj: The cadquery assembly
+        @param obj_name: The name of the object
+        @param rgba_color: The color of the object
+        @param render_mates: The flag to render the mates
+        @param helper_scale: The scale of the helper objects
+        @param level: The level of the hierarchy
+
+        @return: The OcpGroup hierarchy
+        """
         _debug(level, "handle_cadquery_assembly", obj_name)
         name = get_name(cad_obj, obj_name, "Assembly")
 
@@ -488,7 +596,7 @@ class OcpConverter:
                 colors=[rgba_color],
                 helper_scale=helper_scale,
                 render_mates=render_mates,
-                top_level=False,
+                # top_level=False,
                 level=level + 1,
             )
             ocp_obj.add(sub_obj)
@@ -497,7 +605,23 @@ class OcpConverter:
 
     # ================================= Conversions ================================= #
 
-    def handle_parent(self, cad_obj, obj_name, rgba_color, level):
+    def handle_parent(
+        self,
+        cad_obj: Union[ShapeLike, Compound, Workplane, List],
+        obj_name: Union[str, None],
+        rgba_color: Union[ColorLike, None],
+        level: int,
+    ) -> List[OcpObject]:
+        """
+        Handle the parent of an objects.
+
+        @param cad_obj: The object or objects
+        @param obj_name: The name of the object
+        @param rgba_color: The color of the object
+        @param level: The level of the hierarchy
+
+        @return: The OcpGroup hierarchy
+        """
         parent = None
         if hasattr(cad_obj, "parent"):
             parent = cad_obj.parent
@@ -506,7 +630,7 @@ class OcpConverter:
             parent = cad_obj.topo_parent
             topo = True
         elif (
-            isinstance(cad_obj, Iterable)
+            isinstance(cad_obj, List)
             and len(cad_obj) > 0
             and hasattr(cad_obj[0], "topo_parent")
         ):
@@ -514,16 +638,16 @@ class OcpConverter:
             topo = True
 
         ind = 0
-        parents = []
+        parents: List[OcpObject] = []
         while parent is not None:
             pname = "parent" if ind == 0 else f"parent({ind})"
             p = self.to_ocp(parent, names=[pname], colors=None, level=level + 1)
-            p = p.objects[0]
-            if p.kind == "solid":
-                p.state_faces = 0
-            elif p.kind == "face":
-                p.state_edges = 0
-            parents.insert(0, p)
+            o = p.objects[0]
+            if o.kind == "solid":
+                o.state_faces = 0
+            elif o.kind == "face":
+                o.state_edges = 0
+            parents.insert(0, o)
             parent = parent.topo_parent if topo else None
             ind -= 1
 
@@ -531,12 +655,23 @@ class OcpConverter:
 
     def handle_shape_list(
         self,
-        cad_obj,
-        obj_name,
-        rgba_color,
-        show_parent,
-        level,
+        cad_obj: Union[ShapeList, Workplane],
+        obj_name: Union[str, None],
+        rgba_color: Union[ColorLike, None],
+        show_parent: bool,
+        level: int,
     ):
+        """
+        Handle shape lists.
+
+        @param cad_obj: The build123d shape list
+        @param obj_name: The name of the object
+        @param rgba_color: The color of the object
+        @param show_parent: The flag to show the parent
+        @param level: The level of the hierarchy
+
+        @return: The OcpGroup hierarchy
+        """
         parent_obj = cad_obj
 
         if is_build123d_shapelist(cad_obj):
@@ -547,7 +682,7 @@ class OcpConverter:
             name = "Workplane"
 
             # Resolve cadquery Workplane
-            cad_obj = cad_obj.vals()
+            cad_obj = cad_obj.vals()  # type: ignore [union-attr]
             if len(cad_obj) > 0:
                 if is_compound(cad_obj[0]):
                     cad_obj = flatten([list(obj) for obj in cad_obj])
@@ -579,8 +714,25 @@ class OcpConverter:
         else:
             return ocp_obj
 
-    def handle_shapes(self, cad_obj, obj_name, render_joints, rgba_color, level):
+    def handle_shapes(
+        self,
+        cad_obj: Union[ShapeLike, Compound],
+        obj_name: Union[str, None],
+        render_joints: bool,
+        rgba_color: Union[ColorLike, None],
+        level: int,
+    ) -> Union[OcpGroup, OcpObject]:
+        """
+        Handle build123d or Cadquery shapes.
 
+        @param cad_obj: The shape or shapes
+        @param obj_name: The name of the object
+        @param render_joints: The flag to render the joints
+        @param rgba_color: The color of the object
+        @param level: The level of the hierarchy
+
+        @return: The OcpGroup hierarchy
+        """
         if is_topods_shape(cad_obj):
             t, obj = "TopoDS_Shape", downcast(cad_obj)
         elif is_build123d_shape(cad_obj):
@@ -618,13 +770,31 @@ class OcpConverter:
                 level=level + 1,
             )
             joints.name = "joints"
-            ocp_obj = OcpGroup([ocp_obj, joints], name=name)
+            return OcpGroup([ocp_obj, joints], name=name)
 
         return ocp_obj
 
     def handle_build123d_builder(
-        self, cad_obj, obj_name, rgba_color, sketch_local, render_joints, level
-    ):
+        self,
+        cad_obj: BuilderObject,
+        obj_name: Union[str, None],
+        rgba_color: Union[ColorLike, None],
+        sketch_local: bool,
+        render_joints: bool,
+        level: int,
+    ) -> OcpGroup:
+        """
+        Handle build123d Builder objects.
+
+        @param cad_obj: The build123d Builder object
+        @param obj_name: The name of the object
+        @param rgba_color: The color of the object
+        @param sketch_local: The flag to render the sketch_local
+        @param render_joints: The flag to render the joints
+        @param level: The level of the hierarchy
+
+        @return: The OcpGroup hierarchy
+        """
         _debug(level, f"handle_build123d_builder {cad_obj._obj_name}", obj_name)
 
         # bild123d BuildPart().part
@@ -666,7 +836,23 @@ class OcpConverter:
 
         return ocp_obj.cleanup()
 
-    def handle_cadquery_sketch(self, cad_obj, obj_name, rgba_color, level):
+    def handle_cadquery_sketch(
+        self,
+        cad_obj: CadquerySketch,
+        obj_name: Union[str, None],
+        rgba_color: Union[ColorLike, None],
+        level: int,
+    ) -> OcpGroup:
+        """
+        Handle cadquery sketches.
+
+        @param cad_obj: The cadquery sketch
+        @param obj_name: The name of the object
+        @param rgba_color: The color of the object
+        @param level: The level of the hierarchy
+
+        @return: The OcpGroup hierarchy
+        """
         _debug(level, "cadquery Sketch", obj_name)
 
         if not list(cad_obj._faces):  # empty compound
@@ -676,7 +862,7 @@ class OcpConverter:
             cad_obj._faces = [cad_obj._faces]
 
         cad_objs = []
-        names = []
+        names: List[str | None] = []
         for typ, objs, calc_bb in [
             ("Face", list(cad_obj._faces), False),
             ("Edge", list(cad_obj._edges), False),
@@ -719,8 +905,26 @@ class OcpConverter:
         return result
 
     def handle_locations_planes(
-        self, cad_obj, obj_name, rgba_color, helper_scale, sketch_local, level
-    ):
+        self,
+        cad_obj: LocationLike,
+        obj_name: Union[str, None],
+        rgba_color: Union[ColorLike, None],
+        helper_scale: float,
+        sketch_local: bool,
+        level: int,
+    ) -> OcpObject:
+        """
+        Handle locations and planes.
+
+        @param cad_obj: The location or plane
+        @param obj_name: The name of the object
+        @param rgba_color: The color of the object
+        @param helper_scale: The scale of the helper objects
+        @param sketch_local: The flag to render the sketch_local
+        @param level: The level of the hierarchy
+
+        @return: The OcpObject
+        """
         if is_build123d_location(cad_obj) or is_toploc_location(cad_obj):
             _debug(level, "build123d Location or TopLoc_Location", obj_name)
 
@@ -763,8 +967,25 @@ class OcpConverter:
         return ocp_obj
 
     def handle_axis(
-        self, cad_obj, obj_name, rgba_color, helper_scale, sketch_local, level
-    ):
+        self,
+        cad_obj: Axis,
+        obj_name: Union[str, None],
+        rgba_color: Union[ColorLike, None],
+        helper_scale: float,
+        level: int,
+    ) -> OcpObject:
+        """
+        Handle build123d Axis.
+
+        @param cad_obj: The build123d Axis
+        @param obj_name: The name of the object
+        @param rgba_color: The color of the object
+        @param helper_scale: The scale of the helper objects
+        @param sketch_local: The flag to render the sketch_local
+        @param level: The level of the hierarchy
+
+        @return: The OcpObject
+        """
         _debug(level, "build123d Axis", obj_name)
 
         if is_wrapped(cad_obj):
@@ -780,13 +1001,23 @@ class OcpConverter:
         ).to_ocp()
         return ocp_obj
 
-    def handle_ocp_wrapper(self, cad_obj, obj_name):
+    def handle_ocp_wrapper(
+        self, cad_obj: OcpWrapper, obj_name: Union[str, None]
+    ) -> OcpObject:
+        """
+        Handle OcpWrapper objects.
+
+        @param cad_obj: The OcpWrapper object
+        @param obj_name: The name of the object
+
+        @return: The OcpObject
+        """
         name = get_name(cad_obj, obj_name, "ImageFace")
         ocp_obj = cad_obj.to_ocp()
         ocp_obj.name = name
         if ocp_obj.kind in ["solid", "imageface", "face", "shell"]:
             ref, loc = self.get_instance(
-                cad_obj.objs[0], create_cache_id(cad_obj.objs[0]), obj_name
+                cad_obj.objs[0], create_cache_id(cad_obj.objs[0]), name
             )
             ocp_obj.loc = cad_obj.loc * loc
             ocp_obj.ref = ref
@@ -795,7 +1026,17 @@ class OcpConverter:
 
     # ================================ Empty objects ================================ #
 
-    def handle_empty_iterables(self, obj_name, level):
+    def handle_empty_iterables(
+        self, obj_name: Union[Wrapped, Compound, List], level: int
+    ) -> OcpObject:
+        """
+        Handle empty objects.
+
+        @param obj_name: The name of the object
+        @param level: The level of the hierarchy
+
+        @return: The OcpObject
+        """
         _debug(level, "Empty object")
         name = "Object" if obj_name is None else obj_name
         return OcpObject(
@@ -810,22 +1051,41 @@ class OcpConverter:
 
     def to_ocp(
         self,
-        *cad_objs,
-        names=None,
-        colors=None,
-        alphas=None,
-        loc=None,
-        render_mates=None,
-        render_joints=None,
-        helper_scale=1,
-        default_color=None,
-        show_parent=False,
-        sketch_local=False,
-        unroll_compounds=False,
-        cache_id=None,
-        top_level=True,
+        *cad_objs: Union[
+            ShapeLike, Compound, Workplane, List, Dict, Assembly, OcpWrapper
+        ],
+        names: Union[List[Union[str, None]], None] = None,
+        colors: Union[List[Union[ColorLike, None]], None] = None,
+        alphas: Union[List[Union[float, None]], None] = None,
+        loc: LocationLike = None,
+        render_mates: bool = False,
+        render_joints: bool = False,
+        helper_scale: float = 1.0,
+        default_color: Union[ColorLike, None] = None,
+        show_parent: bool = False,
+        sketch_local: bool = False,
+        unroll_compounds: bool = False,
         level=0,
-    ):
+    ) -> OcpGroup:
+        """
+        Convert a list of objects to an OcpObject or OcpGroup hierarchy.
+
+        @param cad_objs: The list of objects
+        @param names: The list of names for the objects
+        @param colors: The list of colors for the objects
+        @param alphas: The list of alpha values for the objects
+        @param loc: The location of the objects
+        @param render_mates: The flag to render the mates
+        @param render_joints: The flag to render the joints
+        @param helper_scale: The scale of the helper objects
+        @param default_color: The default color of the objects
+        @param show_parent: The flag to show the parent
+        @param sketch_local: The flag to render the sketch local
+        @param unroll_compounds: The flag to unroll compounds
+        @param level: The level of the hierarchy
+
+        @return: The OcpObject or OcpGroup hierarchy
+        """
         if loc is None:
             loc = identity_location()
         group = OcpGroup(loc=loc)
@@ -859,7 +1119,7 @@ class OcpConverter:
 
         # =========================== Loop over all objects ========================== #
 
-        for cad_obj, obj_name, rgba_color in zip(cad_objs, names, colors):
+        for cad_obj, obj_name, rgba_color in zip(cad_objs, names, colors):  # type: ignore [arg-type]
 
             # =================== Silently skip enums and known types =================== #
             if (
@@ -887,7 +1147,7 @@ class OcpConverter:
                 elif hasattr(cad_obj, "toTuple"):
                     target = cad_obj.toTuple()
                 else:
-                    target = cad_obj.XYZ().Coord()
+                    target = cad_obj.XYZ().Coord()  # type: ignore [union-attr]
 
                 if target[0] == 0 and target[1] == 0 and target[2] == 0:
                     cad_obj = vertex(target)
@@ -910,7 +1170,9 @@ class OcpConverter:
                     or (isinstance(cad_obj, Iterable) and len(list(cad_obj)) == 0)
                 )
             ):
-                ocp_obj = self.handle_empty_iterables(obj_name, level)
+                ocp_obj: Union[OcpGroup, OcpObject] = self.handle_empty_iterables(
+                    obj_name, level
+                )
 
             # ================================ Iterables ================================ #
 
@@ -1015,7 +1277,7 @@ class OcpConverter:
             # build123d Axis or gp_Ax1
             elif is_build123d_axis(cad_obj) or is_gp_axis(cad_obj):
                 ocp_obj = self.handle_axis(
-                    cad_obj, obj_name, rgba_color, helper_scale, sketch_local, level
+                    cad_obj, obj_name, rgba_color, helper_scale, level
                 )
 
             else:
@@ -1046,21 +1308,38 @@ class OcpConverter:
 
 
 def to_ocpgroup(
-    *cad_objs,
-    names=None,
-    colors=None,
-    alphas=None,
-    render_mates=None,
-    render_joints=None,
-    helper_scale=1,
-    default_color=None,
-    show_parent=False,
-    show_sketch_local=True,
-    loc=None,
-    mates=None,
-    progress=None,
-):
-    converter = OcpConverter(progress=Progress())
+    *cad_objs: Union[ShapeLike, Compound, Workplane, List, Dict, Assembly, OcpWrapper],
+    names: Union[List[Union[str, None]], None] = None,
+    colors: Union[List[Union[ColorLike, None]], None] = None,
+    alphas: Union[List[Union[float, None]], None] = None,
+    render_mates: bool = False,
+    render_joints: bool = False,
+    helper_scale: float = 1.0,
+    default_color: Union[ColorLike, None] = None,
+    show_parent: bool = False,
+    show_sketch_local: bool = True,
+    loc: LocationLike = None,
+    progress: Union[Progress, None] = None,
+) -> Tuple[OcpGroup, List[Any]]:
+    """
+    Central converter routine to convert a list of objects to an OcpGroup hierarchy.
+
+    @param cad_objs: The list of objects
+    @param names: The list of names for the objects
+    @param colors: The list of colors for the objects
+    @param alphas: The list of alpha values for the objects
+    @param render_mates: The flag to render the mates
+    @param render_joints: The flag to render the joints
+    @param helper_scale: The scale of the helper objects
+    @param default_color: The default color of the objects
+    @param show_parent: The flag to show the parent
+    @param show_sketch_local: The flag to render the sketch local
+    @param loc: The location of the objects
+    @param progress: The progress bar
+
+    @return: The OcpGroup hierarchy
+    """
+    converter = OcpConverter(progress=progress)
     ocp_group = converter.to_ocp(
         *cad_objs,
         names=names,
@@ -1078,7 +1357,24 @@ def to_ocpgroup(
     return ocp_group, converter.instances
 
 
-def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False):
+def tessellate_group(
+    group: OcpGroup,
+    instances: List[TopoDS_Shape],
+    kwargs: Union[Dict, None] = None,
+    progress: Union[Progress, None] = None,
+    timeit: bool = False,
+) -> Tuple[List, Dict, Dict, Dict]:
+    """
+    Tessellate a OcpGroup and instances as converted by to_ocp_group.
+
+    @param group: The OcpGroup
+    @param instances: The instances of the group
+    @param kwargs: The keyword arguments
+    @param progress: The progress bar
+    @param timeit: The flag to measure the time
+
+    @return: The meshed instances, the shapes, the states, and the mapping
+    """
 
     def get_bb_max(shapes, meshed_instances, loc=None, bbox=None):
         for shape in shapes["parts"]:
@@ -1210,20 +1506,38 @@ def tessellate_group(group, instances, kwargs=None, progress=None, timeit=False)
 
 
 def to_assembly(
-    *cad_objs,
-    names=None,
-    colors=None,
-    alphas=None,
-    render_mates=None,
-    render_joints=None,
-    helper_scale=1,
-    default_color=None,
-    show_parent=False,
-    show_sketch_local=True,
-    loc=None,
-    mates=None,
-    progress=None,
-):
+    *cad_objs: Union[ShapeLike, Compound, Workplane, List, Dict, Assembly, OcpWrapper],
+    names: Union[List[Union[str, None]], None] = None,
+    colors: Union[List[Union[ColorLike, None]], None] = None,
+    alphas: Union[List[Union[float, None]], None] = None,
+    render_mates: bool = False,
+    render_joints: bool = False,
+    helper_scale: float = 1.0,
+    default_color: Union[ColorLike, None] = None,
+    show_parent: bool = False,
+    show_sketch_local: bool = True,
+    loc: LocationLike = None,
+    progress: Union[Progress, None] = None,
+) -> Tuple[OcpGroup, List[Any]]:
+    """
+    Compatibility wrapper for the converter routine to convert a list of
+    objects to an OcpGroup hierarchy.
+
+    @param cad_objs: The list of objects
+    @param names: The list of names for the objects
+    @param colors: The list of colors for the objects
+    @param alphas: The list of alpha values for the objects
+    @param render_mates: The flag to render the mates
+    @param render_joints: The flag to render the joints
+    @param helper_scale: The scale of the helper objects
+    @param default_color: The default color of the objects
+    @param show_parent: The flag to show the parent
+    @param show_sketch_local: The flag to render the sketch local
+    @param loc: The location of the objects
+    @param progress: The progress bar
+
+    @return: The OcpGroup hierarchy
+    """
     warn("to_assembly is obsolete, use to_ocpgroup")
     return to_ocpgroup(
         *cad_objs,
@@ -1237,7 +1551,6 @@ def to_assembly(
         show_parent=show_parent,
         show_sketch_local=show_sketch_local,
         loc=loc,
-        mates=mates,
         progress=progress,
     )
 
