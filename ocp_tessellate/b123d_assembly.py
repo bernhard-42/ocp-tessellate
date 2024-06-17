@@ -16,10 +16,9 @@ def clone(obj, label=None, color=None, location=None):
         return new_obj.move(location)
 
 
-class Assembly(Compound):
+class AnimationGroup(Compound):
     def __init__(self, label, children, location=None):
         super().__init__(label=label, children=children)
-        # The assembly layer will not contain a part, it only needs a location
         self.location = Location() if location is None else location
 
     def __getitem__(self, path):
@@ -35,28 +34,33 @@ class Assembly(Compound):
     def assemble(
         self, path, joint_name, to_path, to_joint_name, animate=False, **kwargs
     ):
+        def _join(obj, path, joint_name):
+            if isinstance(obj, AnimationGroup):
+                p, j = joint_name.rsplit(":", 1)
+                obj = self[f"/{path.strip('/')}/{p.strip('/')}"]
+                joint = obj.joints[j]
+            else:
+                joint = obj.joints[joint_name]
+            return joint
+
         obj = self[path]
-        joint = obj.joints[joint_name]
+        joint = _join(obj, path, joint_name)
         loc = joint.location
 
         to_obj = self[to_path]
-        to_joint = to_obj.joints[to_joint_name]
+        to_joint = _join(to_obj, to_path, to_joint_name)
         to_loc = to_joint.location
 
-        if animate:
+        if isinstance(obj, AnimationGroup):
 
             if kwargs.get("angle") is not None:
                 to_loc = to_loc * Rot(0, 0, -kwargs["angle"])
 
-            # Get the parent Assembly layer
-            parent_path, _, _ = path.rpartition("/")
-
             # For sub assemblies, the location gets pushed one level up to the assembly layer
-            parent_obj = self[parent_path]
-            parent_obj.location = to_loc
+            obj.location = to_loc
 
             # and relocate all children of the parent assembly
-            for child in parent_obj.children:
+            for child in obj.children:
                 child.location = loc.inverse() * child.location
 
         else:
