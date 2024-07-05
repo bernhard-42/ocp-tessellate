@@ -345,22 +345,16 @@ class TestVector(MyUnitTest):
         g = c.to_ocp(cq.Vector(1, 1, 1))
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.name, "Vector")
-        self.assertEqual(o.kind, "edge")
-        self.assertTrue(is_topods_edge(o.obj[0]))
-        self.assertEqual(len(o.obj), 11)
+        self.assertEqual(o.name, "Vertex")
+        self.assertEqual(o.kind, "vertex")
 
     def test_vectors(self):
         c = OcpConverter()
         g = c.to_ocp(cq.Vector(1, 1, 1), cq.Vector(2, 2, 2))
         self.assertEqual(g.length, 2)
         o = g.objects[0]
-        self.assertEqual(o.name, "Vector")
-        self.assertEqual(o.kind, "edge")
-        self.assertTrue(is_topods_edge(o.obj[0]))
-        self.assertEqual(len(o.obj), 11)
+        self.assertEqual(o.name, "Vertex")
+        self.assertEqual(o.kind, "vertex")
         o = g.objects[1]
-        self.assertEqual(o.name, "Vector(2)")
-        self.assertEqual(o.kind, "edge")
-        self.assertTrue(is_topods_edge(o.obj[0]))
-        self.assertEqual(len(o.obj), 11)
+        self.assertEqual(o.name, "Vertex(2)")
+        self.assertEqual(o.kind, "vertex")
