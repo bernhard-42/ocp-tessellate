@@ -510,7 +510,8 @@ class OcpConverter:
         _debug(level, "handle_build123d_assembly", obj_name)
 
         name = get_name(cad_obj, obj_name, "Assembly")
-        ocp_obj = OcpGroup(name=name, loc=get_location(cad_obj, as_none=False))
+        location = get_location(cad_obj, as_none=False)
+        ocp_obj = OcpGroup(name=name, loc=location)
 
         for child in cad_obj.children:
             sub_obj = self.to_ocp(
@@ -524,6 +525,19 @@ class OcpConverter:
                 ocp_obj.add(sub_obj.objects[0])
             else:
                 ocp_obj.add(sub_obj)
+
+        if render_joints and hasattr(cad_obj, "joints") and len(cad_obj.joints) > 0:
+            joints = self.to_ocp(
+                *[j.symbol for j in cad_obj.joints.values()],
+                names=list(cad_obj.joints.keys()),
+                level=level + 1,
+            )
+            joints.name = f"{name}_joints"
+            # an Assembly has the location already in the group, hence relocate
+            # the joint to compensate for the location
+            # (remember: joint.location = joint.parent.location * joint.relative_location)
+            joints.loc = location.Inverted() * joints.loc
+            ocp_obj.add(joints)
 
         return ocp_obj.make_unique_names()
 
