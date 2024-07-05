@@ -779,6 +779,7 @@ class OcpConverter:
                 level=level + 1,
             )
             joints.name = "joints"
+            ocp_obj.name = "shape"
             return OcpGroup([ocp_obj, joints], name=name)
 
         return ocp_obj
