@@ -1149,7 +1149,7 @@ class OcpConverter:
             elif hasattr(cad_obj, "color") and cad_obj.color is not None:
                 rgba_color = get_rgba(cad_obj.color)
 
-            # ============================ Map Vector to Axis =========================== #
+            # =========================== Map Vector to Vertex ========================== #
 
             if is_vector(cad_obj) or is_gp_vec(cad_obj):
                 if isinstance(cad_obj, Iterable):
@@ -1159,16 +1159,7 @@ class OcpConverter:
                 else:
                     target = cad_obj.XYZ().Coord()  # type: ignore [union-attr]
 
-                if target[0] == 0 and target[1] == 0 and target[2] == 0:
-                    cad_obj = vertex(target)
-                else:
-                    cad_obj = CoordAxis(
-                        "Vector" if obj_name is None else obj_name,
-                        (0, 0, 0),
-                        target,
-                        color=get_rgba(THICK_EDGE_COLOR),
-                        size=math.sqrt(sum([x**2 for x in target])),
-                    )
+                cad_obj = vertex(target)
 
             # ========================= Empty list or compounds ========================= #
 
