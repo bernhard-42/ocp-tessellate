@@ -1,8 +1,6 @@
 import enum
-import math
 from hashlib import sha256
-from typing import Any, Dict, List, Tuple, Union, Sized, Iterable
-
+from typing import Any, Dict, List, Tuple, Union, Iterable
 from ocp_tessellate.cad_objects import (
     CoordAxis,
     CoordSystem,
