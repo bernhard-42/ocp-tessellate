@@ -1,13 +1,12 @@
 # %%
-import copy
-
 import numpy as np
 from build123d import *
-from ocp_vscode import show
+from ocp_vscode import *
 from ocp_vscode.animation import Animation
 
-from ocp_tessellate.b123d_assembly import Assembly, reference
+from bd_animation import AnimationGroup, clone, normalize_track
 
+set_defaults(render_joints=True, helper_scale=8)
 thickness = 2
 height = 40
 width = 65
@@ -16,11 +15,7 @@ diam = 4
 tol = 0.05
 
 
-# %%
-
-#
-# Base and top
-#
+# %% Base and top
 
 
 class Base(Part):
@@ -72,11 +67,7 @@ class Base(Part):
 base = Base("base")
 show(base, render_joints=True)
 
-# %%
-
-#
-# Stands
-#
+# %% Stands
 
 
 class Stand(Part):
@@ -120,11 +111,7 @@ class Stand(Part):
 stand = Stand("stand")
 show(stand, render_joints=True)
 
-# %%
-
-#
-# Legs
-#
+# %% Upper Leg
 
 
 class UpperLeg(Part):
@@ -154,24 +141,20 @@ class UpperLeg(Part):
 
         super().__init__(upper_leg.wrapped, label=label)
 
-        RevoluteJoint(
-            "j_hinge",
-            self,
-            axis=-upper_leg.faces().sort_by(Axis.Y).last.center_location.z_axis,
-            angular_range=(0, 180),
-        )
         RigidJoint(
             "j_knee_front",
             self,
-            leg_hole * Rot(180, 0, 0),
+            leg_hole * Rot(180, 0, -75),
         )
-        RigidJoint("j_knee_back", self, leg_hole * Pos(0, 0, thickness))
+        RigidJoint(
+            "j_knee_back", self, leg_hole * Pos(0, 0, thickness) * Rot(0, 0, -105)
+        )
 
 
 upper_leg = UpperLeg("upper_leg")
 show(upper_leg, render_joints=True)
 
-# %%
+# %% Lower Leg
 
 
 class LowerLeg(Part):
@@ -180,7 +163,7 @@ class LowerLeg(Part):
         self.l1 = 20
         self.l2 = 120
 
-        leg_hole = Location((self.l1 - 10, 0), (0, 0, 0))
+        self.leg_hole = Location((self.l1 - 10, 0), (0, 0, 0))
 
         line = Polyline((0, 0), (self.l1, self.w), (self.l2, 0))
         line += mirror(line, about=Plane.XZ)
@@ -188,119 +171,95 @@ class LowerLeg(Part):
         lower_leg = extrude(face, thickness, dir=(0, 0, 1))
         lower_leg = fillet(lower_leg.edges().filter_by(Axis.Z), radius=4)
 
-        lower_leg -= leg_hole * Hole(diam / 2 + tol, depth=thickness)
+        lower_leg -= self.leg_hole * Hole(diam / 2 + tol, depth=thickness)
 
         super().__init__(lower_leg.wrapped, label=label)
-
-        RevoluteJoint(
-            "j_front",
-            self,
-            axis=(leg_hole * Pos(0, 0, thickness) * Rot(0, 180, 0)).z_axis,
-            angular_range=(-180, 180),
-        )
-        RevoluteJoint(
-            "j_back",
-            self,
-            axis=(leg_hole * Pos(0, 0, 0)).z_axis,
-            angular_range=(-180, 180),
-        )
 
 
 lower_leg = LowerLeg("lower_leg")
 show(lower_leg, render_joints=True)
 
-
-# %%
-
+# %% Create objects
 
 base = Base("base")
 stand = Stand("stand")
 upper_leg = UpperLeg("upper_leg")
 lower_leg = LowerLeg("lower_leg")
 
-legs = [
-    Assembly(
-        children=[
-            reference(
-                upper_leg,
-                label="upper_leg",
-                location=Pos(i * 200 + 150, (j - 1) * 50, 0),
-            ),
-            Assembly(
-                children=[
-                    reference(
-                        lower_leg,
-                        label="lower_leg",
-                        location=Pos(i * 200 + 235, (j - 1) * 50, 0),
-                    )
-                ],
-                label=f"{side}_{loc}_lower_leg",
-            ),
-        ],
-        label=f"{side}_{loc}_leg",
-    )
-    for i, side in enumerate(["left", "right"])
-    for j, loc in enumerate(["front", "middle", "back"])
-]
+# %% Lower leg AnimationGroup
 
-hexapod = Assembly(
-    children=[
-        reference(base, label="bottom", color="grey", location=Pos(0, 0, 0)),
-        reference(base, label="top", color="lightgray", location=Pos(-150, 0, 0)),
-        reference(
-            stand, label="front_stand", color="skyblue", location=Pos(100, -60, 0)
-        ),
-        reference(stand, label="back_stand", color="skyblue", location=Pos(100, 60, 0)),
-    ]
-    + legs,
+lower_leg_g = AnimationGroup(
+    children={"lower_leg": clone(lower_leg, origin=lower_leg.leg_hole)},
+    label=f"lower_leg",
+)
+RevoluteJoint("j_front", lower_leg_g, axis=Axis.Z)
+RevoluteJoint("j_back", lower_leg_g, axis=-Axis.Z.located(Pos(0, 0, thickness)))
+
+show(lower_leg_g, render_joints=True)
+
+# %% Leg AnimationGroup
+
+origin = upper_leg.faces().sort_by(Axis.Y)[-1].location
+
+leg_g = {}
+for name, orient in (("right", "front"), ("left", "back")):
+    leg_g[name] = AnimationGroup(
+        children={
+            "upper_leg": clone(upper_leg, origin=origin),
+            "lower_leg": clone(lower_leg_g),
+        },
+        label=f"{name}_leg",
+        assemble=[(f"upper_leg:j_knee_{orient}", f"lower_leg:j_{orient}")],
+    )
+    u_leg = leg_g[name][f"/{name}_leg/upper_leg"]
+    axis = -u_leg.faces().sort_by(Axis.Z)[0].center_location.z_axis
+    RevoluteJoint("j_hinge", leg_g[name], axis=axis)
+
+show(leg_g["left"], leg_g["right"], render_joints=True)
+
+# %% Hexapod AnimationGroup
+hexapod = AnimationGroup(
+    children={
+        "bottom": clone(base, color="grey"),
+        "top": clone(base, color="lightgray"),
+        "front_stand": clone(stand, color="skyblue"),
+        "back_stand": clone(stand, color="skyblue"),
+        "left_front_leg": clone(leg_g["left"]),
+        "left_middle_leg": clone(leg_g["left"]),
+        "left_back_leg": clone(leg_g["left"]),
+        "right_front_leg": clone(leg_g["right"]),
+        "right_middle_leg": clone(leg_g["right"]),
+        "right_back_leg": clone(leg_g["right"]),
+    },
     label="hexapod",
+    assemble=(
+        ("bottom:j_top", "top:j_bottom"),
+        ("bottom:j_front_stand", "front_stand:j_bottom"),
+        ("bottom:j_back_stand", "back_stand:j_bottom"),
+        ("bottom:j_right_front", "right_front_leg:j_hinge"),
+        ("bottom:j_right_middle", "right_middle_leg:j_hinge"),
+        ("bottom:j_right_back", "right_back_leg:j_hinge"),
+        ("bottom:j_left_front", "left_front_leg:j_hinge"),
+        ("bottom:j_left_middle", "left_middle_leg:j_hinge"),
+        ("bottom:j_left_back", "left_back_leg:j_hinge"),
+    ),
 )
 
 print(hexapod.show_topology())
 show(hexapod, render_joints=True)
 
-# %%
 
-hexapod.assemble("/hexapod/back_stand", "j_bottom", "/hexapod/bottom", "j_back_stand")
-hexapod.assemble("/hexapod/front_stand", "j_bottom", "/hexapod/bottom", "j_front_stand")
-hexapod.assemble("/hexapod/top", "j_bottom", "/hexapod/bottom", "j_top")
-
-for side in ["left", "right"]:
-    for loc in ["front", "middle", "back"]:
-        hexapod.assemble(
-            f"/hexapod/{side}_{loc}_leg/upper_leg",
-            "j_hinge",
-            f"/hexapod/bottom",
-            f"j_{side}_{loc}",
-            angle=-90,
-            animate=True,
-        )
-        hexapod.assemble(
-            f"/hexapod/{side}_{loc}_leg/{side}_{loc}_lower_leg/lower_leg",
-            "j_front",
-            f"/hexapod/{side}_{loc}_leg/upper_leg",
-            "j_knee_back" if side == "left" else "j_knee_front",
-            angle=-105 if side == "left" else 105,
-            animate=True,
-        )
-
-print(hexapod.show_topology())
-show(hexapod, timeit=True, render_joints=False, debug=False)
-
-# %%
-
-#
-# Animation
-#
+# %% Animation
 
 
 def time_range(end, count):
     return np.linspace(0, end, count + 1)
 
 
-def vertical(count, end, offset):
+def vertical(count, end, offset, reverse):
+    s = -1 if reverse else 1
     ints = [min(180, (90 + i * (360 // count)) % 360) for i in range(count)]
-    heights = [round(20 * np.sin(np.deg2rad(x) - 15), 1) for x in ints]
+    heights = [s * round(20 * np.sin(np.deg2rad(x) - 15), 1) for x in ints]
     heights.append(heights[0])
     return time_range(end, count), heights[offset:] + heights[1 : offset + 1]
 
@@ -315,10 +274,12 @@ animation = Animation(hexapod)
 
 for name in Base.hinges_holes.keys():
     times, values = horizontal(4, "middle" not in name)
-    animation.add_track(f"/hexapod/{name}_leg", "rz", times, values)
+    animation.add_track(f"/hexapod/{name}_leg", "rz", times, normalize_track(values))
 
-    times, values = vertical(8, 4, 0 if "middle" in name else 4)
-    animation.add_track(f"/hexapod/{name}_leg/{name}_lower_leg", "rz", times, values)
+    times, values = vertical(8, 4, 0 if "middle" in name else 4, "left" in name)
+    animation.add_track(
+        f"/hexapod/{name}_leg/lower_leg", "rz", times, normalize_track(values)
+    )
 
 animation.animate(2)
 
