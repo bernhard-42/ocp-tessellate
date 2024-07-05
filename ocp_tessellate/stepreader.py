@@ -9,14 +9,26 @@ except:
 
 try:
     from build123d import *
+    import copy
 
-    from .b123d_assembly import Assembly, reference
+    def clone(obj, label=None, color=None, location=None):
+        new_obj = copy.copy(obj)
+        if label is not None:
+            new_obj.label = label
+        if color is not None:
+            new_obj.color = color
+        if location is None:
+            return new_obj
+        else:
+            return new_obj.move(location)
 
 except:
     pass
 
+import OCP
 from OCP.Quantity import Quantity_ColorRGBA
 from OCP.STEPCAFControl import STEPCAFControl_Reader
+from OCP.STEPControl import STEPControl_Reader
 from OCP.TCollection import TCollection_AsciiString, TCollection_ExtendedString
 from OCP.TDataStd import TDataStd_Name
 from OCP.TDF import TDF_ChildIterator, TDF_Label, TDF_LabelSequence
@@ -33,6 +45,7 @@ from OCP.XCAFDoc import (
 
 # from ocp_tessellate.ocp_utils import deserialize, loc_to_tq, serialize, tq_to_loc
 from ocp_tessellate.utils import warn
+from ocp_tessellate.ocp_utils import make_compound
 
 DEFAULT_COLOR = (0.8, 0.8, 0.8, 1)
 
@@ -375,7 +388,7 @@ class StepReader:
                 label = f"{obj['name']}_{names[label]}"
 
                 a.append(
-                    reference(
+                    clone(
                         (
                             Compound(obj["shape"])
                             if obj["shapes"] is None
@@ -386,7 +399,10 @@ class StepReader:
                         location=Location(obj.get("loc")),
                     )
                 )
-            return Assembly(label=label, children=a, location=loc)
+            result = Compound(label=label, children=a)
+            if loc is not None:
+                result.location = loc
+            return result
 
         if len(self.assemblies) == 0 or (
             self.assemblies[0]["shapes"] is not None
@@ -407,6 +423,25 @@ class StepReader:
                         Location(assembly["loc"]),
                     )
                 )
-            result = Assembly(label="Group", children=children)
+            result = Compound(label="Group", children=children)
 
         return result
+
+
+def import_step_as_single_compound(file_name):
+
+    reader = STEPControl_Reader()
+    read_status = reader.ReadFile(file_name)
+    if read_status != OCP.IFSelect.IFSelect_RetDone:
+        raise ValueError(f"STEP File {file_name} could not be loaded")
+    for i in range(reader.NbRootsForTransfer()):
+        reader.TransferRoot(i + 1)
+
+    occ_shapes = []
+    for i in range(reader.NbShapes()):
+        occ_shapes.append(reader.Shape(i + 1))
+
+    if len(occ_shapes) == 1:
+        return occ_shapes[0]
+    else:
+        return make_compound(occ_shapes)

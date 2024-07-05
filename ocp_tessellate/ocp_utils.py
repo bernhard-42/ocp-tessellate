@@ -1134,25 +1134,3 @@ def deserialize(buffer):
                 fd.write(buffer)
             BinTools.Read_s(shape, filename)
     return shape
-
-
-from OCP.STEPControl import STEPControl_Reader
-
-
-def import_step_as_single_compound(file_name):
-
-    reader = STEPControl_Reader()
-    read_status = reader.ReadFile(file_name)
-    if read_status != OCP.IFSelect.IFSelect_RetDone:
-        raise ValueError(f"STEP File {file_name} could not be loaded")
-    for i in range(reader.NbRootsForTransfer()):
-        reader.TransferRoot(i + 1)
-
-    occ_shapes = []
-    for i in range(reader.NbShapes()):
-        occ_shapes.append(reader.Shape(i + 1))
-
-    if len(occ_shapes) == 1:
-        return occ_shapes[0]
-    else:
-        return make_compound(occ_shapes)
