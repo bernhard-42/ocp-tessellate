@@ -380,7 +380,6 @@ class OcpConverter:
                 colors=[rgba_color],
                 sketch_local=sketch_local,
                 helper_scale=helper_scale,
-                # top_level=False,
                 level=level + 1,
             )
             if result.length > 0:
@@ -521,7 +520,6 @@ class OcpConverter:
                 names=[child.label],
                 helper_scale=helper_scale,
                 render_joints=render_joints,
-                # top_level=False,
                 level=level + 1,
             )
             if sub_obj.length == 1 and len(child.children) == 0:
@@ -596,7 +594,6 @@ class OcpConverter:
                 colors=[rgba_color],
                 helper_scale=helper_scale,
                 render_mates=render_mates,
-                # top_level=False,
                 level=level + 1,
             )
             ocp_obj.add(sub_obj)
