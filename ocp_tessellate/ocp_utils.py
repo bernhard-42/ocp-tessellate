@@ -281,6 +281,14 @@ def is_build123d_shapelist(obj):
     )
 
 
+def is_build123d_locationlist(obj):
+    return (
+        isinstance(obj, Iterable)
+        and hasattr(obj, "locations")
+        and hasattr(obj, "_current")
+    )
+
+
 def is_build123d_plane(obj):
     return is_wrapped(obj) and is_gp_plane(obj.wrapped)
 

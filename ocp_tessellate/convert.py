@@ -662,6 +662,33 @@ class OcpConverter:
 
         return parents
 
+    def handle_location_list(
+        self,
+        cad_obj: Union[ShapeList, Workplane],
+        obj_name: Union[str, None],
+        helper_scale: float,
+        level: int,
+    ) -> OcpGroup:
+        """
+        Handle build123d location lists.
+
+        @param cad_obj: The build123d shape list
+        @param obj_name: The name of the object
+        @param level: The level of the hierarchy
+
+        @return: The OcpGroup hierarchy
+        """
+        _debug(level, "handle_location_list (build123d ShapeList)", obj_name)
+        group = OcpGroup(name=get_name(cad_obj, obj_name, "LocationList"))
+        for loc in cad_obj:
+            group.add(
+                self.handle_locations_planes(
+                    loc, "Location", None, helper_scale, False, level=level + 1
+                )
+            )
+        group.make_unique_names()
+        return group
+
     def handle_shape_list(
         self,
         cad_obj: Union[ShapeList, Workplane],
@@ -669,7 +696,7 @@ class OcpConverter:
         rgba_color: Union[ColorLike, None],
         show_parent: bool,
         level: int,
-    ):
+    ) -> Union[OcpGroup, OcpObject]:
         """
         Handle shape lists.
 
@@ -1236,6 +1263,12 @@ class OcpConverter:
             ):
                 ocp_obj = self.handle_shape_list(
                     cad_obj, obj_name, rgba_color, show_parent, level
+                )
+
+            # build123d LocationLists
+            elif is_build123d_locationlist(cad_obj):
+                ocp_obj = self.handle_location_list(
+                    cad_obj, obj_name, helper_scale, level
                 )
 
             # build123d BuildPart, BuildSketch, BuildLine
