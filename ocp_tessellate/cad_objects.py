@@ -340,10 +340,10 @@ class ImageFace(OcpWrapper):
         if isinstance(scale, (int, float)):
             scale = (scale, scale)
 
-        ws = int(self.image_width * scale[0])
-        hs = int(self.image_height * scale[1])
-        xs = int(x * scale[0])
-        ys = int(y * scale[1])
+        ws = self.image_width * scale[0]
+        hs = self.image_height * scale[1]
+        xs = x * scale[0]
+        ys = y * scale[1]
 
         plane = rect(ws, hs)
         loc = location.wrapped if hasattr(location, "wrapped") else location
