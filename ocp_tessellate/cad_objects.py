@@ -101,9 +101,15 @@ class OcpObject:
     def collect(self, path, instances, loc, discretize_edges, convert_vertices):
         self.id = f"{path}/{self.name}"
         texture = None
-        combined_loc = loc
-        if self.loc is not None and combined_loc is not None:
-            combined_loc = combined_loc * self.loc
+
+        if loc is None and self.loc is None:
+            combined_loc = None
+        elif loc is None:
+            combined_loc = self.loc
+        elif self.loc is None:
+            combined_loc = loc
+        else:
+            combined_loc = loc * self.loc
 
         if self.kind == "imageface":
             image = {"data": self.image, "format": self.image_type}
