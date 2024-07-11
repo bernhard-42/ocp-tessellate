@@ -451,9 +451,3 @@ class OCP_PartGroup(list):
 
     def __len__(self):
         return len(self.objs)
-
-
-# TODO: remove import from show.py
-class PartGroup:
-    def __init__(self, name, loc=None):
-        raise NotImplementedError("PartGroup is not implemented any more")
