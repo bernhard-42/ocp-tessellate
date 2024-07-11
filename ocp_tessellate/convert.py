@@ -516,7 +516,7 @@ class OcpConverter:
         for child in cad_obj.children:
             sub_obj = self.to_ocp(
                 child,
-                names=[child.label],
+                names=[None if child.label == "" else child.label],
                 helper_scale=helper_scale,
                 render_joints=render_joints,
                 level=level + 1,
