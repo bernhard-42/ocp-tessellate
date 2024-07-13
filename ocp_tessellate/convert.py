@@ -1,6 +1,7 @@
 import enum
 from hashlib import sha256
-from typing import Any, Dict, List, Tuple, Union, Iterable
+from typing import Any, Dict, Iterable, List, Tuple, Union
+
 from ocp_tessellate.cad_objects import (
     CoordAxis,
     CoordSystem,
@@ -1602,3 +1603,77 @@ def get_normal_len(render_normals, shapes, deviation):
 # TODO: remove import from show.py
 def conv():
     raise NotImplementedError("conv is not implemented any more")
+
+
+#
+# Convert objects to the javascript format needed for testing three-cad-viewer
+#
+
+import json
+import re
+
+import numpy as np
+
+
+def numpy_to_js(var, obj, indent=None):
+    class NumpyArrayEncoder(json.JSONEncoder):
+        def default(self, o):
+            if isinstance(o, np.integer):
+                return int(o)
+            if isinstance(o, np.floating):
+                return float(o)
+            if isinstance(o, np.ndarray):
+                return o.tolist()
+
+            return super(NumpyArrayEncoder, self).default(o)
+
+    # Version 3 of the three-cad-viewer protocol requires Float32Array and Int8Array
+    result = json.dumps(obj, cls=NumpyArrayEncoder, indent=indent)
+    for att in ["vertices", "normals", "edges", "obj_vertices"]:
+        result = re.sub(
+            rf'"{att}": \[(.*?)\]', rf'"{att}": new Float32Array([ \1 ])', result
+        )
+    for att in [
+        "triangles",
+        "face_types",
+        "edge_types",
+        "triangles_per_face",
+        "segments_per_edge",
+    ]:
+        result = re.sub(
+            rf'"{att}": \[(.*?)\]', rf'"{att}": new Int8Array([ \1 ])', result
+        )
+    return f"var {var} = {result};"
+
+
+def export_three_cad_viewer_js(var, *objs, filename=None):
+    def decode(instances, shapes):
+        def walk(obj):
+            typ = None
+            for attr in obj.keys():
+                if attr == "parts":
+                    for part in obj["parts"]:
+                        walk(part)
+
+                elif attr == "type":
+                    typ = obj["type"]
+
+                elif attr == "shape":
+                    if typ == "shapes":
+                        if obj["shape"].get("ref") is not None:
+                            ind = obj["shape"]["ref"]
+                            obj["shape"] = instances[ind]
+
+        walk(shapes)
+
+    part_group, instances = to_ocpgroup(*objs)
+    instances, shapes, states, map = tessellate_group(part_group, instances)
+    decode(instances, shapes)
+
+    j = numpy_to_js(var, [shapes, states])
+    if filename is None:
+        return j
+    else:
+        with open(filename, "w") as fd:
+            fd.write(j)
+        return json.dumps({"exported": filename})
