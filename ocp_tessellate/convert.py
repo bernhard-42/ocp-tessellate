@@ -1641,7 +1641,7 @@ def numpy_to_js(var, obj, indent=None):
         "segments_per_edge",
     ]:
         result = re.sub(
-            rf'"{att}": \[(.*?)\]', rf'"{att}": new Int8Array([ \1 ])', result
+            rf'"{att}": \[(.*?)\]', rf'"{att}": new Uint32Array([ \1 ])', result
         )
     return f"var {var} = {result};"
 
