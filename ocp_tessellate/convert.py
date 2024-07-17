@@ -618,8 +618,6 @@ class OcpConverter:
     def handle_parent(
         self,
         cad_obj: Union[ShapeLike, Compound, Workplane, List],
-        obj_name: Union[str, None],
-        rgba_color: Union[ColorLike, None],
         level: int,
     ) -> List[OcpObject]:
         """
@@ -644,21 +642,28 @@ class OcpConverter:
             and len(cad_obj) > 0
             and hasattr(cad_obj[0], "topo_parent")
         ):
-            parent = cad_obj[0].topo_parent
+            parent = list(set([c.topo_parent for c in cad_obj]))
             topo = True
 
         ind = 0
         parents: List[OcpObject] = []
         while parent is not None:
-            pname = "parent" if ind == 0 else f"parent({ind})"
+            pname = "_parent" if ind == 0 else f"_parent({ind})"
             p = self.to_ocp(parent, names=[pname], colors=None, level=level + 1)
-            o = p.objects[0]
-            if o.kind == "solid":
-                o.state_faces = 0
-            elif o.kind == "face":
-                o.state_edges = 0
-            parents.insert(0, o)
-            parent = parent.topo_parent if topo else None
+            for o in p.objects:
+                if o.kind == "solid":
+                    o.state_faces = 0
+                elif o.kind == "face":
+                    o.state_edges = 0
+            parents.insert(0, p)
+            if isinstance(parent, list):
+                parent = list(
+                    set([c.topo_parent for c in parent if c.topo_parent is not None])
+                )
+                if len(parent) == 0:
+                    parent = None
+            else:
+                parent = parent.topo_parent if topo else None
             ind -= 1
 
         return parents
@@ -690,42 +695,8 @@ class OcpConverter:
         group.make_unique_names()
         return group
 
-    def handle_shape_list(
-        self,
-        cad_obj: Union[ShapeList, Workplane],
-        obj_name: Union[str, None],
-        rgba_color: Union[ColorLike, None],
-        show_parent: bool,
-        level: int,
-    ) -> Union[OcpGroup, OcpObject]:
-        """
-        Handle shape lists.
-
-        @param cad_obj: The build123d shape list
-        @param obj_name: The name of the object
-        @param rgba_color: The color of the object
-        @param show_parent: The flag to show the parent
-        @param level: The level of the hierarchy
-
-        @return: The OcpGroup hierarchy
-        """
-        parent_obj = cad_obj
-
-        if is_build123d_shapelist(cad_obj):
-            _debug(level, "handle_shapelist (build123d ShapeList)", obj_name)
-            name = "ShapeList"
-        else:
-            _debug(level, "handle_shapelist (cadquery Workplane)", obj_name)
-            name = "Workplane"
-
-            # Resolve cadquery Workplane
-            cad_obj = cad_obj.vals()  # type: ignore [union-attr]
-            if len(cad_obj) > 0:
-                if is_compound(cad_obj[0]):
-                    cad_obj = flatten([list(obj) for obj in cad_obj])
-                elif is_cadquery_sketch(cad_obj[0]):
-                    return self.to_ocp(cad_obj).cleanup()
-
+    def _handle_list(self, cad_obj, name, obj_name, rgba_color):
+        """internal method"""
         # convert wires to edges
         if len(cad_obj) > 0 and is_wire(cad_obj[0]):
             objs = [e.wrapped for o in cad_obj for e in o.edges()]
@@ -738,15 +709,83 @@ class OcpConverter:
 
         kind = get_kind(typ)
 
-        ocp_obj = self.unify(
+        return self.unify(
             objs,
             kind=kind,
             name=get_name(cad_obj, obj_name, f"{name}({typ})"),
             color=self.get_color_for_object(objs[0], rgba_color),
         )
 
+    def handle_workplane(
+        self,
+        cad_obj: Workplane,
+        obj_name: Union[str, None],
+        rgba_color: Union[ColorLike, None],
+        show_parent: bool,
+        level: int,
+    ) -> Union[OcpGroup, OcpObject]:
+        """
+        Handle cadquery Workplane.
+
+        @param cad_obj: The cadquery Workplane
+        @param obj_name: The name of the object
+        @param rgba_color: The color of the object
+        @param show_parent: The flag to show the parent
+        @param level: The level of the hierarchy
+
+        @return: The OcpGroup hierarchy
+        """
+        parent_obj = cad_obj
+
+        _debug(level, "handle_workplane (cadquery Workplane)", obj_name)
+        name = "Workplane"
+
+        # Resolve cadquery Workplane
+        cad_obj = cad_obj.vals()  # type: ignore [union-attr]
+        if len(cad_obj) > 0:
+            if is_compound(cad_obj[0]):
+                cad_obj = flatten([list(obj) for obj in cad_obj])
+            elif is_cadquery_sketch(cad_obj[0]):
+                return self.to_ocp(cad_obj).cleanup()
+
+        ocp_obj = self._handle_list(cad_obj, name, obj_name, rgba_color)
+
         if show_parent:
-            parents = self.handle_parent(parent_obj, obj_name, rgba_color, level)
+            parents = self.handle_parent(parent_obj, level)
+            parents = [parents[0].objects[0]]
+
+            return OcpGroup(parents + [ocp_obj], name=ocp_obj.name)
+        else:
+            return ocp_obj
+
+    def handle_shape_list(
+        self,
+        cad_obj: ShapeList,
+        obj_name: Union[str, None],
+        rgba_color: Union[ColorLike, None],
+        show_parent: bool,
+        level: int,
+    ) -> Union[OcpGroup, OcpObject]:
+        """
+        Handle build123d shape lists.
+
+        @param cad_obj: The build123d ShapeList
+        @param obj_name: The name of the object
+        @param rgba_color: The color of the object
+        @param show_parent: The flag to show the parent
+        @param level: The level of the hierarchy
+
+        @return: The OcpGroup hierarchy
+        """
+        parent_obj = cad_obj
+
+        _debug(level, "handle_shapelist (build123d ShapeList)", obj_name)
+        name = "ShapeList"
+
+        ocp_obj = self._handle_list(cad_obj, name, obj_name, rgba_color)
+
+        if show_parent:
+            parents = self.handle_parent(parent_obj, level)
             return OcpGroup(parents + [ocp_obj], name=ocp_obj.name)
         else:
             return ocp_obj
@@ -1259,10 +1298,14 @@ class OcpConverter:
                 ocp_obj = self.handle_ocp_wrapper(cad_obj, obj_name)
 
             # build123d ShapeList
-            elif is_build123d_shapelist(cad_obj) or (
-                is_cadquery(cad_obj) and not is_cadquery_empty_workplane(cad_obj)
-            ):
+            elif is_build123d_shapelist(cad_obj):
                 ocp_obj = self.handle_shape_list(
+                    cad_obj, obj_name, rgba_color, show_parent, level
+                )
+
+            # CadQuery Workplane objects
+            elif is_cadquery(cad_obj) and not is_cadquery_empty_workplane(cad_obj):
+                ocp_obj = self.handle_workplane(
                     cad_obj, obj_name, rgba_color, show_parent, level
                 )
 
