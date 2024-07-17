@@ -41,6 +41,8 @@ CadquerySketch = Any
 Assembly = Any
 # Alias for build123d shape lists
 ShapeList = List[Wrapped]
+# Alias for build123d locaiont lists
+LocationList = List[Wrapped]
 # Alias for build123d Builder Objects
 BuilderObject = Any
 # Alias for build123d or Cadquery Locations or Planes
@@ -670,7 +672,7 @@ class OcpConverter:
 
     def handle_location_list(
         self,
-        cad_obj: Union[ShapeList, Workplane],
+        cad_obj: LocationList,
         obj_name: Union[str, None],
         helper_scale: float,
         level: int,
@@ -678,13 +680,13 @@ class OcpConverter:
         """
         Handle build123d location lists.
 
-        @param cad_obj: The build123d shape list
+        @param cad_obj: The build123d location list
         @param obj_name: The name of the object
         @param level: The level of the hierarchy
 
         @return: The OcpGroup hierarchy
         """
-        _debug(level, "handle_location_list (build123d ShapeList)", obj_name)
+        _debug(level, "handle_location_list (build123d LocationList)", obj_name)
         group = OcpGroup(name=get_name(cad_obj, obj_name, "LocationList"))
         for loc in cad_obj:
             group.add(
