@@ -584,7 +584,7 @@ class OcpConverter:
             top = cad_obj
             while top.parent is not None:
                 top = top.parent
-            if top.mates is not None:
+            if hasattr(top, "mates") and top.mates is not None:
                 mates = OcpGroup(
                     [
                         CoordSystem(
