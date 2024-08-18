@@ -519,6 +519,7 @@ def discretize_edge(edge, deflection=0.1, num=None):
 
 def discretize_edges(edges, deflection=0.1, shape_id=""):
     d_edges = []
+    segments_per_edge = []
     vertices = []
     edge_types = []
 
@@ -532,7 +533,9 @@ def discretize_edges(edges, deflection=0.1, shape_id=""):
         if len(d) == 1 and not is_line(edge):
             num = int((length(edge) / 2000) / deflection)
             d = discretize_edge(edge, deflection=deflection, num=num)
-        d_edges.append(d)
+
+        d_edges.extend(d.flatten())
+        segments_per_edge.append(len(d))
 
         for v in get_vertices(edge):
             if v not in vertices:  # ignore duplicates
@@ -544,10 +547,10 @@ def discretize_edges(edges, deflection=0.1, shape_id=""):
         d_vertices.extend(get_point(v))
 
     trace.close()
-
     return {
-        "edges": d_edges,
-        "edge_types": edge_types,
+        "edges": np.asarray(d_edges, dtype="float32"),
+        "segments_per_edge": np.asarray(segments_per_edge, dtype="int32"),
+        "edge_types": np.asarray(edge_types, dtype="int32"),
         "obj_vertices": np.asarray(d_vertices, dtype="float32"),
     }
 
