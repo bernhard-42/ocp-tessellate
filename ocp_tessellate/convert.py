@@ -1453,7 +1453,7 @@ def tessellate_group(
     @param progress: The progress bar
     @param timeit: The flag to measure the time
 
-    @return: The meshed instances, the shapes, the states, and the mapping
+    @return: The meshed instances, the shapes, and the mapping
     """
 
     def get_bb_max(shapes, meshed_instances, loc=None, bbox=None):
@@ -1524,8 +1524,6 @@ def tessellate_group(
         "", instances, None, _discretize_edges, _convert_vertices
     )
 
-    states = group.to_state()
-
     meshed_instances = []
 
     deviation = preset("deviation", kwargs.get("deviation"))
@@ -1577,7 +1575,7 @@ def tessellate_group(
 
         t.info = str(BoundingBox(shapes["bb"]))
 
-    return meshed_instances, shapes, states, mapping
+    return meshed_instances, shapes, mapping
 
 
 #

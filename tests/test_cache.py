@@ -46,7 +46,7 @@ for jj, j in enumerate(J):
         box = Pos(y, y, y) * Box(x, x, x, align=(Align.MIN, Align.MIN, Align.MIN))
 
         group, instances = to_assembly(box)
-        instances, shapes, states, mapping = tessellate_group(
+        instances, shapes, mapping = tessellate_group(
             group, instances, progress=Progress("c")
         )
         bb = combined_bb(shapes)
