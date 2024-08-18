@@ -1674,24 +1674,24 @@ def numpy_to_js(var, obj, indent=None):
 
     # Version 3 of the three-cad-viewer protocol requires Float32Array and Int8Array
     result = json.dumps(obj, cls=NumpyArrayEncoder, indent=indent)
-    for att in ["vertices", "normals", "edges", "obj_vertices"]:
-        result = re.sub(
-            rf'"{att}": \[(.*?)\]', rf'"{att}": new Float32Array([ \1 ])', result
-        )
-    for att in [
-        "triangles",
-        "face_types",
-        "edge_types",
-        "triangles_per_face",
-        "segments_per_edge",
-    ]:
-        result = re.sub(
-            rf'"{att}": \[(.*?)\]', rf'"{att}": new Uint32Array([ \1 ])', result
-        )
+    # for att in ["vertices", "normals", "edges", "obj_vertices"]:
+    #     result = re.sub(
+    #         rf'"{att}": \[(.*?)\]', rf'"{att}": new Float32Array([ \1 ])', result
+    #     )
+    # for att in [
+    #     "triangles",
+    #     "face_types",
+    #     "edge_types",
+    #     "triangles_per_face",
+    #     "segments_per_edge",
+    # ]:
+    #     result = re.sub(
+    #         rf'"{att}": \[(.*?)\]', rf'"{att}": new Uint32Array([ \1 ])', result
+    #     )
     return f"var {var} = {result};"
 
 
-def export_three_cad_viewer_js(var, *objs, filename=None):
+def export_three_cad_viewer_js(var, *objs, names=None, filename=None):
     def decode(instances, shapes):
         def walk(obj):
             typ = None
@@ -1711,11 +1711,11 @@ def export_three_cad_viewer_js(var, *objs, filename=None):
 
         walk(shapes)
 
-    part_group, instances = to_ocpgroup(*objs)
-    instances, shapes, states, map = tessellate_group(part_group, instances)
+    part_group, instances = to_ocpgroup(*objs, names=names)
+    instances, shapes, map = tessellate_group(part_group, instances)
     decode(instances, shapes)
 
-    j = numpy_to_js(var, [shapes, states])
+    j = numpy_to_js(var, shapes)
     if filename is None:
         return j
     else:
