@@ -300,6 +300,7 @@ class Tessellator:
         for i in range(len(self.normals)):
             norm = np.linalg.norm(self.normals[i])
             self.normals[i] /= norm
+        self.normals = self.normals.ravel()
 
     def _compute_missing_edges(self):
         vertices = np.asarray(self.vertices).reshape(-1, 3)
