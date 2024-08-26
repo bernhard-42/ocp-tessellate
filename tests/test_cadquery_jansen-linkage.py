@@ -138,7 +138,7 @@ leg = create_leg(x, y)
 for name in link_list:
     leg.mate(f"{name}?mate", name=name, origin=True)
 
-d = show(leg, render_mates=True, axes=False)
+d = show(leg, render_mates=True, axes=False)  # <== ERROR
 
 
 ## Relocate and assemble
@@ -147,7 +147,7 @@ d = show(leg, render_mates=True, axes=False)
 leg.relocate()
 
 d = show(leg, render_mates=True)
-
+# %%
 
 alpha = 0
 joints = linkage(alpha, x, y, links)
@@ -162,9 +162,9 @@ for name in link_list:
     )  # ... and center the mate of the link first
     leg.assemble(name, loc)
 
-cv = show(leg, render_mates=True)
+cv = show(leg, render_mates=False)
 
-
+# %%
 # # Animation
 
 alphas = {name: [] for name in link_list}

@@ -268,12 +268,11 @@ for name in leg_names:
     )
     hexapod.mate(f"{name}/lower?{lower}", name=f"leg_{name}_lower_hole", origin=True)
 
-show(hexapod, render_mates=True)
+show(hexapod)
 # %%
 hexapod.relocate()
 
-# %%
-show(hexapod, render_mates=True)
+show(hexapod)
 
 # %%
 # Assemble the parts
@@ -286,7 +285,7 @@ hexapod.assemble("top", "bottom")
 for stand_name in stand_names:
     hexapod.assemble(f"{stand_name}", f"{stand_name}_bottom")
 
-show(hexapod, render_mates=True, helper_scale=5, timeit=False)
+show(hexapod, timeit=False)
 
 # %%
 
