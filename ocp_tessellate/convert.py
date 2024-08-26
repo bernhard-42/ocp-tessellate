@@ -600,7 +600,8 @@ class OcpConverter:
                     name=f"{cad_obj.name}_mates",
                     loc=identity_location(),  # mates inherit the parent location, so actually add a no-op
                 )
-                ocp_obj.add(mates)
+                if len(mates.objects) > 0:
+                    ocp_obj.add(mates)
 
         for child in cad_obj.children:
             sub_obj = self.to_ocp(
