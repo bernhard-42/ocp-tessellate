@@ -634,10 +634,10 @@ class OcpConverter:
         @return: The OcpGroup hierarchy
         """
         parent = None
-        if hasattr(cad_obj, "parent"):
+        if hasattr(cad_obj, "parent") and cad_obj.parent is not None:
             parent = cad_obj.parent
             topo = False
-        elif hasattr(cad_obj, "topo_parent"):
+        elif hasattr(cad_obj, "topo_parent") and cad_obj.topo_parent is not None:
             parent = cad_obj.topo_parent
             topo = True
         elif (
@@ -798,6 +798,7 @@ class OcpConverter:
         cad_obj: Union[ShapeLike, Compound],
         obj_name: Union[str, None],
         render_joints: bool,
+        show_parent: bool,
         rgba_color: Union[ColorLike, None],
         level: int,
     ) -> Union[OcpGroup, OcpObject]:
@@ -851,6 +852,14 @@ class OcpConverter:
             joints.name = "joints"
             ocp_obj.name = "shape"
             return OcpGroup([ocp_obj, joints], name=name)
+
+        if show_parent and (
+            hasattr(cad_obj, "parent") or hasattr(cad_obj, "topo_parent")
+        ):
+            parents = self.handle_parent(
+                cad_obj if isinstance(cad_obj, (list, tuple)) else [cad_obj], level
+            )
+            return OcpGroup(parents + [ocp_obj], name=ocp_obj.name)
 
         return ocp_obj
 
@@ -1248,8 +1257,12 @@ class OcpConverter:
             # ================================ Iterables ================================ #
 
             # Generic iterables (tuple, list, but not ShapeList)
-            elif isinstance(cad_obj, (list, tuple)) and not is_build123d_shapelist(
-                cad_obj
+            elif isinstance(cad_obj, (list, tuple)) and not (
+                (
+                    is_build123d_shapelist(cad_obj)
+                    and all(type(cad_obj[0]) == type(o) for o in cad_obj)
+                )
+                and not any([class_name(o) == "Compound" for o in cad_obj])
             ):
                 ocp_obj = self.handle_list_tuple(
                     cad_obj, obj_name, rgba_color, sketch_local, helper_scale, level
@@ -1334,7 +1347,7 @@ class OcpConverter:
                 or is_cadquery_shape(cad_obj)
             ):
                 ocp_obj = self.handle_shapes(
-                    cad_obj, obj_name, render_joints, rgba_color, level
+                    cad_obj, obj_name, render_joints, show_parent, rgba_color, level
                 )
 
             # Cadquery sketches
