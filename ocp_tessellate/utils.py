@@ -32,7 +32,7 @@ def warn(message, warning=RuntimeWarning, when="always"):
 
 
 class Color:
-    def __init__(self, color=None, alpha=1.0):
+    def __init__(self, color, alpha=1.0):
         self.a = alpha
 
         # copy the other color values
@@ -66,6 +66,16 @@ class Color:
 
             if len(color) == 4:
                 self.a = color[3] if color[3] <= 1.0 else color[3] / 255
+
+        elif hasattr(color, "wrapped"):
+            if hasattr(color, "toTuple"):
+                c = color.toTuple()
+            else:
+                c = list(color)
+            self.r = int(c[0] * 255)
+            self.g = int(c[1] * 255)
+            self.b = int(c[2] * 255)
+            self.a = c[3]
 
         else:
             self._invalid(color)
