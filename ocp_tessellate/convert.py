@@ -625,8 +625,6 @@ class OcpConverter:
             sub_obj = self.to_ocp(
                 child,
                 names=[child.name],
-                # colors=[child.color if color is None else color],
-                # alphas=[alpha],
                 helper_scale=helper_scale,
                 render_mates=render_mates,
                 level=level + 1,
