@@ -23,24 +23,15 @@ show(
     timeit=True,
 )
 
+
+# %%
+
+f = import_stl("tests/box.stl")
+
+show(f, Pos(2, 0, 0) * c)
+
 # %%
 
 import os
 
 os.remove(stl_name)
-
-# %%
-
-f = import_stl("/Users/bernhard/Development/robot-dog/stl/housing.stl")
-# f = import_stl("/tmp/base.stl")
-pg, instances = to_assembly(f)
-result = tessellate_group(pg, instances)
-##
-show(
-    f,
-    # colors=["orange"],
-    # render_normals=True,
-    # default_edgecolor="#bbb",
-)
-
-# %%
