@@ -338,6 +338,11 @@ class OcpConverter:
         else:
             col_a = Color(default_colors.get(class_name(unwrap(obj))))
 
+        # Try the onjects alpha first
+        if hasattr(obj, "alpha") and obj.alpha is not None:
+            col_a.a = obj.alpha
+
+        # A given alpha overwrites the objects alpha
         if alpha is not None:
             col_a.a = alpha
 
@@ -884,7 +889,7 @@ class OcpConverter:
             return OcpGroup([ocp_obj, joints], name=name)
 
         if show_parent and (
-            (hasattr(cad_obj, "parent") and cad_obj.prent is not None)
+            (hasattr(cad_obj, "parent") and cad_obj.parent is not None)
             or (hasattr(cad_obj, "topo_parent") and cad_obj.topo_parent is not None)
         ):
             parents = self.handle_parent(
@@ -937,8 +942,12 @@ class OcpConverter:
         ocp_obj = self.to_ocp(
             obj,
             names=[obj_name],
-            colors=[color],
-            alphas=[alpha],
+            colors=[
+                cad_obj.color if color is None and hasattr(cad_obj, "color") else color
+            ],
+            alphas=[
+                cad_obj.alpha if alpha is None and hasattr(cad_obj, "alpha") else alpha
+            ],
             render_joints=render_joints,
             level=level + 1,
         )
