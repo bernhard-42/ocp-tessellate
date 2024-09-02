@@ -1310,6 +1310,8 @@ class OcpConverter:
                 ocp_obj = self.handle_list_tuple(
                     cad_obj, obj_name, color, alpha, sketch_local, helper_scale, level
                 )
+                if ocp_obj.length == 0:
+                    ocp_obj.add(self.handle_empty_iterables(obj_name, level))
 
             # Compounds / topods_compounds
             elif (
