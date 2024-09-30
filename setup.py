@@ -18,7 +18,7 @@ LONG_DESCRIPTION = (
 
 setup_args = {
     "name": "ocp_tessellate",
-    "version": "3.0.4",
+    "version": "3.0.5",
     "description": "Tessellate OCP objects",
     "long_description": LONG_DESCRIPTION,
     "include_package_data": True,
@@ -26,7 +26,6 @@ setup_args = {
     "install_requires": [
         "webcolors~=1.12",
         "numpy",
-        "numpy-quaternion",
         "cachetools~=5.2.0",
         "imagesize",
     ],
