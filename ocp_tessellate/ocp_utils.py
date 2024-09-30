@@ -90,7 +90,6 @@ from OCP.TopTools import (  # type: ignore
     TopTools_IndexedDataMapOfShapeListOfShape,
     TopTools_IndexedMapOfShape,
 )
-from quaternion import rotate_vectors
 
 from .utils import Color, class_name, distance, flatten, type_name
 
@@ -1071,26 +1070,26 @@ def bounding_box(objs, loc=None, optimal=False):
 #
 
 
-# def rotate(q, v):
-#     x, y, z, w = q
-#     x2 = 2 * x * x
-#     y2 = 2 * y * y
-#     z2 = 2 * z * z
-#     xy = 2 * x * y
-#     xz = 2 * x * z
-#     yz = 2 * y * z
-#     xw = 2 * x * w
-#     yw = 2 * y * w
-#     zw = 2 * z * w
+def rotate(q, v):
+    x, y, z, w = q
+    x2 = 2 * x * x
+    y2 = 2 * y * y
+    z2 = 2 * z * z
+    xy = 2 * x * y
+    xz = 2 * x * z
+    yz = 2 * y * z
+    xw = 2 * x * w
+    yw = 2 * y * w
+    zw = 2 * z * w
 
-#     R = np.array(
-#         [
-#             [1 - y2 - z2, xy - zw, xz + yw],
-#             [xy + zw, 1 - x2 - z2, yz - xw],
-#             [xz - yw, yz + xw, 1 - x2 - y2],
-#         ]
-#     )
-#     return np.dot(v, R.T)
+    R = np.array(
+        [
+            [1 - y2 - z2, xy - zw, xz + yw],
+            [xy + zw, 1 - x2 - z2, yz - xw],
+            [xz - yw, yz + xw, 1 - x2 - y2],
+        ]
+    )
+    return np.dot(v, R.T)
 
 
 def np_bbox(p, t, q):
@@ -1102,9 +1101,7 @@ def np_bbox(p, t, q):
         v = n_p
     else:
         n_t = np.asarray(t)
-        n_q = np.quaternion(q[-1], *q[:-1])
-        v = rotate_vectors([n_q], n_p)[0] + n_t
-        # v = rotate(q, n_p) + n_t
+        v = rotate(q, n_p) + n_t
 
     bbmin = np.min(v, axis=0)
     bbmax = np.max(v, axis=0)
