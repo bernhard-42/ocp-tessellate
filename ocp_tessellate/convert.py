@@ -998,7 +998,7 @@ class OcpConverter:
         cad_objs = []
         names: List[str | None] = []
         for typ, objs, calc_bb in [
-            ("Face", list(cad_obj._faces), True),
+            ("Face", list(cad_obj._faces), False),
             ("Edge", list(cad_obj._edges), True),
             (
                 "Selection",
