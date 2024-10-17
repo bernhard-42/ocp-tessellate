@@ -998,10 +998,13 @@ class OcpConverter:
         cad_objs = []
         names: List[str | None] = []
         for typ, objs, calc_bb in [
-            ("Face", list(cad_obj._faces), False),
-            ("Edge", list(cad_obj._edges), False),
-            ("Wire", list(cad_obj._wires), True),
-            ("Selection", list(cad_obj._selection), False),
+            ("Face", list(cad_obj._faces), True),
+            ("Edge", list(cad_obj._edges), True),
+            (
+                "Selection",
+                [] if cad_obj._selection is None else list(cad_obj._selection),
+                False,
+            ),
         ]:
             if objs:
                 if is_location(objs[0]):
@@ -1021,11 +1024,11 @@ class OcpConverter:
                 cad_objs.append(compound)
                 names.append(typ)
 
-            if calc_bb:
-                bb = BoundingBox()
-                for obj in cad_objs:
-                    bb.update(BoundingBox(obj))
-                size = max(bb.xsize, bb.ysize, bb.zsize)
+                if calc_bb:
+                    bb = BoundingBox()
+                    for obj in cad_objs:
+                        bb.update(BoundingBox(obj))
+                    size = max(bb.xsize, bb.ysize, bb.zsize)
 
         name = get_name(cad_obj, obj_name, "Sketch")
         result = self.to_ocp(

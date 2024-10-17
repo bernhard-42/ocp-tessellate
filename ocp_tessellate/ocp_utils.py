@@ -205,10 +205,7 @@ def is_cadquery_massembly(obj):
 
 def is_cadquery_sketch(obj):
     return (
-        hasattr(obj, "_faces")
-        and hasattr(obj, "_edges")
-        and hasattr(obj, "_wires")
-        and hasattr(obj, "_selection")
+        hasattr(obj, "_faces") and hasattr(obj, "_edges") and hasattr(obj, "_selection")
     )
 
 

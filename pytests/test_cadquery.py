@@ -14,7 +14,7 @@ class MyUnitTest(unittest.TestCase):
             self.assertAlmostEqual(i, j, places, msg=msg)
 
 
-colormap = list(webcolors.CSS3_NAMES_TO_HEX.items())
+colormap = list(webcolors._definitions._CSS3_NAMES_TO_HEX.items())
 
 
 class TestWorkplane(MyUnitTest):

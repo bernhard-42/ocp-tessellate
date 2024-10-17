@@ -18,7 +18,7 @@ class MyUnitTest(unittest.TestCase):
 
 # %%
 
-colormap = list(webcolors.CSS3_NAMES_TO_HEX.items())
+colormap = list(webcolors._definitions._CSS3_NAMES_TO_HEX.items())
 
 b = Box(1, 2, 3)
 b2 = Box(1, 1, 1) - Box(2, 2, 0.2)
