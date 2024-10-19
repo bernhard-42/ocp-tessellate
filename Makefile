@@ -31,7 +31,7 @@ endif
 
 dist:
 	@rm -f dist/*
-	@python setup.py sdist bdist_wheel
+	@python -m build -n
 
 release:
 	git add .
