@@ -997,8 +997,10 @@ class OcpConverter:
 
         cad_objs = []
         names: List[str | None] = []
+        bb = BoundingBox()
+        size = 5
         for typ, objs, calc_bb in [
-            ("Face", list(cad_obj._faces), False),
+            ("Face", list(cad_obj._faces), True),
             ("Edge", list(cad_obj._edges), True),
             (
                 "Selection",
@@ -1025,10 +1027,9 @@ class OcpConverter:
                 names.append(typ)
 
                 if calc_bb:
-                    bb = BoundingBox()
-                    for obj in cad_objs:
-                        bb.update(BoundingBox(obj))
-                    size = max(bb.xsize, bb.ysize, bb.zsize)
+                    bb.update(BoundingBox(compound))
+
+        size = max(bb.xsize, bb.ysize, bb.zsize, 0.1)
 
         name = get_name(cad_obj, obj_name, "Sketch")
         result = self.to_ocp(
