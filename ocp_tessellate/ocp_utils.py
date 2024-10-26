@@ -603,8 +603,16 @@ def get_face_type(face):
     return BRepAdaptor_Surface(face).GetType()
 
 
+def get_surface(face):
+    return BRepAdaptor_Surface(face)
+
+
 def get_edge_type(edge):
     return BRepAdaptor_Curve(edge).GetType()
+
+
+def get_curve(edge):
+    return BRepAdaptor_Curve(edge)
 
 
 #
