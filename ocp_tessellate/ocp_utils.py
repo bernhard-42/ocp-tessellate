@@ -492,6 +492,14 @@ def get_downcasted_shape(shape):
     return [downcast(obj) for obj in objs]
 
 
+def get_curve(edge):
+    return BRepAdaptor_Curve(edge).Curve()
+
+
+def get_surface(face):
+    return BRepAdaptor_Surface(face).Surface()
+
+
 def get_point(vertex):
     p = BRep_Tool.Pnt_s(vertex)
     return (p.X(), p.Y(), p.Z())
