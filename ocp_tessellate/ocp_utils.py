@@ -405,11 +405,21 @@ def is_location(obj):
 #
 
 
+# change from occt 7.7 (Extent) to 7.8 (Size)
+def extent_or_size(obj):
+    if hasattr(obj, "Extent"):
+        return obj.Extent()
+    elif hasattr(obj, "Size"):
+        return obj.Size()
+    else:
+        raise ValueError(f"Unknown type {type(obj)}")
+
+
 def get_compounds(shape):
     compound_map = TopTools_IndexedMapOfShape()
     TopExp.MapShapes_s(shape, TopAbs_COMPOUND, compound_map)
 
-    for i in range(1, compound_map.Extent() + 1):
+    for i in range(1, extent_or_size(compound_map) + 1):
         yield TopoDS.Compound_s(compound_map.FindKey(i))
 
 
@@ -417,7 +427,7 @@ def get_solids(shape):
     solid_map = TopTools_IndexedMapOfShape()
     TopExp.MapShapes_s(shape, TopAbs_SOLID, solid_map)
 
-    for i in range(1, solid_map.Extent() + 1):
+    for i in range(1, extent_or_size(solid_map) + 1):
         yield TopoDS.Solid_s(solid_map.FindKey(i))
 
 
@@ -425,7 +435,7 @@ def get_faces(shape):
     face_map = TopTools_IndexedMapOfShape()
     TopExp.MapShapes_s(shape, TopAbs_FACE, face_map)
 
-    for i in range(1, face_map.Extent() + 1):
+    for i in range(1, extent_or_size(face_map) + 1):
         yield TopoDS.Face_s(face_map.FindKey(i))
 
 
@@ -433,7 +443,7 @@ def get_wires(shape):
     wire_map = TopTools_IndexedMapOfShape()
     TopExp.MapShapes_s(shape, TopAbs_WIRE, wire_map)
 
-    for i in range(1, wire_map.Extent() + 1):
+    for i in range(1, extent_or_size(wire_map) + 1):
         yield TopoDS.Wire_s(wire_map.FindKey(i))
 
 
@@ -445,12 +455,12 @@ def get_edges(shape, with_face=False):
         face_map = TopTools_IndexedDataMapOfShapeListOfShape()
         TopExp.MapShapesAndAncestors_s(shape, TopAbs_EDGE, TopAbs_FACE, face_map)
 
-    for i in range(1, edge_map.Extent() + 1):
+    for i in range(1, extent_or_size(edge_map) + 1):
         edge = TopoDS.Edge_s(edge_map.FindKey(i))
 
         if with_face:
             face_list = face_map.FindFromKey(edge)
-            if face_list.Extent() == 0:
+            if extent_or_size(face_list) == 0:
                 # print("no faces")
                 continue
 
@@ -463,7 +473,7 @@ def get_vertices(shape):
     vertex_map = TopTools_IndexedMapOfShape()
     TopExp.MapShapes_s(shape, TopAbs_VERTEX, vertex_map)
 
-    for i in range(1, vertex_map.Extent() + 1):
+    for i in range(1, extent_or_size(vertex_map) + 1):
         yield TopoDS.Vertex_s(vertex_map.FindKey(i))
 
 
