@@ -312,7 +312,7 @@ class Tessellator:
     def compute_edges(self, trace):
         for ind, (edge, face) in enumerate(get_edges(self.shape, True)):
             trace.edge(f"{self.shape_id}/edges/edges_{ind}", edge)
-            self.edge_types.append(get_edge_type(edge).value)
+            self.edge_types.append(get_edge_type(edge))
 
             edges = []
             loc = TopLoc_Location()
@@ -528,7 +528,7 @@ def discretize_edges(edges, deflection=0.1, shape_id=""):
 
     for ind, edge in enumerate(edges):
         trace.edge(f"{shape_id}/edges/edges_{ind}", edge)
-        edge_types.append(get_edge_type(edge).value)
+        edge_types.append(get_edge_type(edge))
 
         d = discretize_edge(edge, deflection)
         if len(d) == 1 and not is_line(edge):
