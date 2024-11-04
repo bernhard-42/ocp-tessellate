@@ -4,7 +4,7 @@ import cadquery as cq
 import pytest
 import webcolors
 
-from ocp_tessellate.convert import OcpConverter
+from ocp_tessellate.convert import OcpConverter, tessellate_group, to_ocpgroup
 from ocp_tessellate.ocp_utils import *
 
 
@@ -358,3 +358,23 @@ class TestVector(MyUnitTest):
         o = g.objects[1]
         self.assertEqual(o.name, "Vertex(2)")
         self.assertEqual(o.kind, "vertex")
+
+
+class TestTessellator(MyUnitTest):
+    def test_wires_1(self):
+        result = (
+            cq.Workplane("ZY")
+            .workplane(offset=50)
+            .circle(5)
+            .circle(4)
+            .consolidateWires()
+        )
+        g, i = to_ocpgroup(result)
+        r = tessellate_group(g, i)
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.kind, "edge")
+        self.assertIsNone(o.ref)
+        self.assertIsNotNone(o.obj)
+        self.assertTrue(is_topods_edge(o.obj[0]))
+        self.assertTrue(is_topods_edge(o.obj[1]))

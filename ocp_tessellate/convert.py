@@ -725,7 +725,18 @@ class OcpConverter:
         """internal method"""
         # convert wires to edges
         if len(cad_obj) > 0 and is_wire(cad_obj[0]):
-            objs = [o.edges().wrapped for o in cad_obj]
+            objs = []
+            for obj in cad_obj:
+                if isinstance(obj.edges(), (list, tuple)):
+                    objs.extend([e.wrapped for e in obj.edges()])
+                else:
+                    # special case cadquery wire
+                    if is_topods_edge(obj.edges().wrapped):
+                        objs.append(obj.edges().wrapped)
+                    elif is_topods_compound(obj.edges().wrapped):
+                        objs.extend([e.wrapped for e in list(obj.edges())])
+                    else:
+                        raise ValueError(f"Unknown edge type: {obj.edges()}")
             typ = "Wire"
 
         # unwrap everything else
