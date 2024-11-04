@@ -725,7 +725,7 @@ class OcpConverter:
         """internal method"""
         # convert wires to edges
         if len(cad_obj) > 0 and is_wire(cad_obj[0]):
-            objs = [e.wrapped for o in cad_obj for e in o.edges()]
+            objs = [o.edges().wrapped for o in cad_obj]
             typ = "Wire"
 
         # unwrap everything else
