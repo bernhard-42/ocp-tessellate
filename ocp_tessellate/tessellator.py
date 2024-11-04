@@ -244,7 +244,7 @@ class Tessellator:
 
             internal = face.Orientation() == TopAbs_Orientation.TopAbs_INTERNAL
 
-            self.face_types.append(get_face_type(face).value)
+            self.face_types.append(get_face_type(face))
 
             poly = BRep_Tool.Triangulation_s(face, loc_buf)
             if poly is not None:

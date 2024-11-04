@@ -600,7 +600,11 @@ def get_compound_type(compound):
 
 
 def get_face_type(face):
-    return BRepAdaptor_Surface(face).GetType()
+    t = BRepAdaptor_Surface(face).GetType()
+    if isinstance(t, int):
+        return t
+    else:
+        return t.value
 
 
 def get_surface(face):
@@ -608,7 +612,11 @@ def get_surface(face):
 
 
 def get_edge_type(edge):
-    return BRepAdaptor_Curve(edge).GetType()
+    t = BRepAdaptor_Curve(edge).GetType()
+    if isinstance(t, int):
+        return t
+    else:
+        return t.value
 
 
 def get_curve(edge):
