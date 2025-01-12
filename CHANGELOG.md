@@ -6,9 +6,9 @@
 ## v3.0.8
 
 - Fix regression for handling cadquery wires (wire.edges() returns one edge or one compound)
--Ensure get_face_type and get_edge_type always return int (ocp_utils.py)
--Enable switch from Extent to Size (being prepared for OCCT 7.8
--Add get_surface and get_curve to ocp_utils.py
+- Ensure get_face_type and get_edge_type always return int (ocp_utils.py)
+- Enable switch from Extent to Size (being prepared for OCCT 7.8
+- Add get_surface and get_curve to ocp_utils.py
 
 
 ## v3.0.7
