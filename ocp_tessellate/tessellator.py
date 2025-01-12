@@ -69,7 +69,6 @@ except ImportError:
 
     NATIVE = False
 
-MAX_HASH_KEY = 2147483647
 LOG_FILE = "ocp_tessellate.log"
 
 #

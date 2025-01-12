@@ -93,8 +93,6 @@ from OCP.TopTools import (  # type: ignore
 
 from .utils import Color, class_name, distance, flatten, type_name
 
-MAX_HASH_KEY = 2147483647
-
 #
 # %% Version
 #
@@ -109,9 +107,17 @@ def occt_version():
 #
 
 
+def hash_compat(obj):
+    if OCP.__version__.startswith("7.7"):
+        MAX_HASH_KEY = 2147483647
+        return obj.HashCode(MAX_HASH_KEY)
+    else:
+        return hash(obj)
+
+
 def ocp_hash(obj):
     if is_topods_solid(obj) or is_topods_face(obj) or is_topods_shell(obj):
-        return obj.HashCode(MAX_HASH_KEY)
+        return hash_compat(obj)
     else:
         return ()
 
@@ -912,7 +918,7 @@ def make_key(objs, loc=None, optimal=False):  # pylint: disable=unused-argument
     if not isinstance(objs, (tuple, list)):
         objs = [objs]
 
-    key = (tuple(((s.HashCode(MAX_HASH_KEY), id(s)) for s in objs)), loc_to_tq(loc))
+    key = (tuple(((hash_compat(s), id(s)) for s in objs)), loc_to_tq(loc))
     return key
 
 
