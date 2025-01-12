@@ -924,7 +924,7 @@ class TestConvertMixedCompounds(MyUnitTest):
         self.assertEqual(o.kind, "face")
         self.assertTrue(is_topods_face(i[o.ref]["obj"]))
         o = g.objects[2]
-        self.assertEqual(o.name, "Wire")
+        self.assertEqual(o.name, "Edge")
         self.assertEqual(o.kind, "edge")
         self.assertTrue(is_topods_edge(o.obj))
         g = g.objects[3]
@@ -952,7 +952,7 @@ class TestConvertMixedCompounds(MyUnitTest):
         self.assertEqual(o.kind, "face")
         self.assertTrue(is_topods_face(i[o.ref]["obj"]))
         o = g.objects[2]
-        self.assertEqual(o.name, "Wire")
+        self.assertEqual(o.name, "Edge")
         self.assertEqual(o.kind, "edge")
         self.assertTrue(is_topods_edge(o.obj))
         g = g.objects[3]
