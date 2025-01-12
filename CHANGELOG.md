@@ -1,0 +1,27 @@
+## v3.0.9
+
+- Add support for OCP 7.8.1
+
+
+## v3.0.8
+
+- Fix regression for handling cadquery wires (wire.edges() returns one edge or one compound)
+-Ensure get_face_type and get_edge_type always return int (ocp_utils.py)
+-Enable switch from Extent to Size (being prepared for OCCT 7.8
+-Add get_surface and get_curve to ocp_utils.py
+
+
+## v3.0.7
+
+- none / deployment issues
+
+
+## v3.0.6
+
+- Migrate to pyproject.toml
+- Support latest cadquery Sketch changes
+
+
+## v3.0.5
+
+- Remove numpy-quaternion dependency to support numpy 1 and 2
