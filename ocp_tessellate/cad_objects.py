@@ -198,9 +198,9 @@ class OcpGroup:
 
     def cleanup(self):
         if self.length == 1:
-            if isinstance(self.objects[0], OcpObject):
-                self.loc = mul_locations(self.loc, self.objects[0].loc)
-            return self.objects[0]
+            result = self.objects[0]
+            result.loc = mul_locations(self.loc, result.loc)
+            return result
 
         return self
 
