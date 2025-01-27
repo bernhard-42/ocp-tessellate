@@ -1333,9 +1333,11 @@ class OcpConverter:
             elif (
                 is_compound(cad_obj)
                 and (is_mixed_compound(cad_obj.wrapped) or unroll_compounds)
+                and not is_build123d_assembly(cad_obj)
             ) or (
                 is_topods_compound(cad_obj)
                 and (is_mixed_compound(cad_obj) or unroll_compounds)
+                and not is_build123d_assembly(cad_obj)
             ):
                 ocp_obj = self.handle_compound(
                     cad_obj, obj_name, color, alpha, sketch_local, helper_scale, level
