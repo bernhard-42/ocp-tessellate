@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ocp-tessellate"
-version = "3.0.9"
+version = "3.0.10"
 authors = [{ name = "Bernhard Walter", email = "b_walter@arcor.de" }]
 description = "Tessellate OCP (https://github.com/cadquery/OCP) objects to use with threejs"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 keywords = [
     "3d models",
     "3d printing",
@@ -42,13 +42,13 @@ dev = ["questionary~=1.10.0", "bump-my-version", "black", "twine", "pytest"]
 # black settings
 
 [tool.black]
-target-version = ["py39", "py310", "py311", "py312"]
+target-version = ["py310", "py311", "py312", "py313"]
 line-length = 88
 
 # bump-my-version settings
 
 [tool.bumpversion]
-current_version = "3.0.9"
+current_version = "3.0.10"
 commit = false
 tag = false
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)(?P<release>\\d*)(?P<build>\\d*)"
