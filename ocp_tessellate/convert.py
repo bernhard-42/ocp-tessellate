@@ -559,7 +559,8 @@ class OcpConverter:
             # an Assembly has the location already in the group, hence relocate
             # the joint to compensate for the location
             # (remember: joint.location = joint.parent.location * joint.relative_location)
-            joints.loc = location.Inverted() * joints.loc
+            if joints.loc is not None:
+                joints.loc = location.Inverted() * joints.loc
             ocp_obj.add(joints)
 
         return ocp_obj.make_unique_names()
