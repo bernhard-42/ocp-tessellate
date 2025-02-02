@@ -106,13 +106,12 @@ def occt_version():
 # %% OCP Helpers
 #
 
-
-def hash_compat(obj):
-    if OCP.__version__.startswith("7.7"):
+if OCP.__version__.startswith("7.7"):
+    def hash_compat(obj):
         MAX_HASH_KEY = 2147483647
         return obj.HashCode(MAX_HASH_KEY)
-    else:
-        return hash(obj)
+else:
+    hash_compat = hash
 
 
 def ocp_hash(obj):

@@ -349,9 +349,12 @@ class StepReader:
 
         if len(self.assemblies) == 1:
             assembly = self.assemblies[0]
-            return walk(
-                assembly["shapes"], assembly["name"], cq.Location(assembly["loc"])
-            )
+            if assembly["shapes"] is not None:
+                return walk(assembly["shapes"], assembly["name"], cq.Location(assembly["loc"]))
+            elif assembly["shape"] is not None:
+                return walk([assembly], assembly["name"], cq.Location(assembly["loc"]))
+            else:
+                raise ValueError("No shapes in the first asssembly")
         else:
             result = cq.Assembly(name="Group")
             for assembly in self.assemblies:
