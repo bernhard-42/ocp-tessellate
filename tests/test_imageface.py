@@ -21,7 +21,7 @@ class TestsImageFace(MyUnitTest):
         """Test that an ImageFace gets converted correctly"""
         c = OcpConverter()
         g = c.to_ocp(
-            ImageFace("pytests/object-160x160mm.png", 600 / 912, name="imageplane")
+            ImageFace("tests/object-160x160mm.png", 600 / 912, name="imageplane")
         )
         i = c.instances
         self.assertEqual(g.length, 1)
@@ -38,13 +38,13 @@ class TestsImageFace(MyUnitTest):
         c = OcpConverter()
         g = c.to_ocp(
             ImageFace(
-                "pytests/object-160x160mm.png",
+                "tests/object-160x160mm.png",
                 600 / 912,
                 name="face0",
                 location=Location((100, 0, 0), (90, 0, 0)),
             ),
             ImageFace(
-                "pytests/object-160x160mm.png",
+                "tests/object-160x160mm.png",
                 600 / 912,
                 (912 / 2, 914 / 2),
                 name="face1",

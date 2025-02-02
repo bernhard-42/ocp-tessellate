@@ -70,7 +70,7 @@ c2 = Compound(label="c2", children=[s2, s3])
 c3 = Compound(label="c3", children=[s4, s5])
 c1 = Compound(label="c1", children=[s1, c2, c3])
 
-c = Compound([Sphere(1.2), Circle(2).wire()])
+c = Compound([Sphere(1.2), Circle(2).wires()[0]])
 mixed = Compound([Box(1, 2, 3), Circle(1), Line((0, 0), (1, 1)), c])
 
 c1 = Compound([Box(1, 2, 3), Sphere(1)])
@@ -283,7 +283,7 @@ class TestsConvert(MyUnitTest):
 
     def test_show_solid_default_colors(self):
         c = OcpConverter()
-        g = c.to_ocp(b2.solid())
+        g = c.to_ocp(b2.solids()[0])
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.color.web_color, "#e8b024")
@@ -304,7 +304,7 @@ class TestsConvert(MyUnitTest):
 
     def test_show_shell_default_colors(self):
         c = OcpConverter()
-        g = c.to_ocp(b2.shell())
+        g = c.to_ocp(b2.shells()[0])
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.color.web_color, "#ee82ee")
@@ -325,7 +325,7 @@ class TestsConvert(MyUnitTest):
 
     def test_show_face_default_colors(self):
         c = OcpConverter()
-        g = c.to_ocp(b2.face())
+        g = c.to_ocp(b2.faces()[0])
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.color.web_color, "#ee82ee")
@@ -346,7 +346,7 @@ class TestsConvert(MyUnitTest):
 
     def test_show_wire_default_colors(self):
         c = OcpConverter()
-        g = c.to_ocp(b2.wire())
+        g = c.to_ocp(b2.wires()[0])
         self.assertEqual(g.length, 1)
         for o in g.objects:
             self.assertEqual(o.color.web_color, "#ba55d3")
@@ -367,7 +367,7 @@ class TestsConvert(MyUnitTest):
 
     def test_show_edge_default_colors(self):
         c = OcpConverter()
-        g = c.to_ocp(b2.edge())
+        g = c.to_ocp(b2.edges()[0])
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.color.web_color, "#ba55d3")
@@ -388,7 +388,7 @@ class TestsConvert(MyUnitTest):
 
     def test_show_vertex_default_colors(self):
         c = OcpConverter()
-        g = c.to_ocp(b2.vertex())
+        g = c.to_ocp(b2.vertices()[0])
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.color.web_color, "#ba55d3")
@@ -411,7 +411,7 @@ class TestsConvert(MyUnitTest):
 
     def test_show_solid_colors_names(self):
         c = OcpConverter()
-        g = c.to_ocp(b2.solid(), names=["MySolid"], colors=[colormap[0][0]])
+        g = c.to_ocp(b2.solids()[0], names=["MySolid"], colors=[colormap[0][0]])
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.color.web_color, colormap[0][1])
@@ -441,7 +441,7 @@ class TestsConvert(MyUnitTest):
 
     def test_show_shell_colors_names(self):
         c = OcpConverter()
-        g = c.to_ocp(b2.shell(), colors=[colormap[0][0]])
+        g = c.to_ocp(b2.shells()[0], colors=[colormap[0][0]])
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.color.web_color, colormap[0][1])
@@ -466,7 +466,7 @@ class TestsConvert(MyUnitTest):
 
     def test_show_face_colors_names(self):
         c = OcpConverter()
-        g = c.to_ocp(b2.face(), colors=[colormap[0][0]])
+        g = c.to_ocp(b2.faces()[0], colors=[colormap[0][0]])
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.color.web_color, colormap[0][1])
@@ -491,7 +491,7 @@ class TestsConvert(MyUnitTest):
 
     def test_show_wire_colors_names(self):
         c = OcpConverter()
-        g = c.to_ocp(b2.wire(), colors=[colormap[0][0]])
+        g = c.to_ocp(b2.wires()[0], colors=[colormap[0][0]])
         self.assertEqual(g.length, 1)
         for o in g.objects:
             self.assertEqual(o.color.web_color, colormap[0][1])
@@ -516,7 +516,7 @@ class TestsConvert(MyUnitTest):
 
     def test_show_edge_colors_names(self):
         c = OcpConverter()
-        g = c.to_ocp(b2.edge(), colors=[colormap[0][0]])
+        g = c.to_ocp(b2.edges()[0], colors=[colormap[0][0]])
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.color.web_color, colormap[0][1])
@@ -541,7 +541,7 @@ class TestsConvert(MyUnitTest):
 
     def test_show_vertex_colors_names(self):
         c = OcpConverter()
-        g = c.to_ocp(b2.vertex(), colors=[colormap[0][0]])
+        g = c.to_ocp(b2.vertices()[0], colors=[colormap[0][0]])
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.color.web_color, colormap[0][1])

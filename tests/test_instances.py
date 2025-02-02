@@ -1,10 +1,11 @@
-# %%
 import copy
+import unittest
 
+import build123d as bd
 from build123d import *
-from ocp_vscode import *
 
-from ocp_tessellate.tessellator import cache
+from ocp_tessellate.convert import OcpConverter, tessellate_group
+from ocp_tessellate.ocp_utils import *
 
 
 def reference(obj, label, loc=None):
@@ -17,114 +18,82 @@ def reference(obj, label, loc=None):
         return new_obj.move(loc)
 
 
-# %%
+class ProgressInstance:
+    def __init__(self, runs, test):
+        self.runs = runs
+        self.run = 0
+        self.test = test
 
-locs = HexLocations(6, 10, 10).local_locations
-
-sphere = Solid.make_sphere(5)
-sphere_references = [reference(sphere, label="Sphere", loc=loc) for loc in locs]
-assembly = Compound(children=sphere_references)
-
-show(assembly)
-# %%
-
-sphere = Solid.make_sphere(4)
-spheres = [loc * sphere for loc in locs]
-assembly = Compound(children=spheres)
-
-show(assembly)
-
-# %%
-
-s = Sphere(1)
-b = Box(1, 2, 3)
-b1 = Pos(X=3) * b
-b2 = Pos(X=-3) * b
-
-show(
-    s,
-    b1,
-    b2,
-    names=["s", "b1", "b2"],
-    colors=["red", "green", "blue"],
-    alphas=[0.8, 0.6, 0.4],
-    timeit=False,
-)
-
-# %%
-cache.clear()
-s = Sphere(1)
-s2 = Sphere(1)
-b = Box(1, 2, 3)
-b1 = reference(b, label="b1", loc=Pos(X=3))
-b2 = reference(b, label="b2", loc=Pos(X=-3))
-
-show(
-    s,
-    b,
-    b1,
-    b2,
-    s2,
-    colors=["red", "green", "blue", "cyan", "yellow"],
-    alphas=[0.8, 0.6, 0.4, 1.0, 0.2],
-    timeit=False,
-)
-# expected --**c
-
-# %%
-
-b2 = b2 - Pos(X=-3) * Box(5, 0.2, 0.2)
-
-show(
-    s,
-    b,
-    b1,
-    b2,
-    s2,
-    names=["s", "b", "b1", "b2", "s2"],
-    colors=["red", "green", "blue", "cyan", "yellow"],
-    alphas=[0.8, 0.6, 0.4, 1.0, 0.2],
-    timeit=False,
-)
-# expected -***c
-# %%
-
-show(Pos(X=1.5) * b, Pos(X=-1.5) * b, timeit=False)
-
-# %%
-
-b = Box(0.1, 0.1, 1)
-c = Cylinder(1, 0.5)
-p = Plane(c.faces().sort_by().last)
-b = [p * loc * b for loc in PolarLocations(0.7, 12)]
-c = Compound(b + [c])
-
-show(c, timeit=False)
-
-# %%
-
-show(*c.solids(), timeit=False)
-
-# %%
-
-b = Box(0.1, 0.1, 1)
-c = Cylinder(1, 0.5)
-p = Plane(c.faces().sort_by().last)
-b = [reference(b, "pillar", p.location * loc) for loc in PolarLocations(0.7, 12)]
-
-show(*b)
-
-# %%
-b = Box(0.1, 0.1, 1)
-c = Cylinder(1, 0.5)
-p = Plane(c.faces().sort_by().last)
-b = [copy.copy(b).move(p.location * loc) for loc in PolarLocations(0.7, 12)]
-
-show(*b, timeit=False)
+    def update(self, mark):
+        print(mark, end="", flush=True)
+        if self.run == self.runs:
+            self.test.assertTrue(mark in ["+", "*"])
+        else:
+            self.test.assertTrue(mark in ["-"])
+        self.run += 1
 
 
-# %%
-c = Compound(b + [c])
-show(*c.solids(), timeit=False)
+class ProgressCache:
+    def __init__(self, run, test):
+        self.crun = run
+        self.run = 0
+        self.test = test
 
-# %%
+    def update(self, mark):
+        print(mark, end="", flush=True)
+        if self.run < self.crun:
+            self.test.assertTrue(mark in ["+", "*"])
+        else:
+            self.test.assertTrue(mark in ["c"])
+        self.run += 1
+
+
+class MyUnitTest(unittest.TestCase):
+    def _assertTupleAlmostEquals(self, expected, actual, places, msg=None):
+        for i, j in zip(actual, expected):
+            self.assertAlmostEqual(i, j, places, msg=msg)
+
+
+class TestInstances(MyUnitTest):
+    def test_reference(self):
+        locs = HexLocations(6, 10, 10).local_locations
+
+        sphere = Solid.make_sphere(5)
+        sphere_references = [reference(sphere, label="Sphere", loc=loc) for loc in locs]
+        assembly = Compound(children=sphere_references)
+        c = OcpConverter(progress=ProgressInstance(100, self))
+        g = c.to_ocp(assembly, names=["Box"], colors=["red"])
+        i = c.instances
+        self.assertEqual(len(i), 1)
+        _ = tessellate_group(g, i, progress=ProgressInstance(0, self))
+
+    def test_reference_cache(self):
+        s = Sphere(1)
+        s2 = Sphere(1)  # cached
+        b = Box(1, 2, 3)
+        b1 = reference(b, label="b1", loc=Pos(X=3))  # instance
+        b2 = reference(b, label="b2", loc=Pos(X=-3))  # instance
+        c = OcpConverter(progress=ProgressInstance(2, self))
+        g = c.to_ocp(
+            s,
+            b,
+            b1,
+            b2,
+            s2,
+        )
+        i = c.instances
+        self.assertEqual(len(i), 3)
+        _ = tessellate_group(g, i, progress=ProgressCache(2, self))
+
+        b2 = b2 - Pos(X=-3) * Box(5, 0.2, 0.2)
+        c = OcpConverter(progress=ProgressInstance(1, self))
+        g = c.to_ocp(
+            s,
+            b,
+            b1,
+            b2,
+            s2,
+        )
+        i = c.instances
+        self.assertEqual(len(i), 4)
+        _ = tessellate_group(g, i, progress=ProgressCache(3, self))
