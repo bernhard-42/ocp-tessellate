@@ -275,7 +275,7 @@ class Tessellator:
                         if n_buf.SquareMagnitude() > 0:
                             n_buf.Normalize()
                         flat.extend(
-                            n_buf.Reverse().Coord() if internal else n_buf.Coord()
+                            n_buf.Reversed().Coord() if internal else n_buf.Coord()
                         )
                     self.normals.extend(flat)
 
