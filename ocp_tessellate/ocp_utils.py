@@ -406,6 +406,20 @@ def is_location(obj):
     return hasattr(obj, "wrapped") and is_toploc_location(obj.wrapped)
 
 
+def is_empty_compound(obj):
+    if is_wrapped(obj) and obj.wrapped is None:
+        return True
+    if is_compound(obj):
+        if len(list(obj)) == 0:
+            return True
+        elif len(list(obj)) == 1:
+            return is_empty_compound(list(obj)[0])
+        else:
+            return False
+    else:
+        return False
+
+
 #
 # %% OCP types and accessors
 #
