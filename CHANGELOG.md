@@ -1,3 +1,13 @@
+## 3.0.10
+
+- Support both hashing algorithms of OOCT
+- Minor adaptations to build123d fixes/changes
+- Fix showing assemblies in lists
+- Fix detection of empty objects
+- Fix exporting simple STEP imports
+- Renamed tests and pytests folders
+
+
 ## v3.0.9
 
 - Add support for OCP 7.8.1
@@ -7,7 +17,7 @@
 
 - Fix regression for handling cadquery wires (wire.edges() returns one edge or one compound)
 - Ensure get_face_type and get_edge_type always return int (ocp_utils.py)
-- Enable switch from Extent to Size (being prepared for OCCT 7.8
+- Enable switch from Extent to Size (being prepared for OCCT 7.8)
 - Add get_surface and get_curve to ocp_utils.py
 
 
