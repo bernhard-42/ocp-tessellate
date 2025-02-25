@@ -158,7 +158,7 @@ sym = axis_symbol(Axis.X)
 show(box, sym, axes=False, transparent=True)
 
 # %%
-compound = Compound.make_compound([box.part, sphere.part])
+compound = Compound([box.part, sphere.part])
 
 show(compound)
 # %%

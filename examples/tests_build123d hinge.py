@@ -184,7 +184,7 @@ with BuildPart() as lid_builder:
     )
 lid = lid_builder.part
 
-m6_screw = import_step("tests/M6-1x12-countersunk-screw.step")
+m6_screw = import_step("examples/M6-1x12-countersunk-screw.step")
 m6_joint = RigidJoint("head", m6_screw, Location((0, 0, 0), (0, 0, 0)))
 
 box.joints["hinge_attachment"].connect_to(hinge_outer.joints["leaf"])
