@@ -671,14 +671,19 @@ class OcpConverter:
             and len(cad_obj) > 0
             and hasattr(cad_obj[0], "topo_parent")
         ):
-            parent = list(set([c.topo_parent for c in cad_obj]))
+            parent = [c.topo_parent for c in cad_obj]
             topo = True
 
         ind = 0
         parents: List[OcpObject] = []
         while parent is not None:
             pname = "_parent" if ind == 0 else f"_parent({ind})"
-            p = self.to_ocp(parent, names=[pname], colors=None, level=level + 1)
+            p = self.to_ocp(
+                list(set(parent)) if isinstance(parent, list) else parent,
+                names=[pname],
+                colors=None,
+                level=level + 1,
+            )
             for o in p.objects:
                 if o.kind == "solid":
                     o.state_faces = 0
@@ -687,7 +692,13 @@ class OcpConverter:
             parents.insert(0, p)
             if isinstance(parent, list):
                 parent = list(
-                    set([c.topo_parent for c in parent if c.topo_parent is not None])
+                    set(
+                        [
+                            c.topo_parent
+                            for c in parent
+                            if hasattr(c, "topo_parent") and c.topo_parent is not None
+                        ]
+                    )
                 )
                 if len(parent) == 0:
                     parent = None
