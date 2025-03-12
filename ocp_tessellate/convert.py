@@ -136,7 +136,7 @@ def get_kind(typ: str) -> str:
 
 
 def unwrap(
-    obj: Union[TopoDS_Shape, List[TopoDS_Shape], ShapeLike, List[ShapeLike]]
+    obj: Union[TopoDS_Shape, List[TopoDS_Shape], ShapeLike, List[ShapeLike]],
 ) -> Union[TopoDS_Shape, List[TopoDS_Shape]]:
     """
     Unwrap the object or objects in a list  if it is wrapped.
@@ -148,7 +148,19 @@ def unwrap(
     if hasattr(obj, "wrapped"):
         return obj.wrapped
     elif isinstance(obj, (list, tuple)):
-        return [(x.wrapped if hasattr(x, "wrapped") else x) for x in obj]
+        result = []
+        for x in obj:
+            if hasattr(x, "wrapped"):
+                if is_topods_compound(x.wrapped):
+                    result.extend(list_topods_compound(x.wrapped))
+                elif is_vector(x):
+                    result.append(vertex((x.X, x.Y, x.Z)))
+                else:
+                    result.append(x.wrapped)
+            else:
+                result.append(x)
+
+        return result
     return obj
 
 
