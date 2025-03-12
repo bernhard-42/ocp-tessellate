@@ -1799,7 +1799,10 @@ def numpy_to_js(var, obj, indent=None):
     #     result = re.sub(
     #         rf'"{att}": \[(.*?)\]', rf'"{att}": new Uint32Array([ \1 ])', result
     #     )
-    return f"var {var} = {result};"
+    if var is None:
+        return result
+    else:
+        return f"var {var} = {result};"
 
 
 def export_three_cad_viewer_js(var, *objs, names=None, filename=None):
