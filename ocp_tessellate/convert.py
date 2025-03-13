@@ -500,14 +500,18 @@ class OcpConverter:
         """
         _debug(level, f"handle_compound", obj_name)
 
-        if is_compound(cad_obj):
-            cad_obj = list(cad_obj)
-        elif is_topods_compound(cad_obj):
-            cad_obj = list(list_topods_compound(cad_obj))
+        if is_compound(cad_obj) or is_compsolid(cad_obj):
+            cad_objs = list(list_topods_compound(cad_obj.wrapped))
+        elif is_topods_compound(cad_obj) or is_topods_compsolid(cad_obj):
+            cad_objs = list(list_topods_compound(cad_obj))
+
+        default_name = "Compound"
+        if is_compsolid(cad_obj) or is_topods_compsolid(cad_obj):
+            default_name = "CompSolid"
 
         return self._unroll_iterable(
-            zip([None] * len(cad_obj), cad_obj),
-            get_name(cad_obj, obj_name, "Compound"),
+            zip([None] * len(cad_objs), cad_objs),
+            get_name(cad_obj, obj_name, default_name),
             color,
             alpha,
             sketch_local,
@@ -1359,13 +1363,18 @@ class OcpConverter:
 
             # Compounds / topods_compounds
             elif (
-                is_compound(cad_obj)
-                and (is_mixed_compound(cad_obj.wrapped) or unroll_compounds)
-                and not is_build123d_assembly(cad_obj)
-            ) or (
-                is_topods_compound(cad_obj)
-                and (is_mixed_compound(cad_obj) or unroll_compounds)
-                and not is_build123d_assembly(cad_obj)
+                (
+                    is_compound(cad_obj)
+                    # and (is_mixed_compound(cad_obj.wrapped) or unroll_compounds)
+                    and not is_build123d_assembly(cad_obj)
+                )
+                or (
+                    is_topods_compound(cad_obj)
+                    # and (is_mixed_compound(cad_obj) or unroll_compounds)
+                    and not is_build123d_assembly(cad_obj)
+                )
+                or is_topods_compsolid(cad_obj)
+                or is_compsolid(cad_obj)
             ):
                 ocp_obj = self.handle_compound(
                     cad_obj, obj_name, color, alpha, sketch_local, helper_scale, level

@@ -77,6 +77,7 @@ from OCP.TopoDS import (  # type: ignore
     TopoDS,
     TopoDS_Builder,
     TopoDS_Compound,
+    TopoDS_CompSolid,
     TopoDS_Edge,
     TopoDS_Face,
     TopoDS_Iterator,
@@ -315,6 +316,10 @@ def is_topods_compound(topods_shape):
     return isinstance(topods_shape, TopoDS_Compound)
 
 
+def is_topods_compsolid(topods_shape):
+    return isinstance(topods_shape, TopoDS_CompSolid)
+
+
 def is_topods_solid(topods_shape):
     return isinstance(topods_shape, TopoDS_Solid)
 
@@ -371,6 +376,10 @@ def is_shape(obj):
 
 def is_compound(obj):
     return hasattr(obj, "wrapped") and is_topods_compound(obj.wrapped)
+
+
+def is_compsolid(obj):
+    return hasattr(obj, "wrapped") and is_topods_compsolid(obj.wrapped)
 
 
 def is_solid(obj):
