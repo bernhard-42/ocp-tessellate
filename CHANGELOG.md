@@ -1,3 +1,8 @@
+## 3.0.11
+
+- Support ShapeLists of Compounds
+- Support TopoDS_CompSolid
+
 ## 3.0.10
 
 - Support both hashing algorithms of OOCT
