@@ -890,6 +890,48 @@ class TestsShapeLists(MyUnitTest):
             self.assertEqual(o.kind, "vertex")
             self.assertTrue(is_topods_vertex(o.obj))
 
+    def test_shapelist_vector(self):
+        """Test that a shapelist of vertices is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(ShapeList([Vector(0, 1, 2), Vector(3, 4, 5)]))
+        o = g.objects[0]
+        self.assertEqual(g.length, 1)
+        self.assertEqual(o.name, "ShapeList(Vertex)")
+        self.assertEqual(o.kind, "vertex")
+        self.assertTrue(is_topods_vertex(o.obj[0]))
+        self.assertTrue(is_topods_vertex(o.obj[1]))
+
+    def test_shapeList_compound(self):
+        """Test that a shapelist of a compound is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(ShapeList([r]))
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "ShapeList(Face)")
+        self.assertEqual(o.kind, "face")
+        self.assertTrue(is_topods_face(i[o.ref]["obj"]))
+
+    def test_shapeList_compounds(self):
+        """Test that a shapelist of compounds is converted correctly"""
+        c = OcpConverter()
+        g = c.to_ocp(
+            [
+                r,
+                Pos(
+                    1,
+                    1,
+                )
+                * r,
+            ]
+        )
+        i = c.instances
+        self.assertEqual(g.length, 2)
+        for n, o in enumerate(g.objects):
+            self.assertEqual(o.name, "Face" if n == 0 else f"Face({n+1})")
+            self.assertEqual(o.kind, "face")
+            self.assertTrue(is_topods_face(i[o.ref]["obj"]))
+
 
 class TestsConvertMoved(MyUnitTest):
     """Tests for the OcpConverter class with moved objects"""
