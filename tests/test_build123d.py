@@ -77,6 +77,41 @@ c1 = Compound([Box(1, 2, 3), Sphere(1)])
 c2 = Compound([Cone(1, 2, 3), Box(1, 1, 1)])
 unmixed = Compound([c1, c2])
 
+# CompSolids
+
+c1 = Cylinder(2, 1)
+c2 = Pos(0, 0, -2) * c1
+s = Pos(0, 0, -0.5) * Sphere(1.5)
+
+
+s1 = (c2 - s).solid()
+s2 = (c2 & s).solid()
+t = s - c1 - c2
+s3 = t.solids().sort_by(Axis.Z)[0]
+s4 = ((s and c1) - s).solid()
+s5 = (s & c1).solid()
+s6 = t.solids().sort_by(Axis.Z)[1]
+
+solids = [s1, s2, s3, s4, s5, s6]
+ocp_solids = [x.wrapped for x in solids]
+
+ocp_compsolid = make_compsolid(ocp_solids)
+compsolid = Compound(ocp_compsolid)
+compound1 = Compound(
+    [
+        (Pos(0, -3, -1) * Box(1, 1, 1)).shell(),
+        Compound(ocp_compsolid),
+        (Pos(0, 3, -1) * Cylinder(0.5, 1)).solid(),
+    ]
+)
+ocp_compound = make_compound(
+    [
+        (Pos(0, -3, -1) * Box(1, 1, 1)).shell().wrapped,
+        ocp_compsolid,
+        (Pos(0, 3, -1) * Cylinder(0.5, 1)).solid().wrapped,
+    ]
+)
+
 
 class TestsConvert(MyUnitTest):
     """Tests for the OcpConverter class"""
@@ -1128,3 +1163,84 @@ class TestMultipleObjects(MyUnitTest):
         self.assertEqual(o.name, "b2")
         self.assertEqual(o.color.web_color, "#0000ff")
         self.assertEqual(o.color.a, 0.4)
+
+
+class TestComSolid(MyUnitTest):
+
+    def test_compsolid_ocp(self):
+        c = OcpConverter()
+        g = c.to_ocp(ocp_compsolid)
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "CompSolid")
+        self.assertEqual(o.kind, "solid")
+        self.assertIsNotNone(o.ref)
+        self.assertIsNone(o.obj)
+        self.assertTrue(is_topods_compsolid(i[o.ref]["obj"]))
+
+    def test_compsolid(self):
+        c = OcpConverter()
+        g = c.to_ocp(compsolid)
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "CompSolid")
+        self.assertEqual(o.kind, "solid")
+        self.assertIsNotNone(o.ref)
+        self.assertIsNone(o.obj)
+        self.assertTrue(is_topods_compsolid(i[o.ref]["obj"]))
+
+    def test_compsolid_mixed_compound(self):
+        c = OcpConverter()
+        g = c.to_ocp(compound1)
+        i = c.instances
+        self.assertEqual(g.length, 3)
+
+        o = g.objects[0]
+        self.assertEqual(o.name, "Shell")
+        self.assertEqual(o.kind, "face")
+        self.assertIsNotNone(o.ref)
+        self.assertIsNone(o.obj)
+        self.assertTrue(is_topods_shell(i[o.ref]["obj"]))
+
+        o = g.objects[1]
+        self.assertEqual(o.name, "CompSolid")
+        self.assertEqual(o.kind, "solid")
+        self.assertIsNotNone(o.ref)
+        self.assertIsNone(o.obj)
+        self.assertTrue(is_topods_compsolid(i[o.ref]["obj"]))
+
+        o = g.objects[2]
+        self.assertEqual(o.name, "Solid")
+        self.assertEqual(o.kind, "solid")
+        self.assertIsNotNone(o.ref)
+        self.assertIsNone(o.obj)
+        self.assertTrue(is_topods_solid(i[o.ref]["obj"]))
+
+    def test_compsolid_mixed_ocp_compound(self):
+        c = OcpConverter()
+        g = c.to_ocp(ocp_compound)
+        i = c.instances
+        self.assertEqual(g.length, 3)
+
+        o = g.objects[0]
+        self.assertEqual(o.name, "Shell")
+        self.assertEqual(o.kind, "face")
+        self.assertIsNotNone(o.ref)
+        self.assertIsNone(o.obj)
+        self.assertTrue(is_topods_shell(i[o.ref]["obj"]))
+
+        o = g.objects[1]
+        self.assertEqual(o.name, "CompSolid")
+        self.assertEqual(o.kind, "solid")
+        self.assertIsNotNone(o.ref)
+        self.assertIsNone(o.obj)
+        self.assertTrue(is_topods_compsolid(i[o.ref]["obj"]))
+
+        o = g.objects[2]
+        self.assertEqual(o.name, "Solid")
+        self.assertEqual(o.kind, "solid")
+        self.assertIsNotNone(o.ref)
+        self.assertIsNone(o.obj)
+        self.assertTrue(is_topods_solid(i[o.ref]["obj"]))

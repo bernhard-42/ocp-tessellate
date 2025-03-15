@@ -108,9 +108,11 @@ def occt_version():
 #
 
 if OCP.__version__.startswith("7.7"):
+
     def hash_compat(obj):
         MAX_HASH_KEY = 2147483647
         return obj.HashCode(MAX_HASH_KEY)
+
 else:
     hash_compat = hash
 
@@ -146,6 +148,17 @@ def make_compound(objs):
 
     for obj in objs:
         builder.Add(comp, obj)
+
+    return comp
+
+
+def make_compsolid(objs):
+    comp = TopoDS_CompSolid()
+    builder = TopoDS_Builder()
+    builder.MakeCompSolid(comp)
+
+    for shape in objs:
+        builder.Add(comp, shape)
 
     return comp
 

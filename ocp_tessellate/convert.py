@@ -98,12 +98,13 @@ def get_type(obj: TopoDS_Shape) -> str:
     @return: The type of the object
     """
     kinds = {
+        "TopoDS_Vertex": "Vertex",
         "TopoDS_Edge": "Edge",
+        "TopoDS_Wire": "Wire",
         "TopoDS_Face": "Face",
         "TopoDS_Shell": "Shell",
         "TopoDS_Solid": "Solid",
-        "TopoDS_Vertex": "Vertex",
-        "TopoDS_Wire": "Wire",
+        "TopoDS_CompSolid": "Solid",
     }
     typ = kinds.get(class_name(obj))
     if typ is None:
@@ -122,12 +123,13 @@ def get_kind(typ: str) -> str:
     @return: The kind of the object
     """
     kinds = {
+        "Vertex": "vertex",
         "Edge": "edge",
+        "Wire": "edge",
         "Face": "face",
         "Shell": "face",
         "Solid": "solid",
-        "Vertex": "vertex",
-        "Wire": "edge",
+        "CompSolid": "solid",
     }
     kind = kinds.get(typ)
     if kind is None:
@@ -321,6 +323,7 @@ class OcpConverter:
             "TopoDS_Face": FACE_COLOR,
             "TopoDS_Shell": FACE_COLOR,
             "TopoDS_Solid": self.default_color,
+            "TopoDS_CompSolid": self.default_color,
             "TopoDS_Vertex": VERTEX_COLOR,
             "TopoDS_Wire": THICK_EDGE_COLOR,
             # kind of objects
@@ -1363,18 +1366,15 @@ class OcpConverter:
 
             # Compounds / topods_compounds
             elif (
-                (
-                    is_compound(cad_obj)
-                    # and (is_mixed_compound(cad_obj.wrapped) or unroll_compounds)
-                    and not is_build123d_assembly(cad_obj)
-                )
-                or (
-                    is_topods_compound(cad_obj)
-                    # and (is_mixed_compound(cad_obj) or unroll_compounds)
-                    and not is_build123d_assembly(cad_obj)
-                )
-                or is_topods_compsolid(cad_obj)
-                or is_compsolid(cad_obj)
+                is_compound(cad_obj)
+                and (is_mixed_compound(cad_obj.wrapped) or unroll_compounds)
+                and not is_build123d_assembly(cad_obj)
+                and not is_compsolid(cad_obj.wrapped)
+            ) or (
+                is_topods_compound(cad_obj)
+                and (is_mixed_compound(cad_obj) or unroll_compounds)
+                and not is_build123d_assembly(cad_obj)
+                and not is_compsolid(cad_obj)
             ):
                 ocp_obj = self.handle_compound(
                     cad_obj, obj_name, color, alpha, sketch_local, helper_scale, level
