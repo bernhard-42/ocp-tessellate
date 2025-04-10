@@ -260,6 +260,22 @@ class OcpGroup:
         return map, result
 
 
+class OcpInstancesGroup:
+    def __init__(self, instances, ocpgrp):
+        self.ocpgrp = ocpgrp
+        self.instances = instances
+
+    def apply_offset(self, offset, obj=None):
+        if obj is None:
+            obj = self.ocpgrp
+        if isinstance(obj, OcpGroup):
+            for o in obj.objects:
+                self.apply_offset(offset, o)
+        else:
+            if obj.ref is not None:
+                obj.ref += offset
+
+
 class OcpWrapper:
 
     def __init__(

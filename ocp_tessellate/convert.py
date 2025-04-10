@@ -8,6 +8,7 @@ from ocp_tessellate.cad_objects import (
     OcpGroup,
     OcpObject,
     OcpWrapper,
+    OcpInstancesGroup,
 )
 from ocp_tessellate.defaults import get_default, preset
 from ocp_tessellate.ocp_utils import *
@@ -1410,6 +1411,12 @@ class OcpConverter:
                     level,
                 )
             # =============================== Conversions =============================== #
+
+            # OcpGroup
+            elif isinstance(cad_obj, OcpInstancesGroup):
+                cad_obj.apply_offset(len(self.instances))
+                ocp_obj = cad_obj.ocpgrp
+                self.instances += cad_obj.instances
 
             # OcpWrapper (ImageFace, CoordSystem, CoordAxis, etc.)
             elif isinstance(cad_obj, OcpWrapper):
