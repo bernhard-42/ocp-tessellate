@@ -214,7 +214,3 @@ child_intersect, children, volume = box_assembly.do_children_intersect(
     include_parent=False
 )
 print(f"do children intersect: {child_intersect}")
-# %%
-if child_intersect:
-    print(f"{children} by {volume:0.3f} mm^3")
-show(box_assembly, render_joints=True)
