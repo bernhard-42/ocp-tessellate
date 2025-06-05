@@ -567,7 +567,13 @@ def get_rgba(color, alpha=None, def_color=None):
         return color
 
     if hasattr(color, "wrapped"):  # CadQery or build123d Color
-        rgba = get_rgba(color.wrapped, alpha, def_color)
+        try:
+            rgba = Color(tuple(color))  # build123d
+        except:
+            rgba = Color(color.toTuple())  # CadQuery
+
+        if alpha is not None:
+            rgba.a = alpha
 
     elif isinstance(color, Quantity_ColorRGBA):  # OCP
         ocp_rgb = color.GetRGB()
