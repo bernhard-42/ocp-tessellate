@@ -1631,7 +1631,7 @@ def tessellate_group(
 
             bb = bounding_box(obj)
             quality = compute_quality(bb, deviation=deviation)
-            deflection = quality / 100 if edge_accuracy is None else edge_accuracy
+            deflection = quality if edge_accuracy is None else edge_accuracy
             t.info = str(bb)
 
         with Timer(timeit, name, "discretize:  ", 2) as t:

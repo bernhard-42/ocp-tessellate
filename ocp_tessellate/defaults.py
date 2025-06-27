@@ -45,7 +45,7 @@ class Defaults:
         TESSELLATION OPTIONS
         - angular_tolerance:  Shapes: Angular deflection in radians for tessellation (default=0.2)
         - deviation:          Shapes: Deviation from linear deflection value (default=0.1)
-        - edge_accuracy:      Edges: Precision of edge discretization (default=None, i.e. mesh quality / 100)
+        - edge_accuracy:      Edges: Precision of edge discretization (default=None, i.e. use mesh quality)
         - default_color:      Default face color (default=(232, 176, 36))
         - default_edgecolor:  Default edge color (default="#707070")
         - optimal_bb:         Use optimal bounding box (default=False)
