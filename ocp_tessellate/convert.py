@@ -906,8 +906,8 @@ class OcpConverter:
             typ, edges = "Wire", list(get_edges(obj))
         elif is_topods_compound(obj):
             typ = get_compound_type(obj)
-            if typ == "Wire":
-                obj = list(get_edges(obj))
+            if typ == "Wire" or typ == "Edge":
+                edges = list(get_edges(obj))
         else:
             typ = type_name(obj)
 
