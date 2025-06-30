@@ -486,20 +486,19 @@ def tessellate(
     }
 
 
-def discretize_edge(edge, deflection=0.1, num=None):
+def discretize_edge(edge, deflection=0.1, quasi=True):
     curve_adaptator = BRepAdaptor_Curve(edge)
 
-    if num is not None and num > 1:
-        discretizer = GCPnts_QuasiUniformAbscissa()
-        discretizer.Initialize(curve_adaptator, num)
-    else:
+    if quasi:
         discretizer = GCPnts_QuasiUniformDeflection()
-        discretizer.Initialize(
-            curve_adaptator,
-            deflection,
-            curve_adaptator.FirstParameter(),
-            curve_adaptator.LastParameter(),
-        )
+    else:
+        discretizer = GCPnts_UniformDeflection()
+    discretizer.Initialize(
+        curve_adaptator,
+        deflection,
+        curve_adaptator.FirstParameter(),
+        curve_adaptator.LastParameter(),
+    )
 
     if not discretizer.IsDone():
         raise AssertionError("Discretizer not done.")
@@ -531,8 +530,10 @@ def discretize_edges(edges, deflection=0.1, shape_id=""):
 
         d = discretize_edge(edge, deflection)
         if len(d) == 1 and not is_line(edge):
-            num = int((length(edge) / 2000) / deflection)
-            d = discretize_edge(edge, deflection=deflection, num=num)
+            # print("U", end="")
+            # use another algoright with a higher accuracy to get similar result
+            # Currently only happens for helix with pitch being a integer multiply of height
+            d = discretize_edge(edge, deflection=deflection / 10, quasi=False)
 
         d_edges.extend(d.flatten())
         segments_per_edge.append(len(d))
