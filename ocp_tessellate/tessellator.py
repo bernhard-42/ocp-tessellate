@@ -26,7 +26,11 @@ from OCP.BRepAdaptor import BRepAdaptor_Curve
 from OCP.BRepGProp import BRepGProp_Face
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
 from OCP.BRepTools import BRepTools
-from OCP.GCPnts import GCPnts_QuasiUniformAbscissa, GCPnts_QuasiUniformDeflection
+from OCP.GCPnts import (
+    GCPnts_QuasiUniformAbscissa,
+    GCPnts_QuasiUniformDeflection,
+    GCPnts_UniformDeflection,
+)
 
 # pylint: disable=no-name-in-module,import-error
 from OCP.gp import gp_Pnt, gp_Vec

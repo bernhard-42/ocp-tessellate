@@ -28,5 +28,5 @@ def get_version(version):
     return VersionInfo(major, minor, patch, release, build)
 
 
-__version__ = "3.0.13"  # DO NOT EDIT THIS DIRECTLY!  It is managed by bumpversion
+__version__ = "3.0.14"  # DO NOT EDIT THIS DIRECTLY!  It is managed by bumpversion
 __version_info__ = get_version(__version__)
