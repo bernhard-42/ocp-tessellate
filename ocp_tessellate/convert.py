@@ -28,8 +28,6 @@ THICK_EDGE_COLOR = "MediumOrchid"
 VERTEX_COLOR = "MediumOrchid"
 FACE_COLOR = "Violet"
 
-DEBUG = False
-
 # Alias for every object containing a "wrapped" attribute of type TopoDS_Shape
 Wrapped = Any
 # Alias for build123d and CadQuery compounds
@@ -60,13 +58,6 @@ ColorLike = Union[str, List[float], Color]
 class Progress:
     def update(self, mark):
         print(mark, end="", flush=True)
-
-
-def _debug(level, msg, name=None, prefix="debug:", end="\n"):
-    if DEBUG:
-        prefix = "  " * level + prefix
-        suffix = f" ('{name}')" if name is not None else ""
-        print(f"{prefix} {msg} {suffix}", end=end, flush=True)
 
 
 def get_name(obj: TopoDS_Shape, name: Union[str, None], default: str) -> str:
@@ -187,14 +178,21 @@ def create_cache_id(obj: TopoDS_Shape) -> str:
 class OcpConverter:
     """The class to filter obejcts and convert them to OcpObject and OcpGroup hierarchies."""
 
-    def __init__(self, progress: Union[Progress, None] = None):
+    def __init__(self, progress: Union[Progress, None] = None, debug: bool = False):
         """The initializer of the OcpConverter.
         @param progress: The progress class to provide updates during the conversion
         """
         self.instances: List[TopoDS_Shape] = []
         self.ocp = None
         self.progress = progress
+        self.debug = debug
         self.default_color = get_default("default_color")
+
+    def _debug(self, level, msg, name=None, prefix="debug:", end="\n"):
+        if self.debug:
+            prefix = "  " * level + prefix
+            suffix = f" ('{name}')" if name is not None else ""
+            print(f"{prefix} {msg} {suffix}", end=end, flush=True)
 
     # ============================== Create instances =============================== #
 
@@ -434,7 +432,7 @@ class OcpConverter:
 
         @return: The OcpGroup hierarchy
         """
-        _debug(level, "handle_list_tuple", obj_name)
+        self._debug(level, "handle_list_tuple", obj_name)
         return self._unroll_iterable(
             zip([None] * len(cad_obj), cad_obj),
             get_name(cad_obj, obj_name, "List"),
@@ -467,7 +465,7 @@ class OcpConverter:
 
         @return: The OcpGroup hierarchy
         """
-        _debug(level, "handle_dict", obj_name)
+        self._debug(level, "handle_dict", obj_name)
 
         return self._unroll_iterable(
             cad_obj.items(),
@@ -502,7 +500,7 @@ class OcpConverter:
 
         @return: The OcpGroup hierarchy
         """
-        _debug(level, f"handle_compound", obj_name)
+        self._debug(level, f"handle_compound", obj_name)
 
         if is_compound(cad_obj) or is_compsolid(cad_obj):
             cad_objs = list(list_topods_compound(cad_obj.wrapped))
@@ -548,7 +546,7 @@ class OcpConverter:
 
         @return: The OcpGroup hierarchy
         """
-        _debug(level, "handle_build123d_assembly", obj_name)
+        self._debug(level, "handle_build123d_assembly", obj_name)
 
         name = get_name(cad_obj, obj_name, "Assembly")
         location = get_location(cad_obj, as_none=False)
@@ -610,7 +608,7 @@ class OcpConverter:
 
         @return: The OcpGroup hierarchy
         """
-        _debug(level, "handle_cadquery_assembly", obj_name)
+        self._debug(level, "handle_cadquery_assembly", obj_name)
         name = get_name(cad_obj, obj_name, "Assembly")
 
         ocp_obj = OcpGroup(name=name, loc=get_location(cad_obj, as_none=False))
@@ -744,7 +742,7 @@ class OcpConverter:
 
         @return: The OcpGroup hierarchy
         """
-        _debug(level, "handle_location_list (build123d LocationList)", obj_name)
+        self._debug(level, "handle_location_list (build123d LocationList)", obj_name)
         group = OcpGroup(name=get_name(cad_obj, obj_name, "LocationList"))
         for loc in cad_obj:
             group.add(
@@ -813,7 +811,7 @@ class OcpConverter:
         """
         parent_obj = cad_obj
 
-        _debug(level, "handle_workplane (cadquery Workplane)", obj_name)
+        self._debug(level, "handle_workplane (cadquery Workplane)", obj_name)
         name = "Workplane"
 
         # Resolve cadquery Workplane
@@ -857,7 +855,7 @@ class OcpConverter:
         """
         parent_obj = cad_obj
 
-        _debug(level, "handle_shapelist (build123d ShapeList)", obj_name)
+        self._debug(level, "handle_shapelist (build123d ShapeList)", obj_name)
         name = "ShapeList"
 
         ocp_obj = self._handle_list(cad_obj, name, obj_name, color, alpha)
@@ -899,7 +897,7 @@ class OcpConverter:
         else:
             raise ValueError(f"Unknown shape type: {cad_obj}")
 
-        _debug(level, f"handle_shapes ({t}) ({class_name(obj)})", obj_name)
+        self._debug(level, f"handle_shapes ({t}) ({class_name(obj)})", obj_name)
 
         edges = None
         if is_topods_wire(obj):
@@ -967,7 +965,7 @@ class OcpConverter:
 
         @return: The OcpGroup hierarchy
         """
-        _debug(level, f"handle_build123d_builder {cad_obj._obj_name}", obj_name)
+        self._debug(level, f"handle_build123d_builder {cad_obj._obj_name}", obj_name)
 
         # bild123d BuildPart().part
         if is_build123d_part(cad_obj):
@@ -1032,7 +1030,7 @@ class OcpConverter:
 
         @return: The OcpGroup hierarchy
         """
-        _debug(level, "cadquery Sketch", obj_name)
+        self._debug(level, "cadquery Sketch", obj_name)
 
         if not list(cad_obj._faces):  # empty compound
             cad_obj._faces = []
@@ -1109,17 +1107,17 @@ class OcpConverter:
         @return: The OcpObject
         """
         if is_build123d_location(cad_obj) or is_toploc_location(cad_obj):
-            _debug(level, "build123d Location or TopLoc_Location", obj_name)
+            self._debug(level, "build123d Location or TopLoc_Location", obj_name)
 
         elif (
             is_build123d_plane(cad_obj)
             and hasattr(cad_obj, "location")
             or is_gp_plane(cad_obj)
         ):
-            _debug(level, "build123d Plane or gp_Pln", obj_name)
+            self._debug(level, "build123d Plane or gp_Pln", obj_name)
 
         elif is_cadquery_empty_workplane(cad_obj):
-            _debug(level, "cadquery Workplane", obj_name)
+            self._debug(level, "cadquery Workplane", obj_name)
 
         if is_build123d_plane(cad_obj) and hasattr(cad_obj, "location"):
             cad_obj = cad_obj.location
@@ -1170,7 +1168,7 @@ class OcpConverter:
 
         @return: The OcpObject
         """
-        _debug(level, "build123d Axis", obj_name)
+        self._debug(level, "build123d Axis", obj_name)
 
         if is_wrapped(cad_obj):
             cad_obj = cad_obj.wrapped
@@ -1221,7 +1219,7 @@ class OcpConverter:
 
         @return: The OcpObject
         """
-        _debug(level, "Empty object")
+        self._debug(level, "Empty object")
         name = "Object" if obj_name is None else obj_name
         return OcpObject(
             "vertex",
@@ -1249,7 +1247,7 @@ class OcpConverter:
         show_parent: bool = False,
         sketch_local: bool = False,
         unroll_compounds: bool = False,
-        level=0,
+        level: int = 0,
     ) -> OcpGroup:
         """
         Convert a list of objects to an OcpObject or OcpGroup hierarchy.
@@ -1490,14 +1488,15 @@ class OcpConverter:
                 )
 
             else:
-                print(
-                    "Unknown object"
-                    + ("" if obj_name is None else f" '{obj_name}'")
-                    + f" of type {type(cad_obj)}"
-                )
-                continue
+                if self.debug:
+                    print(
+                        "Unknown object"
+                        + ("" if obj_name is None else f" '{obj_name}'")
+                        + f" of type {type(cad_obj)}"
+                    )
+                    continue
 
-            if DEBUG:
+            if self.debug:
                 print(f"{'  '*level}=>", ocp_obj)
 
             if not (isinstance(ocp_obj, OcpGroup) and ocp_obj.length == 0):
@@ -1529,6 +1528,7 @@ def to_ocpgroup(
     show_sketch_local: bool = True,
     loc: LocationLike = None,
     progress: Union[Progress, None] = None,
+    debug: bool = False,
 ) -> Tuple[OcpGroup, List[Any]]:
     """
     Central converter routine to convert a list of objects to an OcpGroup hierarchy.
@@ -1548,7 +1548,7 @@ def to_ocpgroup(
 
     @return: The OcpGroup hierarchy
     """
-    converter = OcpConverter(progress=progress)
+    converter = OcpConverter(progress=progress, debug=debug)
     ocp_group = converter.to_ocp(
         *cad_objs,
         names=names,
