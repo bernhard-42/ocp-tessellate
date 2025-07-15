@@ -1,4 +1,18 @@
-## 3.0.11
+## 3.0.15
+
+- Move the "unknown type " warning behind "debug=True" parameter
+- Replace hard coded "DEBUG" with parameter "debug"
+
+## 3.0.14
+
+- Fix helix regression
+
+## 3.0.13
+
+- Adapt to CadQuery's change in color from RGB to RGBs
+- Support compound of compound of edges
+
+## 3.0.11, 3.0.12
 
 - Support ShapeLists of Compounds
 - Support TopoDS_CompSolid
