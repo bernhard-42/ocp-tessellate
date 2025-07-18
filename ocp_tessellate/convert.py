@@ -1494,7 +1494,7 @@ class OcpConverter:
                         + ("" if obj_name is None else f" '{obj_name}'")
                         + f" of type {type(cad_obj)}"
                     )
-                    continue
+                continue
 
             if self.debug:
                 print(f"{'  '*level}=>", ocp_obj)
