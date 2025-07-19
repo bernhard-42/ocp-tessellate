@@ -1,3 +1,7 @@
+## 3.0.16
+
+- Fix the regression to have continue indented to much for the non showable case
+
 ## 3.0.15
 
 - Move the "unknown type " warning behind "debug=True" parameter
