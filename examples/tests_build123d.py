@@ -139,7 +139,7 @@ show(box.edges(), box.faces(), box.vertices(), names=["E", "F", "V"])
 
 # Mixed Compounds
 
-mixed = Compound.make_compound(box.faces() + box.edges())
+mixed = Compound(box.faces() + box.edges())
 show(sphere, mixed)
 
 
@@ -151,7 +151,7 @@ def axis_symbol(self, l=1) -> Edge:
         z_dir=self.direction,
     )
     cone = Solid.make_cone(l / 60, 0, l / 20, plane)
-    return Compound.make_compound([edge] + cone.faces())
+    return Compound([edge] + cone.faces())
 
 
 sym = axis_symbol(Axis.X)
