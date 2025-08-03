@@ -41,7 +41,7 @@ from OCP.BRepBuilderAPI import (  # type: ignore
     BRepBuilderAPI_MakeVertex,
     BRepBuilderAPI_FindPlane,
 )
-from OCP.BRepGProp import BRepGProp  # type: ignore
+from OCP.BRepGProp import BRepGProp, BRepGProp_Face  # type: ignore
 from OCP.BRepMesh import BRepMesh_IncrementalMesh  # type: ignore
 from OCP.BRepTools import BRepTools  # type: ignore
 from OCP.GCPnts import GCPnts_AbscissaPoint  # type: ignore
@@ -767,6 +767,17 @@ def center_of_mass(obj):
         Properties = GProp_GProps()
         BRepGProp.VolumeProperties_s(obj, Properties)
         center = Properties.CentreOfMass()
+    return (center.X(), center.Y(), center.Z())
+
+
+def center_of_geometry(obj):
+    u0, u1, v0, v1 = BRepTools.UVBounds_s(obj)
+    u = 0.5 * (u0 + u1)
+    v = 0.5 * (v0 + v1)
+    center = gp_Pnt()
+    normal = gp_Vec()
+
+    BRepGProp_Face(obj).Normal(u, v, center, normal)
     return (center.X(), center.Y(), center.Z())
 
 
