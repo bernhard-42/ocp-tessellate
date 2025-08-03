@@ -32,18 +32,21 @@ from OCP.BRepAdaptor import (  # type: ignore
     BRepAdaptor_Curve,
     BRepAdaptor_Surface,
 )
+from OCP.BRepExtrema import BRepExtrema_DistShapeShape
 from OCP.BRepBndLib import BRepBndLib  # type: ignore
 from OCP.BRepBuilderAPI import (  # type: ignore
     BRepBuilderAPI_Copy,
     BRepBuilderAPI_MakeEdge,
     BRepBuilderAPI_MakeFace,
     BRepBuilderAPI_MakeVertex,
+    BRepBuilderAPI_FindPlane,
 )
 from OCP.BRepGProp import BRepGProp  # type: ignore
 from OCP.BRepMesh import BRepMesh_IncrementalMesh  # type: ignore
 from OCP.BRepTools import BRepTools  # type: ignore
 from OCP.GCPnts import GCPnts_AbscissaPoint  # type: ignore
 from OCP.GeomAbs import GeomAbs_CurveType  # type: ignore
+from OCP.GeomLib import GeomLib_IsPlanarSurface
 from OCP.gp import (  # type: ignore
     gp_Ax1,
     gp_Ax2,
@@ -55,6 +58,7 @@ from OCP.gp import (  # type: ignore
     gp_Quaternion,
     gp_Trsf,
     gp_Vec,
+    gp_Lin,
 )
 from OCP.GProp import GProp_GProps  # type: ignore
 from OCP.Quantity import Quantity_ColorRGBA  # type: ignore
@@ -543,8 +547,11 @@ def get_downcasted_shape(shape):
     return [downcast(obj) for obj in objs]
 
 
-def get_point(vertex):
-    p = BRep_Tool.Pnt_s(vertex)
+def get_point(vertex_or_pnt):
+    if is_topods_vertex(vertex_or_pnt):
+        p = BRep_Tool.Pnt_s(vertex_or_pnt)
+    else:
+        p = vertex_or_pnt
     return (p.X(), p.Y(), p.Z())
 
 
@@ -680,6 +687,25 @@ def get_curve(edge):
     return BRepAdaptor_Curve(edge)
 
 
+def get_plane(obj):
+    if is_topods_edge(obj):
+        finder = BRepBuilderAPI_FindPlane(obj)
+        if finder.Found():
+            return finder.Plane()
+
+    elif is_topods_face(obj):
+        surface = BRep_Tool.Surface_s(obj)
+        check = GeomLib_IsPlanarSurface(surface, 1e-6)
+        if check.IsPlanar():
+            return surface.Pln()
+
+    return None
+
+
+def axis_to_line(axis):
+    return gp_Lin(axis.Location(), axis.Direction())
+
+
 #
 # %% OCP object creation
 #
@@ -690,7 +716,7 @@ def ocp_color(r, g, b, alpha=1.0):
 
 
 def vertex(obj):
-    if isinstance(obj, gp_Vec):
+    if isinstance(obj, (gp_Vec, gp_Pnt, gp_Dir)):
         x, y, z = obj.X(), obj.Y(), obj.Z()
     else:
         x, y, z = obj
@@ -733,10 +759,29 @@ def circle(origin, z_dir, radius):
 
 
 def center_of_mass(obj):
-    Properties = GProp_GProps()
-    BRepGProp.VolumeProperties_s(obj, Properties)
-    com = Properties.CentreOfMass()
-    return (com.X(), com.Y(), com.Z())
+    if is_topods_face(obj):
+        properties = GProp_GProps()
+        BRepGProp.SurfaceProperties_s(obj, properties)
+        center = properties.CentreOfMass()
+    else:
+        Properties = GProp_GProps()
+        BRepGProp.VolumeProperties_s(obj, Properties)
+        center = Properties.CentreOfMass()
+    return (center.X(), center.Y(), center.Z())
+
+
+def dist_shapes(obj1, obj2):
+    distCalc = BRepExtrema_DistShapeShape(obj1, obj2)
+    distCalc.Perform()
+
+    if distCalc.IsDone():
+        # Get the minimum distance value
+        distance = distCalc.Value()
+
+        # Get points on each shape for the first solution
+        point_on_shape1 = distCalc.PointOnShape1(1)
+        point_on_shape2 = distCalc.PointOnShape2(1)
+    return distance, point_on_shape1, point_on_shape2
 
 
 def area(obj):
@@ -756,6 +801,10 @@ def end_points(obj):
 def point(obj):
     p = BRep_Tool.Pnt_s(obj)
     return (p.X(), p.Y(), p.Z())
+
+
+def is_closed(obj):
+    return BRep_Tool.IsClosed_s(obj)
 
 
 #
@@ -1191,6 +1240,17 @@ def length(edge_or_wire):
     else:
         c = BRepAdaptor_CompCurve(edge_or_wire)
     return GCPnts_AbscissaPoint.Length_s(c)
+
+
+def position_at(edge_or_wire, distance):
+    if isinstance(edge_or_wire, TopoDS_Edge):
+        c = BRepAdaptor_Curve(edge_or_wire)
+    else:
+        c = BRepAdaptor_CompCurve(edge_or_wire)
+    l = GCPnts_AbscissaPoint.Length_s(c)
+    return c.Value(
+        GCPnts_AbscissaPoint(c, l * distance, c.FirstParameter()).Parameter()
+    )
 
 
 # %% OCP serialisation
