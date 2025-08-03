@@ -801,6 +801,12 @@ def area(obj):
     return properties.Mass()
 
 
+def volume(obj):
+    properties = GProp_GProps()
+    BRepGProp.VolumeProperties_s(obj, properties)
+    return properties.Mass()
+
+
 def end_points(obj):
     curve = BRepAdaptor_Curve(obj)
     umin = curve.FirstParameter()
