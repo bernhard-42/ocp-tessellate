@@ -699,7 +699,11 @@ def get_plane(obj):
         surface = BRep_Tool.Surface_s(obj)
         check = GeomLib_IsPlanarSurface(surface, 1e-6)
         if check.IsPlanar():
-            return surface.Pln()
+            # in case 1e-6 is not sufficient e.g. spline surfaces
+            try:
+                return surface.Pln()
+            except AttributeError:
+                return None
 
     return None
 
