@@ -72,7 +72,9 @@ from OCP.TopAbs import (  # type: ignore
     TopAbs_SOLID,
     TopAbs_VERTEX,
     TopAbs_WIRE,
+    TopAbs_Orientation,
 )
+
 from OCP.TopExp import TopExp, TopExp_Explorer  # type: ignore
 from OCP.TopLoc import TopLoc_Location  # type: ignore
 
@@ -1251,23 +1253,56 @@ def np_bbox(p, t, q):
     }
 
 
+def is_forward(obj):
+    return obj.Orientation() == TopAbs_Orientation.TopAbs_FORWARD
+
+
 def length(edge_or_wire):
     if isinstance(edge_or_wire, TopoDS_Edge):
-        c = BRepAdaptor_Curve(edge_or_wire)
+        curve = BRepAdaptor_Curve(edge_or_wire)
     else:
-        c = BRepAdaptor_CompCurve(edge_or_wire)
-    return GCPnts_AbscissaPoint.Length_s(c)
+        curve = BRepAdaptor_CompCurve(edge_or_wire)
+    return GCPnts_AbscissaPoint.Length_s(curve)
 
 
 def position_at(edge_or_wire, distance):
     if isinstance(edge_or_wire, TopoDS_Edge):
-        c = BRepAdaptor_Curve(edge_or_wire)
+        curve = BRepAdaptor_Curve(edge_or_wire)
     else:
-        c = BRepAdaptor_CompCurve(edge_or_wire)
-    l = GCPnts_AbscissaPoint.Length_s(c)
-    return c.Value(
-        GCPnts_AbscissaPoint(c, l * distance, c.FirstParameter()).Parameter()
-    )
+        curve = BRepAdaptor_CompCurve(edge_or_wire)
+    l = GCPnts_AbscissaPoint.Length_s(curve)
+    parameter = GCPnts_AbscissaPoint(
+        curve, l * distance, curve.FirstParameter()
+    ).Parameter()
+    return curve.Value(parameter)
+
+
+def tangent_at(edge_or_wire, distance):
+    if isinstance(edge_or_wire, TopoDS_Edge):
+        curve = BRepAdaptor_Curve(edge_or_wire)
+    else:
+        curve = BRepAdaptor_CompCurve(edge_or_wire)
+
+    l = GCPnts_AbscissaPoint.Length_s(curve)
+    parameter = GCPnts_AbscissaPoint(
+        curve, l * distance, curve.FirstParameter()
+    ).Parameter()
+
+    pnt = gp_Pnt()
+    vec = gp_Vec()
+    curve.D1(parameter, pnt, vec)
+
+    if is_forward(edge_or_wire):
+        vec = vec.Reversed()
+    return (pnt, gp_Dir(vec))
+
+
+def tangent_edge_at(edge_or_wire, distance):
+    pnt, dir = tangent_at(edge_or_wire, distance)
+    vec = gp_Vec(gp_Pnt(0, 0, 0), pnt)
+    vec.Add(gp_Vec(dir))
+    pnt2 = gp_Pnt(vec.XYZ())
+    return line(pnt, pnt2)
 
 
 # %% OCP serialisation
