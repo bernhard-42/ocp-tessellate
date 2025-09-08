@@ -459,7 +459,7 @@ class TestsConvert(MyUnitTest):
         g = c.to_ocp(b2.solids(), names=names, colors=colors)
         o = g.objects[0]
         self.assertEqual(g.length, 1)
-        self.assertEqual(o.color.web_color, "#ff5f00")
+        self.assertEqual(o.color.web_color, "#ffa500")
         self.assertAlmostEqual(o.color.a, 0.7, 6)
         self.assertEqual(o.name, "MySolidShapeList")
 
@@ -486,7 +486,7 @@ class TestsConvert(MyUnitTest):
         g = c.to_ocp(b2.shells(), colors=[bd.Color("Orange", 0.7)])
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.color.web_color, "#ff5f00")
+        self.assertEqual(o.color.web_color, "#ffa500")
 
     def test_show_shells_list_colors_names(self):
         c = OcpConverter()
@@ -511,7 +511,7 @@ class TestsConvert(MyUnitTest):
         g = c.to_ocp(b2.faces(), colors=[bd.Color("Orange", 0.7)])
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.color.web_color, "#ff5f00")
+        self.assertEqual(o.color.web_color, "#ffa500")
 
     def test_show_faces_list_colors_names(self):
         c = OcpConverter()
@@ -536,7 +536,7 @@ class TestsConvert(MyUnitTest):
         g = c.to_ocp(b2.wires(), colors=[bd.Color("Orange", 1.0)])
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.color.web_color, "#ff5f00")
+        self.assertEqual(o.color.web_color, "#ffa500")
 
     def test_show_wires_list_colors_names(self):
         c = OcpConverter()
@@ -561,7 +561,7 @@ class TestsConvert(MyUnitTest):
         g = c.to_ocp(b2.edges(), colors=[bd.Color("Orange", 1.0)])
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.color.web_color, "#ff5f00")
+        self.assertEqual(o.color.web_color, "#ffa500")
 
     def test_show_edges_list_colors_names(self):
         c = OcpConverter()
@@ -586,7 +586,7 @@ class TestsConvert(MyUnitTest):
         g = c.to_ocp(b2.vertices(), colors=[bd.Color("Orange", 1.0)])
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.color.web_color, "#ff5f00")
+        self.assertEqual(o.color.web_color, "#ffa500")
 
     def test_show_vertices_list_colors_names(self):
         c = OcpConverter()

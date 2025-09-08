@@ -135,45 +135,45 @@ class TestGetRgba(unittest.TestCase):
 
     def test_bd_color(self):
         c = get_rgba(bd.Color("Orange"))
-        self.assertEqual(c.web_color, "#ff5f00")
+        self.assertEqual(c.web_color, "#ffa500")
         self.assertAlmostEqual(c.a, 1.0, 6)
 
     def test_bd_color_alpha(self):
         c = get_rgba(bd.Color("Orange", 0.2))
-        self.assertEqual(c.web_color, "#ff5f00")
+        self.assertEqual(c.web_color, "#ffa500")
         self.assertAlmostEqual(c.a, 0.2, 6)
 
     def test_bd_color_extra_alpha(self):
         c = get_rgba(bd.Color("Orange"), 0.2)
-        self.assertEqual(c.web_color, "#ff5f00")
+        self.assertEqual(c.web_color, "#ffa500")
         self.assertAlmostEqual(c.a, 0.2, 6)
 
     def test_ocp_color(self):
         c = get_rgba(bd.Color("Orange").wrapped)
-        self.assertEqual(c.web_color, "#ff5f00")
+        self.assertEqual(c.web_color, "#ffa500")
         self.assertAlmostEqual(c.a, 1.0, 6)
 
     def test_ocp_color_alpha(self):
         c = get_rgba(bd.Color("Orange", 0.2).wrapped)
-        self.assertEqual(c.web_color, "#ff5f00")
+        self.assertEqual(c.web_color, "#ffa500")
         self.assertAlmostEqual(c.a, 0.2, 6)
 
     def test_bd_color_extra_alpha(self):
         c = get_rgba(bd.Color("Orange").wrapped, 0.2)
-        self.assertEqual(c.web_color, "#ff5f00")
+        self.assertEqual(c.web_color, "#ffa500")
         self.assertAlmostEqual(c.a, 0.2, 6)
 
     def test_cq_color(self):
         c = get_rgba(cq.Color(0.2, 0.3, 0.4))
-        self.assertEqual(c.web_color, "#334c66")
+        self.assertEqual(c.web_color, "#324c65")
         self.assertAlmostEqual(c.a, 1.0, 6)
 
     def test_cq_color_alpha(self):
         c = get_rgba(cq.Color(0.2, 0.3, 0.4, 0.1))
-        self.assertEqual(c.web_color, "#334c66")
+        self.assertEqual(c.web_color, "#324c65")
         self.assertAlmostEqual(c.a, 0.1, 6)
 
     def test_cq_color_extra_alpha(self):
         c = get_rgba(cq.Color(0.2, 0.3, 0.4), 0.1)
-        self.assertEqual(c.web_color, "#334c66")
+        self.assertEqual(c.web_color, "#324c65")
         self.assertAlmostEqual(c.a, 0.1, 6)
