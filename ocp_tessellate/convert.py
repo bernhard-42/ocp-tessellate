@@ -239,6 +239,20 @@ class OcpConverter:
 
         return ref, loc
 
+    def trim_infinite_objs(self, obj, name):
+        if is_topods_face(obj) and area(obj) > 1e90:
+            print(
+                f"Warning: scaling down infinite face '{name}' to a rectangle of side length 10 * helper_scale"
+            )
+            return trim_infinite_face(obj, 10 * self.helper_scale)
+
+        elif is_topods_edge(obj) and length(obj) > 1e90:
+            print(
+                f"Warning: scaling down infinite edge '{name}' to length 10 * helper_scale"
+            )
+            return trim_infinite_edge(obj, 5 * self.helper_scale)
+        return obj
+
     def unify(
         self,
         objs: Union[TopoDS_Shape, List[TopoDS_Shape]],
@@ -266,17 +280,19 @@ class OcpConverter:
             if is_topods_compound(ocp_obj):
                 ocp_objs = list(list_topods_compound(ocp_obj))
                 if len(ocp_objs) == 1:
-                    ocp_obj = downcast(ocp_objs[0])
+                    ocp_obj = self.trim_infinite_objs(downcast(ocp_objs[0]), name)
                 elif kind in ["edge", "vertex"]:
-                    ocp_obj = ocp_objs
+                    ocp_obj = [self.trim_infinite_objs(o, name) for o in ocp_objs]
+            else:
+                ocp_obj = self.trim_infinite_objs(ocp_obj, name)
 
         # else make a TopoDS_Compound
         elif kind in ["solid", "face", "shell"]:
-            ocp_obj = make_compound(objs)
+            ocp_obj = make_compound([self.trim_infinite_objs(o, name) for o in objs])
 
         # and for vertices and edges, keep the list
         else:
-            ocp_obj = objs
+            ocp_obj = [self.trim_infinite_objs(o, name) for o in objs]
 
         color = self.get_color_for_object(
             ocp_obj[0] if isinstance(ocp_obj, list) else ocp_obj,

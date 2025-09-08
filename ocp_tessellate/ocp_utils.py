@@ -738,9 +738,11 @@ def axis(origin, z_dir):
     return gp_Ax1(gp_Pnt(*origin), gp_Dir(*z_dir))
 
 
-def rect(width, height):
+def rect(width, height, ax3=None):
+    if ax3 is None:
+        ax3 = gp_Ax3(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1), gp_Dir(1, 0, 0))
     return BRepBuilderAPI_MakeFace(
-        gp_Pln(gp_Ax3(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1), gp_Dir(1, 0, 0))),
+        gp_Pln(ax3),
         -width * 0.5,
         width * 0.5,
         -height * 0.5,
@@ -965,6 +967,22 @@ def loc_from_gp_pln(pln):
     trsf.SetTransformation(ax3)
     trsf.Invert()
     return TopLoc_Location(trsf)
+
+
+def face_center_location(face):
+    surf = BRep_Tool.Surface_s(face)
+    umin, umax, vmin, vmax = BRepTools.UVBounds_s(face)
+    u = (umin + umax) / 2
+    v = (vmin + vmax) / 2
+
+    pnt = gp_Pnt()
+    d1u = gp_Vec()
+    d1v = gp_Vec()
+    surf.D1(u, v, pnt, d1u, d1v)
+
+    xdir = d1u.Normalized()
+    zdir = (d1u.Crossed(d1v)).Normalized()
+    return pnt, xdir, zdir
 
 
 #
@@ -1307,6 +1325,25 @@ def tangent_edge_at(edge_or_wire, distance):
     vec.Add(gp_Vec(dir))
     pnt2 = gp_Pnt(vec.XYZ())
     return line(pnt, pnt2)
+
+
+def trim_infinite_edge(edge_or_wire, scale):
+    if length(edge_or_wire) > 1e90:
+        pnt, dir = tangent_at(edge_or_wire, 0.5)
+        start = gp_Vec(gp_Pnt(0, 0, 0), pnt)
+        start.Add(gp_Vec(dir).Multiplied(-scale))
+        end = gp_Vec(gp_Pnt(0, 0, 0), pnt)
+        end.Add(gp_Vec(dir).Multiplied(scale))
+        return line(start, end)
+    return edge_or_wire
+
+
+def trim_infinite_face(face, scale):
+    if area(face) > 1e90:
+        pnt, xdir, zdir = face_center_location(face)
+        ax3 = gp_Ax3(pnt, gp_Dir(zdir), gp_Dir(xdir))
+        return rect(scale, scale, ax3)
+    return face
 
 
 # %% OCP serialisation
