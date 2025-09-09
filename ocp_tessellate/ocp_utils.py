@@ -1225,6 +1225,29 @@ def bounding_box(objs, loc=None, optimal=False):
     )
 
 
+def nested_bounding_box(objs):
+
+    def bb(objs, total=None):
+        if total is None:
+            total = BoundingBox()
+
+        if isinstance(objs, (list, tuple)):
+            for obj in objs:
+                total.update(bb(obj, total))
+        elif isinstance(objs, dict):
+            for obj in objs.values():
+                total.update(bb(obj, total))
+        else:
+            try:
+                new_bb = bounding_box(objs.wrapped)
+                total.update(new_bb)
+            except:
+                pass
+        return total
+
+    return bb(objs)
+
+
 #
 # %% Numpy bounding box
 #
