@@ -317,7 +317,7 @@ class CoordAxis(OcpWrapper):
             color = Color("black")
         o, x, y, z = axis_to_vecs(origin, z_dir)
         edge = line(o, o + size * z)
-        f = 0.8 + math.atan(size * 0.6) / (math.pi / 2) / 6
+        f = 0.7
         dz = size * f * z
         dx = size * ((1 - f) / 4) * x
         dy = size * ((1 - f) / 4) * y
