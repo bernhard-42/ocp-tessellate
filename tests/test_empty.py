@@ -1,7 +1,5 @@
 import unittest
 
-import pytest
-import webcolors
 from build123d import *
 
 from ocp_tessellate.convert import OcpConverter

@@ -1,7 +1,6 @@
 import copy
 import unittest
 
-import build123d as bd
 from build123d import *
 
 from ocp_tessellate.convert import OcpConverter, tessellate_group

@@ -1,21 +1,22 @@
 # %%
+from collections import OrderedDict as odict
+
 import cadquery as cq
 import numpy as np
 from cadquery_massembly import MAssembly
 from ocp_vscode import Animation, set_defaults, show
+
+from ocp_tessellate.ocp_utils import loc_to_tq
+from ocp_tessellate import Color
+
+import cadquery
 
 
 def lrepl(self):
     return loc_to_tq(self.wrapped)
 
 
-import cadquery
-
-from ocp_tessellate.ocp_utils import loc_to_tq
-
 cadquery.occ_impl.geom.Location.__repl__ = lrepl
-
-from ocp_tessellate import Color
 
 set_defaults(render_mates=True, helper_scale=5)
 
@@ -63,17 +64,21 @@ def create_base(rotate=False):
 
     # tag mating points
     if rotate:
-        l_coord = lambda vec2d: workplane.plane.toWorldCoords(vec2d).toTuple()
-        l_nps = lambda vec2d: cq.NearestToPointSelector(l_coord(vec2d))
 
-        base.faces(f"<{l_coord((0,0,1))}").tag("bottom")
-        base.faces(f">{l_coord((0,0,1))}").tag("top")
+        def l_coord(vec2d):
+            return workplane.plane.toWorldCoords(vec2d).toTuple()
+
+        def l_nps(vec2d):
+            return cq.NearestToPointSelector(l_coord(vec2d))
+
+        base.faces(f"<{l_coord((0, 0, 1))}").tag("bottom")
+        base.faces(f">{l_coord((0, 0, 1))}").tag("top")
 
         for name, hole in base_holes.items():
-            base.faces(f"<{l_coord((0,0,1))}").edges(l_nps(hole)).tag(name)
+            base.faces(f"<{l_coord((0, 0, 1))}").edges(l_nps(hole)).tag(name)
 
         for name, hole in stand_holes.items():
-            base.faces(f"<{l_coord((0,0,1))}").wires(l_nps(hole)).tag(name)
+            base.faces(f"<{l_coord((0, 0, 1))}").wires(l_nps(hole)).tag(name)
     else:
         base.faces("<Z").tag("bottom")
         base.faces(">Z").tag("top")
@@ -112,9 +117,11 @@ def create_stand():
         .union(inset.translate((-(height + thickness) / 2, 0, 0)))
         .union(backing.translate((-height / 2, -thickness / 2, thickness / 2)))
         .union(
-            backing.rotate((0, 0, 0), (0, 1, 0), -90).translate(
-                (height / 2, -thickness / 2, thickness / 2)
-            )
+            backing.rotate((0, 0, 0), (0, 1, 0), -90).translate((
+                height / 2,
+                -thickness / 2,
+                thickness / 2,
+            ))
         )
     )
     return stand
@@ -171,7 +178,7 @@ def create_lower_leg():
     )
 
     # tag mating points
-    lower_leg.faces(">Z").edges(cq.NearestToPointSelector(lower_leg_hole)).tag("top"),
+    (lower_leg.faces(">Z").edges(cq.NearestToPointSelector(lower_leg_hole)).tag("top"),)
     lower_leg.faces("<Z").edges(cq.NearestToPointSelector(lower_leg_hole)).tag("bottom")
 
     return lower_leg
@@ -202,8 +209,11 @@ show(base, stand, upper_leg, lower_leg, timeit=False)
 
 def create_hexapod():
     # Some shortcuts
-    L = lambda *args: cq.Location(cq.Vector(*args))
-    C = lambda name: Color(name).web_color
+    def L(*args):
+        return cq.Location(cq.Vector(*args))
+
+    def C(name):
+        return Color(name).web_color
 
     # Leg assembly
     leg = MAssembly(upper_leg, name="upper", color=C("orange")).add(
@@ -224,8 +234,6 @@ def create_hexapod():
 
 
 # Mates
-
-from collections import OrderedDict as odict
 
 hexapod = create_hexapod()
 

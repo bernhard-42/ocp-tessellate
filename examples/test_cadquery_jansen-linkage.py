@@ -1,3 +1,7 @@
+import math
+
+import numpy as np
+
 import cadquery as cq
 from cadquery_massembly import MAssembly
 from ocp_vscode import *
@@ -11,11 +15,8 @@ set_defaults(axes=True, axes0=True, helper_scale=4)
 ## Jansen Linkage
 
 
-import math
-
-import numpy as np
-
-Vec = lambda x, y: np.array((x, y))
+def Vec(x, y):
+    return np.array((x, y))
 
 
 def intersect(p0, r0, p1, r1):
@@ -108,8 +109,11 @@ parts = {
 
 
 def create_leg(x, y):
-    L = lambda *args: cq.Location(cq.Vector(*args))
-    C = lambda name: Color(name).web_color
+    def L(*args):
+        return cq.Location(cq.Vector(*args))
+
+    def C(name):
+        return Color(name).web_color
 
     leg = MAssembly(
         cq.Workplane("YZ").polyline([(0, 0), (x, 0), (x, y)]),

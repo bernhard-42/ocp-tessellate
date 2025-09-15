@@ -1,7 +1,13 @@
 # %%
+from collections import OrderedDict as odict
+
+import numpy as np
+
 import cadquery as cq
 from cadquery_massembly import MAssembly
 from ocp_vscode import show
+from ocp_vscode.animation import Animation
+
 
 # %%
 # MAssembly Test
@@ -45,8 +51,11 @@ show(cyl1, cyl2, cyl3)
 
 
 def create():
-    L = lambda *args: cq.Location(cq.Vector(*args))
-    C = lambda *args: cq.Color(*args)
+    def L(*args):
+        return cq.Location(cq.Vector(*args))
+
+    def C(*args):
+        return cq.Color(*args)
 
     a = MAssembly(cyl3, name="cyl3", color=C(1, 0, 0), loc=L(-20, -10, 20)).add(
         box3, name="box3", color=C(1, 0, 0), loc=L(20, 10, 0)
@@ -73,8 +82,6 @@ show(assy)
 
 # %%
 
-
-from collections import OrderedDict as odict
 
 assy = create()
 for obj, name in (
@@ -123,16 +130,10 @@ d = show(assy, render_mates=False)
 
 # %%
 
-
-import numpy as np
-from ocp_vscode.animation import Animation
-
 animation = Animation(assy)
-animation.add_track(f"/box0/c", "rz", np.linspace(0, 6, 13), np.linspace(0, 360, 13))
-animation.add_track(f"/box0/c/b", "rz", np.linspace(0, 6, 13), np.linspace(0, 360, 13))
-animation.add_track(
-    f"/box0/c/b/a", "rz", np.linspace(0, 6, 13), np.linspace(0, 360, 13)
-)
+animation.add_track("/box0/c", "rz", np.linspace(0, 6, 13), np.linspace(0, 360, 13))
+animation.add_track("/box0/c/b", "rz", np.linspace(0, 6, 13), np.linspace(0, 360, 13))
+animation.add_track("/box0/c/b/a", "rz", np.linspace(0, 6, 13), np.linspace(0, 360, 13))
 
 animation.animate(speed=3)
 

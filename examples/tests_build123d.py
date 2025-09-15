@@ -144,13 +144,13 @@ show(sphere, mixed)
 
 
 # %%
-def axis_symbol(self, l=1) -> Edge:
-    edge = Edge.make_line(self.position, self.position + self.direction * 0.95 * l)
+def axis_symbol(self, length=1) -> Edge:
+    edge = Edge.make_line(self.position, self.position + self.direction * 0.95 * length)
     plane = Plane(
-        origin=self.position + 0.95 * l * self.direction,
+        origin=self.position + 0.95 * length * self.direction,
         z_dir=self.direction,
     )
-    cone = Solid.make_cone(l / 60, 0, l / 20, plane)
+    cone = Solid.make_cone(length / 60, 0, length / 20, plane)
     return Compound([edge] + cone.faces())
 
 

@@ -1,5 +1,4 @@
 import base64
-import math
 
 import imagesize
 
@@ -65,7 +64,7 @@ class OcpObject:
             obj_repl = f"class={self.obj.__class__.__name__}"
 
         return (
-            f"{' '*ind}OcpObject name='{self.name}' kind={self.kind}, "
+            f"{' ' * ind}OcpObject name='{self.name}' kind={self.kind}, "
             f"{obj_repl}, "
             f"color={self.color}, loc={loc_to_tq(self.loc)}, "
             f"cache_id={'' if self.cache_id is None else self.cache_id[:10]}..."
@@ -144,16 +143,19 @@ class OcpObject:
             else:
                 color = self.color.web_color
 
-            result = dict(id=self.id, shape=self.obj, loc=None), {
-                "id": self.id,
-                "type": "edges" if self.kind == "edge" else "vertices",
-                "name": self.name,
-                "shape": values,
-                "state": self.to_state(),
-                "color": color,
-                "loc": None if self.loc is None else loc_to_tq(self.loc),
-                "bb": bb,
-            }
+            result = (
+                dict(id=self.id, shape=self.obj, loc=None),
+                {
+                    "id": self.id,
+                    "type": "edges" if self.kind == "edge" else "vertices",
+                    "name": self.name,
+                    "shape": values,
+                    "state": self.to_state(),
+                    "color": color,
+                    "loc": None if self.loc is None else loc_to_tq(self.loc),
+                    "bb": bb,
+                },
+            )
             if self.kind == "edge":
                 result[1]["width"] = self.width
             else:
@@ -173,10 +175,10 @@ class OcpGroup:
         self.loc = loc
 
     def dump(self, ind=0):
-        result = f"{' '*ind}OcpGroup('{self.name}', loc={loc_to_tq(self.loc)}\n"
+        result = f"{' ' * ind}OcpGroup('{self.name}', loc={loc_to_tq(self.loc)}\n"
         for obj in self.objects:
             result += obj.dump(ind + 4) + "\n"
-        return result + f"{' '*ind})"
+        return result + f"{' ' * ind})"
 
     def __repr__(self):
         return self.dump()
@@ -277,7 +279,6 @@ class OcpInstancesGroup:
 
 
 class OcpWrapper:
-
     def __init__(
         self,
         objs,

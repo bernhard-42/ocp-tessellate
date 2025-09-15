@@ -6,7 +6,7 @@ from build123d import *
 from ocp_vscode import *
 
 from ocp_tessellate.convert import combined_bb, tessellate_group, to_assembly
-from ocp_tessellate.ocp_utils import np_bbox
+from ocp_tessellate.tessellator import cache
 
 
 class Progress:
@@ -29,11 +29,11 @@ class Progress:
 
 
 # %%
-from ocp_tessellate.tessellator import cache
+
 
 cache.clear()
 n = 1000
-I, J = list(range(1, 100)), list(range(n))
+I, J = list(range(1, 100)), list(range(n))  # noqa: E741
 random.shuffle(J)
 random.shuffle(I)
 y = 0

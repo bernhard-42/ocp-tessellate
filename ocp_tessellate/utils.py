@@ -13,9 +13,8 @@ def round_sig(x, sig):
 
 
 def warn(message, warning=RuntimeWarning, when="always"):
-    def warning_on_one_line(
-        message, category, filename, lineno, file=None, line=None
-    ):  # pylint: disable=unused-argument
+    # pylint: disable=unused-argument
+    def warning_on_one_line(message, category, filename, lineno, file=None, line=None):
         return "%s: %s" % (category.__name__, message)
 
     warn_format = warnings.formatwarning
@@ -55,9 +54,9 @@ class Color:
             self.b = c.blue
         elif isinstance(color, (tuple, list)) and len(color) >= 3:
             rgb = color[:3]
-            if any([isinstance(c, float) for c in rgb]) and all(
-                [0.0 <= c <= 1.0 for c in rgb]
-            ):
+            if any([isinstance(c, float) for c in rgb]) and all([
+                0.0 <= c <= 1.0 for c in rgb
+            ]):
                 self.r, self.g, self.b = (int(c * 255) for c in rgb)
             elif all([isinstance(c, int) and (0 <= c <= 255) for c in rgb]):
                 self.r, self.g, self.b = rgb

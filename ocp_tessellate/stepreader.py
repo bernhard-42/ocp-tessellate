@@ -4,7 +4,7 @@ import unicodedata
 
 try:
     import cadquery as cq
-except:
+except ImportError:
     pass
 
 try:
@@ -22,7 +22,7 @@ try:
         else:
             return new_obj.move(location)
 
-except:
+except ImportError:
     pass
 
 import OCP
@@ -132,7 +132,6 @@ class StepReader:
 
         colors = []
         if self.analyse_faces:
-
             # Find all face colors
             exp = TopExp_Explorer(shape, TopAbs_FACE)
             while exp.More():
@@ -180,7 +179,7 @@ class StepReader:
         while it.More():
             shape = self.get_shape(it.Value())
             if shape.ShapeType() == TopAbs_SOLID:
-                s_name = f"{name}_{i+1}"
+                s_name = f"{name}_{i + 1}"
                 color = self.get_color(shape)
                 sub_shape = self._create_assembly_object(s_name, loc, color, shape)
                 shapes.append(sub_shape)
@@ -350,7 +349,9 @@ class StepReader:
         if len(self.assemblies) == 1:
             assembly = self.assemblies[0]
             if assembly["shapes"] is not None:
-                return walk(assembly["shapes"], assembly["name"], cq.Location(assembly["loc"]))
+                return walk(
+                    assembly["shapes"], assembly["name"], cq.Location(assembly["loc"])
+                )
             elif assembly["shape"] is not None:
                 return walk([assembly], assembly["name"], cq.Location(assembly["loc"]))
             else:
@@ -366,7 +367,7 @@ class StepReader:
                     )
                 )
 
-        if path != None:
+        if path is not None:
             result = result.objects[path].obj
 
         return result
@@ -432,7 +433,6 @@ class StepReader:
 
 
 def import_step_as_single_compound(file_name):
-
     reader = STEPControl_Reader()
     read_status = reader.ReadFile(file_name)
     if read_status != OCP.IFSelect.IFSelect_RetDone:

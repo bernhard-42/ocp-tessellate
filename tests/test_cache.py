@@ -1,12 +1,9 @@
 # %%
 import unittest
 
-import build123d as bd
-import pytest
-import webcolors
 from build123d import *
 
-from ocp_tessellate.convert import OcpConverter, tessellate_group, to_ocpgroup
+from ocp_tessellate.convert import tessellate_group, to_ocpgroup
 from ocp_tessellate.ocp_utils import *
 from ocp_tessellate.tessellator import cache
 

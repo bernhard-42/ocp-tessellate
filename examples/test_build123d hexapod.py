@@ -190,7 +190,7 @@ lower_leg = LowerLeg("lower_leg")
 
 lower_leg_g = AnimationGroup(
     children={"lower_leg": clone(lower_leg, origin=lower_leg.leg_hole)},
-    label=f"lower_leg",
+    label="lower_leg",
 )
 RevoluteJoint("j_front", lower_leg_g, axis=Axis.Z)
 RevoluteJoint("j_back", lower_leg_g, axis=-Axis.Z.located(Pos(0, 0, thickness)))

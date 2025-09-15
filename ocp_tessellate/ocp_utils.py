@@ -42,7 +42,6 @@ from OCP.BRepBuilderAPI import (  # type: ignore
     BRepBuilderAPI_FindPlane,
 )
 from OCP.BRepGProp import BRepGProp, BRepGProp_Face  # type: ignore
-from OCP.BRepMesh import BRepMesh_IncrementalMesh  # type: ignore
 from OCP.BRepTools import BRepTools  # type: ignore
 from OCP.GCPnts import GCPnts_AbscissaPoint  # type: ignore
 from OCP.GeomAbs import GeomAbs_CurveType  # type: ignore
@@ -62,7 +61,6 @@ from OCP.gp import (  # type: ignore
 )
 from OCP.GProp import GProp_GProps  # type: ignore
 from OCP.Quantity import Quantity_ColorRGBA  # type: ignore
-from OCP.StlAPI import StlAPI_Writer  # type: ignore
 from OCP.TopAbs import (  # type: ignore
     TopAbs_COMPOUND,
     TopAbs_COMPSOLID,
@@ -75,7 +73,7 @@ from OCP.TopAbs import (  # type: ignore
     TopAbs_Orientation,
 )
 
-from OCP.TopExp import TopExp, TopExp_Explorer  # type: ignore
+from OCP.TopExp import TopExp  # type: ignore
 from OCP.TopLoc import TopLoc_Location  # type: ignore
 
 # Bounding Box
@@ -98,7 +96,7 @@ from OCP.TopTools import (  # type: ignore
     TopTools_IndexedMapOfShape,
 )
 
-from .utils import Color, class_name, distance, flatten, type_name
+from .utils import Color, distance, type_name
 
 #
 # %% Version
@@ -578,7 +576,7 @@ def get_rgba(color, alpha=None, def_color=None):
     if hasattr(color, "wrapped"):  # CadQery or build123d Color
         try:
             rgba = Color(tuple(color))  # build123d
-        except:
+        except Exception:
             rgba = Color(color.toTuple())  # CadQuery
 
         if alpha is not None:
@@ -586,14 +584,12 @@ def get_rgba(color, alpha=None, def_color=None):
 
     elif isinstance(color, Quantity_ColorRGBA):  # OCP
         ocp_rgb = color.GetRGB()
-        rgba = Color(
-            (
-                ocp_rgb.Red(),
-                ocp_rgb.Green(),
-                ocp_rgb.Blue(),
-                color.Alpha() if alpha is None else alpha,
-            )
-        )
+        rgba = Color((
+            ocp_rgb.Red(),
+            ocp_rgb.Green(),
+            ocp_rgb.Blue(),
+            color.Alpha() if alpha is None else alpha,
+        ))
 
     elif isinstance(color, str) or isinstance(color, (tuple, list)):
         rgba = Color(color, 1.0 if alpha is None else alpha)
@@ -1125,19 +1121,17 @@ class BoundingBox(object):
             self.ymin + self.ysize / 2.0,
             self.zmin + self.zsize / 2.0,
         )
-        self.max = max(
-            [
-                abs(x)
-                for x in (
-                    self.xmin,
-                    self.xmax,
-                    self.ymin,
-                    self.ymax,
-                    self.zmin,
-                    self.zmax,
-                )
-            ]
-        )
+        self.max = max([
+            abs(x)
+            for x in (
+                self.xmin,
+                self.xmax,
+                self.ymin,
+                self.ymax,
+                self.zmin,
+                self.zmax,
+            )
+        ])
 
     def is_empty(self):
         return (
@@ -1147,28 +1141,24 @@ class BoundingBox(object):
         )
 
     def max_dist_from_center(self):
-        return max(
-            [
-                distance(self.center, v)
-                for v in itertools.product(
-                    (self.xmin, self.xmax),
-                    (self.ymin, self.ymax),
-                    (self.zmin, self.zmax),
-                )
-            ]
-        )
+        return max([
+            distance(self.center, v)
+            for v in itertools.product(
+                (self.xmin, self.xmax),
+                (self.ymin, self.ymax),
+                (self.zmin, self.zmax),
+            )
+        ])
 
     def max_dist_from_origin(self):
-        return max(
-            [
-                np.linalg.norm(v)
-                for v in itertools.product(
-                    (self.xmin, self.xmax),
-                    (self.ymin, self.ymax),
-                    (self.zmin, self.zmax),
-                )
-            ]
-        )
+        return max([
+            np.linalg.norm(v)
+            for v in itertools.product(
+                (self.xmin, self.xmax),
+                (self.ymin, self.ymax),
+                (self.zmin, self.zmax),
+            )
+        ])
 
     def update(self, bb, minimize=False):
         lower, upper = (max, min) if minimize else (min, max)
@@ -1226,7 +1216,6 @@ def bounding_box(objs, loc=None, optimal=False):
 
 
 def nested_bounding_box(objs):
-
     def bb(objs, total=None):
         if total is None:
             total = BoundingBox()
@@ -1241,7 +1230,7 @@ def nested_bounding_box(objs):
             try:
                 new_bb = bounding_box(objs.wrapped)
                 total.update(new_bb)
-            except:
+            except Exception:
                 pass
         return total
 
@@ -1265,13 +1254,11 @@ def rotate(q, v):
     yw = 2 * y * w
     zw = 2 * z * w
 
-    R = np.array(
-        [
-            [1 - y2 - z2, xy - zw, xz + yw],
-            [xy + zw, 1 - x2 - z2, yz - xw],
-            [xz - yw, yz + xw, 1 - x2 - y2],
-        ]
-    )
+    R = np.array([
+        [1 - y2 - z2, xy - zw, xz + yw],
+        [xy + zw, 1 - x2 - z2, yz - xw],
+        [xz - yw, yz + xw, 1 - x2 - y2],
+    ])
     return np.dot(v, R.T)
 
 
@@ -1315,9 +1302,9 @@ def position_at(edge_or_wire, distance):
         curve = BRepAdaptor_Curve(edge_or_wire)
     else:
         curve = BRepAdaptor_CompCurve(edge_or_wire)
-    l = GCPnts_AbscissaPoint.Length_s(curve)
+    length = GCPnts_AbscissaPoint.Length_s(curve)
     parameter = GCPnts_AbscissaPoint(
-        curve, l * distance, curve.FirstParameter()
+        curve, length * distance, curve.FirstParameter()
     ).Parameter()
     return curve.Value(parameter)
 
@@ -1328,9 +1315,9 @@ def tangent_at(edge_or_wire, distance):
     else:
         curve = BRepAdaptor_CompCurve(edge_or_wire)
 
-    l = GCPnts_AbscissaPoint.Length_s(curve)
+    length = GCPnts_AbscissaPoint.Length_s(curve)
     parameter = GCPnts_AbscissaPoint(
-        curve, l * distance, curve.FirstParameter()
+        curve, length * distance, curve.FirstParameter()
     ).Parameter()
 
     pnt = gp_Pnt()

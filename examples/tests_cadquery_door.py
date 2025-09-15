@@ -4,14 +4,14 @@ from os.path import expanduser
 import cadquery as cq
 from ocp_vscode import show
 
+from ocp_tessellate.ocp_utils import loc_to_tq
+
+import cadquery
+
 
 def lrepl(self):
     return loc_to_tq(self.wrapped)
 
-
-import cadquery
-
-from ocp_tessellate.ocp_utils import loc_to_tq
 
 cadquery.occ_impl.geom.Location.__repl__ = lrepl
 
@@ -19,8 +19,6 @@ cadquery.occ_impl.geom.Location.__repl__ = lrepl
 # %%
 
 # ASSEMBLY TEST W/ LOCATION
-
-import cadquery as cq
 
 # Parameters
 H = 400
@@ -39,8 +37,8 @@ HANDLE_L = 50
 HANDLE_W = 4
 
 
-def make_vslot(l):
-    return PROFILE.toPending().extrude(l)
+def make_vslot(length):
+    return PROFILE.toPending().extrude(length)
 
 
 def make_connector():

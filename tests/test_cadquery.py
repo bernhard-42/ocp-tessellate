@@ -1,7 +1,6 @@
 import unittest
 
 import cadquery as cq
-import pytest
 import webcolors
 
 from ocp_tessellate.convert import OcpConverter, tessellate_group, to_ocpgroup
@@ -240,7 +239,9 @@ class TestCadQuerySketch(MyUnitTest):
         self.assertEqual(g2.length, 5)
         for ind, loc in enumerate(g2.objects):
             self.assertEqual(loc.kind, "edge")
-            self.assertEqual(loc.name, "Location" if ind == 0 else f"Location({ind+1})")
+            self.assertEqual(
+                loc.name, "Location" if ind == 0 else f"Location({ind + 1})"
+            )
             self.assertIsNone(loc.ref)
             self.assertIsNotNone(loc.obj)
             self.assertTrue(isinstance(loc.obj, list))
@@ -312,7 +313,6 @@ class TestCadQuerySketch(MyUnitTest):
         self.assertEqual(o.color.web_color, "#ba55d3")
 
     def test_multi_workplane_sketch(self):
-
         result = (
             cq.Workplane()
             .transformed((0, 90, 90), (2, 0, 0))
@@ -339,7 +339,6 @@ class TestCadQuerySketch(MyUnitTest):
 
 
 class TestVector(MyUnitTest):
-
     def test_vector(self):
         c = OcpConverter()
         g = c.to_ocp(cq.Vector(1, 1, 1))

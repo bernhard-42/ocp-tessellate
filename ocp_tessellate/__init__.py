@@ -14,7 +14,6 @@
 # limitations under the License.
 #
 
-import warnings
 
 from ._version import __version__ as ot_version
 from ._version import __version_info__ as ot_version_info

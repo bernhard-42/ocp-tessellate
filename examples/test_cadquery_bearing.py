@@ -3,7 +3,6 @@ from collections import OrderedDict as odict
 import cadquery as cq
 from cadquery_massembly import MAssembly, Mate
 from ocp_vscode import *
-from ocp_vscode.animation import Animation
 
 from ocp_tessellate.utils import Color
 
@@ -47,8 +46,11 @@ balls = ["ball_%d" % i for i in range(number_balls)]
 
 
 def create_bearing():
-    L = lambda *args: cq.Location(cq.Vector(*args))
-    C = lambda name: Color(name).web_color
+    def L(*args):
+        return cq.Location(cq.Vector(*args))
+
+    def C(name):
+        return Color(name).web_color
 
     assy = MAssembly(outer, loc=L(0, 0, ball_diam / 2), name="outer", color=C("orange"))
     assy.add(inner, loc=L(20, 0, 0), name="inner", color=C("orange"))

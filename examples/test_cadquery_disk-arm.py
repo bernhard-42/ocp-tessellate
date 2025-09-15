@@ -1,4 +1,7 @@
 # %%
+from math import cos, sin
+from collections import OrderedDict as odict
+
 import cadquery as cq
 from cadquery_massembly import MAssembly
 from ocp_vscode import *
@@ -6,11 +9,9 @@ from ocp_vscode.animation import Animation
 
 from ocp_tessellate.utils import Color
 
-set_defaults(axes=True, axes0=True, helper_scale=4)
-
-from math import cos, sin
-
 import numpy as np
+
+set_defaults(axes=True, axes0=True, helper_scale=4)
 
 ## Disk and Arm
 
@@ -80,8 +81,11 @@ show(
 
 
 def create_disk_arm():
-    L = lambda *args: cq.Location(cq.Vector(*args))
-    C = lambda name: Color(name).web_color
+    def L(*args):
+        return cq.Location(cq.Vector(*args))
+
+    def C(name):
+        return Color(name).web_color
 
     return (
         MAssembly(base, name="base", color=C("silver"), loc=L(-dist_pivot / 2, 0, 0))
@@ -97,7 +101,6 @@ def create_disk_arm():
 
 ## Define mates
 
-from collections import OrderedDict as odict
 
 disk_arm = create_disk_arm()
 
@@ -131,9 +134,9 @@ arm_angles = [angle_arm(d) for d in disk_angles]
 
 # move disk
 # Note, the selector must follow the path in the CAD view navigation hierarchy
-animation.add_track(f"/base/disk", "rz", times, disk_angles)
+animation.add_track("/base/disk", "rz", times, disk_angles)
 
 # move arm
-animation.add_track(f"/base/arm", "rz", times, arm_angles)
+animation.add_track("/base/arm", "rz", times, arm_angles)
 
 animation.animate(speed=2)

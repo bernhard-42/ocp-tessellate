@@ -25,9 +25,7 @@ from OCP.BRep import BRep_Tool
 from OCP.BRepAdaptor import BRepAdaptor_Curve
 from OCP.BRepGProp import BRepGProp_Face
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
-from OCP.BRepTools import BRepTools
 from OCP.GCPnts import (
-    GCPnts_QuasiUniformAbscissa,
     GCPnts_QuasiUniformDeflection,
     GCPnts_UniformDeflection,
 )
@@ -46,7 +44,6 @@ from .ocp_utils import (
     get_point,
     get_vertices,
     is_line,
-    length,
     make_compound,
 )
 from .trace import Trace
@@ -70,7 +67,6 @@ try:
     NATIVE = True
 
 except ImportError:
-
     NATIVE = False
 
 LOG_FILE = "ocp_tessellate.log"
@@ -196,11 +192,11 @@ class Tessellator:
     ):
         self.shape = shape
 
-        count = self.number_solids(shape)
+        # count = self.number_solids(shape)
         with Timer(
             debug,
             "",
-            f"mesh incrementally",
+            "mesh incrementally",
             3,
             debug,
         ):
@@ -263,9 +259,11 @@ class Tessellator:
                 flat = []
                 for i in range(1, poly.NbTriangles() + 1):
                     coord = poly.Triangle(i).Get()
-                    flat.extend(
-                        (coord[0] + offset, coord[i1] + offset, coord[i2] + offset)
-                    )
+                    flat.extend((
+                        coord[0] + offset,
+                        coord[i1] + offset,
+                        coord[i2] + offset,
+                    ))
                 self.triangles.extend(flat)
                 self.triangles_per_face.append(poly.NbTriangles())
 

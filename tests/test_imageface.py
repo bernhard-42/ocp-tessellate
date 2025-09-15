@@ -1,6 +1,5 @@
 import unittest
 
-import pytest
 from build123d import *
 
 from ocp_tessellate.cad_objects import ImageFace

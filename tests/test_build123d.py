@@ -2,7 +2,6 @@
 import unittest
 
 import build123d as bd
-import pytest
 import webcolors
 from build123d import *
 
@@ -97,20 +96,16 @@ ocp_solids = [x.wrapped for x in solids]
 
 ocp_compsolid = make_compsolid(ocp_solids)
 compsolid = Compound(ocp_compsolid)
-compound1 = Compound(
-    [
-        (Pos(0, -3, -1) * Box(1, 1, 1)).shell(),
-        Compound(ocp_compsolid),
-        (Pos(0, 3, -1) * Cylinder(0.5, 1)).solid(),
-    ]
-)
-ocp_compound = make_compound(
-    [
-        (Pos(0, -3, -1) * Box(1, 1, 1)).shell().wrapped,
-        ocp_compsolid,
-        (Pos(0, 3, -1) * Cylinder(0.5, 1)).solid().wrapped,
-    ]
-)
+compound1 = Compound([
+    (Pos(0, -3, -1) * Box(1, 1, 1)).shell(),
+    Compound(ocp_compsolid),
+    (Pos(0, 3, -1) * Cylinder(0.5, 1)).solid(),
+])
+ocp_compound = make_compound([
+    (Pos(0, -3, -1) * Box(1, 1, 1)).shell().wrapped,
+    ocp_compsolid,
+    (Pos(0, 3, -1) * Cylinder(0.5, 1)).solid().wrapped,
+])
 
 
 class TestsConvert(MyUnitTest):
@@ -634,7 +629,6 @@ class TestsConvert(MyUnitTest):
 
 
 class TestsConvert2(MyUnitTest):
-
     def test_buildpart(self):
         """Test that a part is converted correctly"""
         c = OcpConverter()
@@ -830,7 +824,7 @@ class TestsShapeLists(MyUnitTest):
         i = c.instances
         self.assertEqual(g.length, 2)
         for ind, o in enumerate(g.objects):
-            self.assertEqual(o.name, "Solid" if ind == 0 else f"Solid({ind+1})")
+            self.assertEqual(o.name, "Solid" if ind == 0 else f"Solid({ind + 1})")
             self.assertEqual(o.kind, "solid")
             self.assertTrue(is_topods_solid(i[o.ref]["obj"]))
 
@@ -841,7 +835,7 @@ class TestsShapeLists(MyUnitTest):
         i = c.instances
         self.assertEqual(g.length, 2)
         for ind, o in enumerate(g.objects):
-            self.assertEqual(o.name, "Shell" if ind == 0 else f"Shell({ind+1})")
+            self.assertEqual(o.name, "Shell" if ind == 0 else f"Shell({ind + 1})")
             self.assertEqual(o.kind, "face")
             self.assertTrue(is_topods_shell(i[o.ref]["obj"]))
 
@@ -853,7 +847,7 @@ class TestsShapeLists(MyUnitTest):
         self.assertEqual(g.length, 12)
         o = g.objects[0]
         for ind, o in enumerate(g.objects):
-            self.assertEqual(o.name, "Face" if ind == 0 else f"Face({ind+1})")
+            self.assertEqual(o.name, "Face" if ind == 0 else f"Face({ind + 1})")
             self.assertEqual(o.kind, "face")
             self.assertTrue(is_topods_face(i[o.ref]["obj"]))
 
@@ -864,7 +858,7 @@ class TestsShapeLists(MyUnitTest):
         self.assertEqual(g.length, 24)
         o = g.objects[0]
         for ind, o in enumerate(g.objects):
-            self.assertEqual(o.name, "Edge" if ind == 0 else f"Edge({ind+1})")
+            self.assertEqual(o.name, "Edge" if ind == 0 else f"Edge({ind + 1})")
             self.assertEqual(o.kind, "edge")
             self.assertTrue(is_topods_edge(o.obj))
 
@@ -875,7 +869,7 @@ class TestsShapeLists(MyUnitTest):
         self.assertEqual(g.length, 12)
         o = g.objects[0]
         for ind, o in enumerate(g.objects):
-            self.assertEqual(o.name, "Wire" if ind == 0 else f"Wire({ind+1})")
+            self.assertEqual(o.name, "Wire" if ind == 0 else f"Wire({ind + 1})")
             self.assertEqual(o.kind, "edge")
             self.assertTrue(all(is_topods_edge(e) for e in o.obj))
 
@@ -886,7 +880,7 @@ class TestsShapeLists(MyUnitTest):
         self.assertEqual(g.length, 16)
         o = g.objects[0]
         for ind, o in enumerate(g.objects):
-            self.assertEqual(o.name, "Vertex" if ind == 0 else f"Vertex({ind+1})")
+            self.assertEqual(o.name, "Vertex" if ind == 0 else f"Vertex({ind + 1})")
             self.assertEqual(o.kind, "vertex")
             self.assertTrue(is_topods_vertex(o.obj))
 
@@ -915,20 +909,18 @@ class TestsShapeLists(MyUnitTest):
     def test_shapeList_compounds(self):
         """Test that a shapelist of compounds is converted correctly"""
         c = OcpConverter()
-        g = c.to_ocp(
-            [
-                r,
-                Pos(
-                    1,
-                    1,
-                )
-                * r,
-            ]
-        )
+        g = c.to_ocp([
+            r,
+            Pos(
+                1,
+                1,
+            )
+            * r,
+        ])
         i = c.instances
         self.assertEqual(g.length, 2)
         for n, o in enumerate(g.objects):
-            self.assertEqual(o.name, "Face" if n == 0 else f"Face({n+1})")
+            self.assertEqual(o.name, "Face" if n == 0 else f"Face({n + 1})")
             self.assertEqual(o.kind, "face")
             self.assertTrue(is_topods_face(i[o.ref]["obj"]))
 
@@ -986,7 +978,6 @@ class TestsConvertMoved(MyUnitTest):
 
 
 class TestConvertMixedCompounds(MyUnitTest):
-
     def test_mixed_compound(self):
         c = OcpConverter()
         g = c.to_ocp(mixed)
@@ -1055,7 +1046,6 @@ class TestConvertMixedCompounds(MyUnitTest):
 
 
 class TestCompund(MyUnitTest):
-
     def test_compound_solid(self):
         c = OcpConverter()
         g = c.to_ocp(Compound(b2.solids()))
@@ -1208,7 +1198,6 @@ class TestMultipleObjects(MyUnitTest):
 
 
 class TestComSolid(MyUnitTest):
-
     def test_compsolid_ocp(self):
         c = OcpConverter()
         g = c.to_ocp(ocp_compsolid)

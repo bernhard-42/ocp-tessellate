@@ -72,7 +72,6 @@ class TestColor(unittest.TestCase):
 
 
 class TestGetRgba(unittest.TestCase):
-
     def test_color_name(self):
         c = get_rgba("aliceblue")
         self.assertEqual(c.web_color, "#f0f8ff")

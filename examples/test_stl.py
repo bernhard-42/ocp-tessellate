@@ -1,8 +1,8 @@
 # %%
+import os
+
 from build123d import *
 from ocp_vscode import *
-
-from ocp_tessellate.convert import tessellate_group, to_assembly
 
 # enable_native_tessellator()
 
@@ -31,7 +31,5 @@ f = import_stl("box.stl")
 show(f, Pos(2, 0, 0) * c)
 
 # %%
-
-import os
 
 os.remove(stl_name)

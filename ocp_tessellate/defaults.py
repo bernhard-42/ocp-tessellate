@@ -202,7 +202,8 @@ def reset_defaults():
 
 
 def create_args(config):
-    adapt = lambda key: "title" if key == "viewer" else key
+    def adapt(key):
+        return "title" if key == "viewer" else key
 
     return {
         adapt(k): v

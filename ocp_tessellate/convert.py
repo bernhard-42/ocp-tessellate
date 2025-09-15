@@ -2,6 +2,9 @@ import enum
 from hashlib import sha256
 from typing import Any, Dict, Iterable, List, Tuple, Union
 
+import json
+import numpy as np
+
 from ocp_tessellate.cad_objects import (
     CoordAxis,
     CoordSystem,
@@ -414,7 +417,6 @@ class OcpConverter:
         """
         ocp_obj: OcpGroup = OcpGroup(name=obj_name)
         for name, obj in objs:
-
             result = self.to_ocp(
                 obj,
                 names=[name],
@@ -511,7 +513,7 @@ class OcpConverter:
 
         @return: The OcpGroup hierarchy
         """
-        self._debug(level, f"handle_compound", obj_name)
+        self._debug(level, "handle_compound", obj_name)
 
         if is_compound(cad_obj) or is_compsolid(cad_obj):
             cad_objs = list(list_topods_compound(cad_obj.wrapped))
@@ -713,13 +715,11 @@ class OcpConverter:
             parents.insert(0, p)
             if isinstance(parent, list):
                 parent = list(
-                    set(
-                        [
-                            c.topo_parent
-                            for c in parent
-                            if hasattr(c, "topo_parent") and c.topo_parent is not None
-                        ]
-                    )
+                    set([
+                        c.topo_parent
+                        for c in parent
+                        if hasattr(c, "topo_parent") and c.topo_parent is not None
+                    ])
                 )
                 if len(parent) == 0:
                     parent = None
@@ -1057,13 +1057,11 @@ class OcpConverter:
                         for loc in cad_obj.locs
                     ]
                 else:
-                    compound = make_compound(
-                        [
-                            downcast(obj.wrapped.Moved(loc.wrapped))
-                            for obj in objs
-                            for loc in cad_obj.locs
-                        ]
-                    )
+                    compound = make_compound([
+                        downcast(obj.wrapped.Moved(loc.wrapped))
+                        for obj in objs
+                        for loc in cad_obj.locs
+                    ])
                 cad_objs.append(compound)
                 names.append(typ)
 
@@ -1298,7 +1296,6 @@ class OcpConverter:
         # =========================== Loop over all objects ========================== #
 
         for cad_obj, obj_name, color, alpha in zip(cad_objs, names, colors, alphas):  # type: ignore [arg-type]
-
             # =================== Silently skip enums and known types =================== #
             if (
                 isinstance(cad_obj, enum.Enum)
@@ -1342,7 +1339,7 @@ class OcpConverter:
             elif isinstance(cad_obj, (list, tuple)) and not (
                 (
                     is_build123d_shapelist(cad_obj)
-                    and all(type(cad_obj[0]) == type(o) for o in cad_obj)
+                    and all(type(cad_obj[0]) is type(o) for o in cad_obj)
                 )
                 and not any([class_name(o) == "Compound" for o in cad_obj])
             ):
@@ -1478,7 +1475,7 @@ class OcpConverter:
                 continue
 
             if self.debug:
-                print(f"{'  '*level}=>", ocp_obj)
+                print(f"{'  ' * level}=>", ocp_obj)
 
             if not (isinstance(ocp_obj, OcpGroup) and ocp_obj.length == 0):
                 group.add(ocp_obj)
@@ -1760,11 +1757,6 @@ def conv():
 #
 # Convert objects to the javascript format needed for testing three-cad-viewer
 #
-
-import json
-import re
-
-import numpy as np
 
 
 def numpy_to_js(var, obj, indent=None):
