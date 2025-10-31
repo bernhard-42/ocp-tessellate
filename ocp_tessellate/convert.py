@@ -185,6 +185,10 @@ class OcpConverter:
         self,
         progress: Union[Progress, None] = None,
         helper_scale: float = 1.0,
+        render_joints=False,
+        render_mates=False,
+        show_parent=False,
+        show_sketch_local=True,
         debug: bool = False,
     ):
         """The initializer of the OcpConverter.
@@ -194,6 +198,10 @@ class OcpConverter:
         self.ocp = None
         self.progress = progress
         self.helper_scale = helper_scale
+        self.render_joints = render_joints
+        self.render_mates = render_mates
+        self.show_parent = show_parent
+        self.show_sketch_local = show_sketch_local
         self.debug = debug
         self.default_color = get_default("default_color")
 
@@ -400,7 +408,6 @@ class OcpConverter:
         obj_name: Union[str, None],
         color: Union[ColorLike, None],
         alpha: float,
-        sketch_local: bool,
         level: int,
     ) -> OcpGroup:
         """
@@ -410,7 +417,6 @@ class OcpConverter:
         @param obj_name: The name of the object
         @param color: The color of the object
         @param alpha: The alpha value of the color
-        @param sketch_local: The flag to render the sketch local
         @param level: The level of the hierarchy
 
         @return: The OcpGroup hierarchy
@@ -422,7 +428,6 @@ class OcpConverter:
                 names=[name],
                 colors=[color],
                 alphas=[alpha],
-                sketch_local=sketch_local,
                 level=level + 1,
             )
             if result.length > 0:
@@ -436,7 +441,6 @@ class OcpConverter:
         obj_name: Union[str, None],
         color: Union[ColorLike, None],
         alpha: float,
-        sketch_local: bool,
         level: int,
     ) -> OcpGroup:
         """
@@ -446,7 +450,6 @@ class OcpConverter:
         @param obj_name: The name of the object
         @param color: The color of the object
         @param alpha: The alpha value of the color
-        @param sketch_local: The flag to render the sketch_local
         @param level: The level of the hierarchy
 
         @return: The OcpGroup hierarchy
@@ -457,7 +460,6 @@ class OcpConverter:
             get_name(cad_obj, obj_name, "List"),
             color,
             alpha,
-            sketch_local,
             level,
         )
 
@@ -467,7 +469,6 @@ class OcpConverter:
         obj_name: Union[str, None],
         color: Union[ColorLike, None],
         alpha: float,
-        sketch_local: bool,
         level: int,
     ) -> OcpGroup:
         """
@@ -477,7 +478,6 @@ class OcpConverter:
         @param obj_name: The name of the object
         @param color: The color of the object
         @param alpha: The alpha value of the color
-        @param sketch_local: The flag to render the sketch_local
 
         @return: The OcpGroup hierarchy
         """
@@ -488,7 +488,6 @@ class OcpConverter:
             get_name(cad_obj, obj_name, "Dict"),
             color,
             alpha,
-            sketch_local,
             level,
         )
 
@@ -498,7 +497,6 @@ class OcpConverter:
         obj_name: Union[str, None],
         color: Union[ColorLike, None],
         alpha: float,
-        sketch_local: bool,
         level: int,
     ) -> OcpGroup:
         """
@@ -508,7 +506,6 @@ class OcpConverter:
         @param obj_name: The name of the object
         @param color: The color of the object
         @param alpha: The alpha value of the color
-        @param sketch_local: The flag to render the sketch_local
         @param level: The level of the hierarchy
 
         @return: The OcpGroup hierarchy
@@ -529,7 +526,6 @@ class OcpConverter:
             get_name(cad_obj, obj_name, default_name),
             color,
             alpha,
-            sketch_local,
             level,
         )
 
@@ -541,7 +537,6 @@ class OcpConverter:
         obj_name: Union[str, None],
         color: Union[ColorLike, None],
         alpha: float,
-        render_joints: bool,
         level: int,
     ) -> OcpGroup:
         """
@@ -551,7 +546,6 @@ class OcpConverter:
         @param obj_name: The name of the object
         @param color: The color of the object
         @param alpha: The alpha value of the color
-        @param render_joints: The flag to render the joints
         @param level: The level of the hierarchy
 
         @return: The OcpGroup hierarchy
@@ -568,7 +562,6 @@ class OcpConverter:
                 names=[None if child.label == "" else child.label],
                 colors=[child.color if color is None else color],
                 alphas=[alpha],
-                render_joints=render_joints,
                 level=level + 1,
             )
             if sub_obj.length == 1 and len(child.children) == 0:
@@ -576,7 +569,11 @@ class OcpConverter:
             else:
                 ocp_obj.add(sub_obj)
 
-        if render_joints and hasattr(cad_obj, "joints") and len(cad_obj.joints) > 0:
+        if (
+            self.render_joints
+            and hasattr(cad_obj, "joints")
+            and len(cad_obj.joints) > 0
+        ):
             joints = self.to_ocp(
                 *[j.symbol for j in cad_obj.joints.values()],
                 names=list(cad_obj.joints.keys()),
@@ -600,7 +597,6 @@ class OcpConverter:
         obj_name: Union[str, None],
         color: Union[ColorLike, None],
         alpha: float,
-        render_mates: bool,
         level: int,
     ) -> OcpGroup:
         """
@@ -610,7 +606,6 @@ class OcpConverter:
         @param obj_name: The name of the object
         @param color: The color of the object
         @param alpha: The alpha value of the color
-        @param render_mates: The flag to render the mates
         @param level: The level of the hierarchy
 
         @return: The OcpGroup hierarchy
@@ -625,12 +620,11 @@ class OcpConverter:
                 names=[cad_obj.name],
                 colors=[cad_obj.color if color is None else color],
                 alphas=alpha,
-                render_mates=render_mates,
                 level=level + 1,
             )
             ocp_obj.add(sub_obj.objects[0])
 
-        if render_mates:
+        if self.render_mates:
             top = cad_obj
             while top.parent is not None:
                 top = top.parent
@@ -657,7 +651,6 @@ class OcpConverter:
             sub_obj = self.to_ocp(
                 child,
                 names=[child.name],
-                render_mates=render_mates,
                 level=level + 1,
             )
             ocp_obj.add(sub_obj)
@@ -675,9 +668,6 @@ class OcpConverter:
         Handle the parent of an objects.
 
         @param cad_obj: The object or objects
-        @param obj_name: The name of the object
-        @param color: The color of the object
-        @param alpha: The alpha value of the color
         @param level: The level of the hierarchy
 
         @return: The OcpGroup hierarchy
@@ -792,7 +782,6 @@ class OcpConverter:
         obj_name: Union[str, None],
         color: Union[ColorLike, None],
         alpha: float,
-        show_parent: bool,
         level: int,
     ) -> Union[OcpGroup, OcpObject]:
         """
@@ -802,7 +791,6 @@ class OcpConverter:
         @param obj_name: The name of the object
         @param color: The color of the object
         @param alpha: The alpha value of the color
-        @param show_parent: The flag to show the parent
         @param level: The level of the hierarchy
 
         @return: The OcpGroup hierarchy
@@ -822,7 +810,7 @@ class OcpConverter:
 
         ocp_obj = self._handle_list(cad_obj, name, obj_name, color, alpha)
 
-        if show_parent:
+        if self.show_parent:
             parents = self.handle_parent(parent_obj, level)
             parents = [parents[0].objects[0]]
 
@@ -836,7 +824,6 @@ class OcpConverter:
         obj_name: Union[str, None],
         color: Union[ColorLike, None],
         alpha: float,
-        show_parent: bool,
         level: int,
     ) -> Union[OcpGroup, OcpObject]:
         """
@@ -846,7 +833,6 @@ class OcpConverter:
         @param obj_name: The name of the object
         @param color: The color of the object
         @param alpha: The alpha value of the color
-        @param show_parent: The flag to show the parent
         @param level: The level of the hierarchy
 
         @return: The OcpGroup hierarchy
@@ -858,7 +844,7 @@ class OcpConverter:
 
         ocp_obj = self._handle_list(cad_obj, name, obj_name, color, alpha)
 
-        if show_parent:
+        if self.show_parent:
             parents = self.handle_parent(parent_obj, level)
             return OcpGroup(parents + [ocp_obj], name=ocp_obj.name)
         else:
@@ -868,8 +854,6 @@ class OcpConverter:
         self,
         cad_obj: Union[ShapeLike, Compound],
         obj_name: Union[str, None],
-        render_joints: bool,
-        show_parent: bool,
         color: Union[ColorLike, None],
         alpha: float,
         level: int,
@@ -879,7 +863,6 @@ class OcpConverter:
 
         @param cad_obj: The shape or shapes
         @param obj_name: The name of the object
-        @param render_joints: The flag to render the joints
         @param color: The color of the object
         @param alpha: The alpha value of the color
         @param level: The level of the hierarchy
@@ -919,7 +902,11 @@ class OcpConverter:
             alpha=alpha,
         )
 
-        if render_joints and hasattr(cad_obj, "joints") and len(cad_obj.joints) > 0:
+        if (
+            self.render_joints
+            and hasattr(cad_obj, "joints")
+            and len(cad_obj.joints) > 0
+        ):
             joints = self.to_ocp(
                 *[j.symbol for j in cad_obj.joints.values()],
                 names=list(cad_obj.joints.keys()),
@@ -929,7 +916,7 @@ class OcpConverter:
             ocp_obj.name = "shape"
             return OcpGroup([ocp_obj, joints], name=name)
 
-        if show_parent and (
+        if self.show_parent and (
             (hasattr(cad_obj, "parent") and cad_obj.parent is not None)
             or (hasattr(cad_obj, "topo_parent") and cad_obj.topo_parent is not None)
         ):
@@ -946,8 +933,6 @@ class OcpConverter:
         obj_name: Union[str, None],
         color: Union[ColorLike, None],
         alpha: float,
-        sketch_local: bool,
-        render_joints: bool,
         level: int,
     ) -> OcpGroup:
         """
@@ -957,8 +942,6 @@ class OcpConverter:
         @param obj_name: The name of the object
         @param color: The color of the object
         @param alpha: The alpha value of the color
-        @param sketch_local: The flag to render the sketch_local
-        @param render_joints: The flag to render the joints
         @param level: The level of the hierarchy
 
         @return: The OcpGroup hierarchy
@@ -989,11 +972,10 @@ class OcpConverter:
             alphas=[
                 cad_obj.alpha if alpha is None and hasattr(cad_obj, "alpha") else alpha
             ],
-            render_joints=render_joints,
             level=level + 1,
         )
 
-        if sketch_local and hasattr(cad_obj, "sketch_local"):
+        if self.show_sketch_local and hasattr(cad_obj, "sketch_local"):
             obj = cad_obj.sketch_local.faces()
             ocp_obj.name = ocp_obj.objects[0].name
             ocp_obj.objects[0].name = "sketch"
@@ -1001,7 +983,6 @@ class OcpConverter:
                 obj,
                 names=["sketch_local"],
                 colors=[color],
-                render_joints=render_joints,
                 level=level + 1,
             ).objects[0]
             ocp_obj_local.color.a = 0.2
@@ -1092,7 +1073,6 @@ class OcpConverter:
         @param obj_name: The name of the object
         @param color: The color of the object
         @param alpha: The alpha value of the color
-        @param sketch_local: The flag to render the sketch_local
         @param level: The level of the hierarchy
 
         @return: The OcpObject
@@ -1152,7 +1132,6 @@ class OcpConverter:
         @param obj_name: The name of the object
         @param color: The color of the object
         @param alpha: The alpha value of the color
-        @param sketch_local: The flag to render the sketch_local
         @param level: The level of the hierarchy
 
         @return: The OcpObject
@@ -1229,11 +1208,7 @@ class OcpConverter:
         colors: Union[List[Union[ColorLike, None]], None] = None,
         alphas: Union[List[Union[float, None]], None] = None,
         loc: LocationLike = None,
-        render_mates: bool = False,
-        render_joints: bool = False,
         default_color: Union[ColorLike, None] = None,
-        show_parent: bool = False,
-        sketch_local: bool = False,
         unroll_compounds: bool = False,
         level: int = 0,
     ) -> OcpGroup:
@@ -1245,11 +1220,7 @@ class OcpConverter:
         @param colors: The list of colors for the objects
         @param alphas: The list of alpha values for the objects
         @param loc: The location of the objects
-        @param render_mates: The flag to render the mates
-        @param render_joints: The flag to render the joints
         @param default_color: The default color of the objects
-        @param show_parent: The flag to show the parent
-        @param sketch_local: The flag to render the sketch local
         @param unroll_compounds: The flag to unroll compounds
         @param level: The level of the hierarchy
 
@@ -1343,9 +1314,7 @@ class OcpConverter:
                 )
                 and not any([class_name(o) == "Compound" for o in cad_obj])
             ):
-                ocp_obj = self.handle_list_tuple(
-                    cad_obj, obj_name, color, alpha, sketch_local, level
-                )
+                ocp_obj = self.handle_list_tuple(cad_obj, obj_name, color, alpha, level)
                 if ocp_obj.length == 0:
                     ocp_obj.add(self.handle_empty_iterables(obj_name, level))
 
@@ -1361,15 +1330,11 @@ class OcpConverter:
                 and not is_build123d_assembly(cad_obj)
                 and not is_compsolid(cad_obj)
             ):
-                ocp_obj = self.handle_compound(
-                    cad_obj, obj_name, color, alpha, sketch_local, level
-                )
+                ocp_obj = self.handle_compound(cad_obj, obj_name, color, alpha, level)
 
             # Dicts
             elif isinstance(cad_obj, dict):
-                ocp_obj = self.handle_dict(
-                    cad_obj, obj_name, color, alpha, sketch_local, level
-                )
+                ocp_obj = self.handle_dict(cad_obj, obj_name, color, alpha, level)
 
             # =============================== Assemblies ================================ #
 
@@ -1379,7 +1344,6 @@ class OcpConverter:
                     obj_name,
                     color,
                     alpha,
-                    render_joints,
                     level,
                 )
 
@@ -1389,7 +1353,6 @@ class OcpConverter:
                     obj_name,
                     color,
                     alpha,
-                    render_mates,
                     level,
                 )
             # =============================== Conversions =============================== #
@@ -1406,15 +1369,11 @@ class OcpConverter:
 
             # build123d ShapeList
             elif is_build123d_shapelist(cad_obj):
-                ocp_obj = self.handle_shape_list(
-                    cad_obj, obj_name, color, alpha, show_parent, level
-                )
+                ocp_obj = self.handle_shape_list(cad_obj, obj_name, color, alpha, level)
 
             # CadQuery Workplane objects
             elif is_cadquery(cad_obj) and not is_cadquery_empty_workplane(cad_obj):
-                ocp_obj = self.handle_workplane(
-                    cad_obj, obj_name, color, alpha, show_parent, level
-                )
+                ocp_obj = self.handle_workplane(cad_obj, obj_name, color, alpha, level)
 
             # build123d LocationLists
             elif is_build123d_locationlist(cad_obj):
@@ -1423,7 +1382,7 @@ class OcpConverter:
             # build123d BuildPart, BuildSketch, BuildLine
             elif is_build123d(cad_obj):
                 ocp_obj = self.handle_build123d_builder(
-                    cad_obj, obj_name, color, alpha, sketch_local, render_joints, level
+                    cad_obj, obj_name, color, alpha, level
                 )
 
             # TopoDS_Shape, TopoDS_Compound, TopoDS_Edge, TopoDS_Face, TopoDS_Shell,
@@ -1438,8 +1397,6 @@ class OcpConverter:
                 ocp_obj = self.handle_shapes(
                     cad_obj,
                     obj_name,
-                    render_joints,
-                    show_parent,
                     color,
                     alpha,
                     level,
@@ -1526,18 +1483,22 @@ def to_ocpgroup(
 
     @return: The OcpGroup hierarchy
     """
-    converter = OcpConverter(progress=progress, helper_scale=helper_scale, debug=debug)
+    converter = OcpConverter(
+        progress=progress,
+        helper_scale=helper_scale,
+        render_joints=render_joints,
+        render_mates=render_mates,
+        show_parent=show_parent,
+        show_sketch_local=show_sketch_local,
+        debug=debug,
+    )
     ocp_group = converter.to_ocp(
         *cad_objs,
         names=names,
         colors=colors,
         alphas=alphas,
         loc=loc,
-        render_mates=render_mates,
-        render_joints=render_joints,
         default_color=default_color,
-        show_parent=show_parent,
-        sketch_local=show_sketch_local,
     )
 
     return ocp_group, converter.instances
