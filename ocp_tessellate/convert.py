@@ -317,7 +317,7 @@ class OcpConverter:
         )
 
         if kind in ("solid", "face", "shell"):
-            cache_id = create_cache_id(objs)
+            cache_id = create_cache_id(ocp_obj)
             ref, loc = self.get_instance(ocp_obj, cache_id, name)
             return OcpObject(
                 kind,
