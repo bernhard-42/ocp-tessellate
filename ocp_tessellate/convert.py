@@ -429,9 +429,14 @@ class OcpConverter:
                 colors=[color],
                 alphas=[alpha],
                 level=level + 1,
+                resolve_helpers=False,
             )
             if result.length > 0:
-                ocp_obj.add(result.cleanup())
+                c_result = result.cleanup()
+                ocp_obj.add(c_result)
+                if c_result.helpers is not None:
+                    ocp_obj.add(c_result.helpers)
+                    c_result.helpers = None
 
         return ocp_obj.make_unique_names()
 
@@ -564,8 +569,21 @@ class OcpConverter:
                 alphas=[alpha],
                 level=level + 1,
             )
-            if sub_obj.length == 1 and len(child.children) == 0:
+            if (
+                isinstance(sub_obj, OcpGroup)
+                and sub_obj.length == 1
+                and len(child.children) == 0
+            ):
                 ocp_obj.add(sub_obj.objects[0])
+                if sub_obj.objects[0].helpers is not None:
+                    ocp_obj.add(sub_obj.objects[0].helpers)
+                    sub_obj.objects[0].helpers = None
+
+            elif isinstance(sub_obj, OcpGroup) and sub_obj.helpers is not None:
+                ocp_obj.add(sub_obj)
+                ocp_obj.add(sub_obj.helpers)
+                sub_obj.helpers = None
+
             else:
                 ocp_obj.add(sub_obj)
 
@@ -912,9 +930,17 @@ class OcpConverter:
                 names=list(cad_obj.joints.keys()),
                 level=level + 1,
             )
-            joints.name = "joints"
-            ocp_obj.name = "shape"
-            return OcpGroup([ocp_obj, joints], name=name)
+
+            joints.name = f"{name}.joints"
+            # Move the joint group to the same location as the object and adapt the single
+            # joints location to be relative to the group
+            joints.loc = ocp_obj.loc
+            for joint in joints.objects:
+                if joint.loc is None:
+                    joint.loc = joints.loc.Inverted()
+                else:
+                    joint.loc = joints.loc.Inverted() * joint.loc
+            ocp_obj.helpers = joints
 
         if self.show_parent and (
             (hasattr(cad_obj, "parent") and cad_obj.parent is not None)
@@ -1211,6 +1237,7 @@ class OcpConverter:
         default_color: Union[ColorLike, None] = None,
         unroll_compounds: bool = False,
         level: int = 0,
+        resolve_helpers=True,
     ) -> OcpGroup:
         """
         Convert a list of objects to an OcpObject or OcpGroup hierarchy.
@@ -1436,6 +1463,9 @@ class OcpConverter:
 
             if not (isinstance(ocp_obj, OcpGroup) and ocp_obj.length == 0):
                 group.add(ocp_obj)
+                if resolve_helpers and ocp_obj.helpers is not None:
+                    group.add(ocp_obj.helpers)
+                    ocp_obj.helpers = None
 
         group.make_unique_names()
 

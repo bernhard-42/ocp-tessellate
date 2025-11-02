@@ -56,6 +56,7 @@ class OcpObject:
         elif color is not None:
             self.color = Color(self.color)
         self.width = width
+        self.helpers = None
 
     def dump(self, ind=0):
         if self.obj is None:
@@ -173,6 +174,7 @@ class OcpGroup:
         self.name = name
         self.kind = "group"
         self.loc = loc
+        self.helpers = None
 
     def dump(self, ind=0):
         result = f"{' ' * ind}OcpGroup('{self.name}', loc={loc_to_tq(self.loc)}\n"
