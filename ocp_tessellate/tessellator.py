@@ -397,7 +397,7 @@ class NativeTessellator:
             compute_faces,
             compute_edges,
             True,
-            0,
+            2 if debug else 0,
             debug,
         )
 
