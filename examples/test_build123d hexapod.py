@@ -246,7 +246,9 @@ hexapod = AnimationGroup(
 )
 
 print(hexapod.show_topology())
-show(hexapod, render_joints=True)
+
+render_joints = True
+show(hexapod, render_joints=render_joints, debug=False)
 
 
 # %% Animation
@@ -274,11 +276,17 @@ animation = Animation(hexapod)
 
 for name in Base.hinges_holes.keys():
     times, values = horizontal(4, "middle" not in name)
-    animation.add_track(f"/hexapod/{name}_leg", "rz", times, normalize_track(values))
+    animation.add_track(
+        f"/hexapod/{name}_leg", "rz", times, normalize_track(values), render_joints
+    )
 
     times, values = vertical(8, 4, 0 if "middle" in name else 4, "left" in name)
     animation.add_track(
-        f"/hexapod/{name}_leg/lower_leg", "rz", times, normalize_track(values)
+        f"/hexapod/{name}_leg/lower_leg",
+        "rz",
+        times,
+        normalize_track(values),
+        render_joints,
     )
 
 animation.animate(2)
