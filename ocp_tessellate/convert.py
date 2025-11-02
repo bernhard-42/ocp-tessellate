@@ -255,13 +255,15 @@ class OcpConverter:
     def trim_infinite_objs(self, obj, name):
         if is_topods_face(obj) and area(obj) > 1e90:
             print(
-                f"Warning: scaling down infinite face '{name}' to a rectangle of side length 10 * helper_scale"
+                f"Warning: Scaling down infinite face '{name}' to a rectangle of side length "
+                f"10 * helper_scale = {10 * self.helper_scale}"
             )
             return trim_infinite_face(obj, 10 * self.helper_scale)
 
         elif is_topods_edge(obj) and length(obj) > 1e90:
             print(
-                f"Warning: scaling down infinite edge '{name}' to length 10 * helper_scale"
+                f"Warning: Scaling down infinite edge '{name}' to length "
+                f"10 * helper_scale = {10 * self.helper_scale}"
             )
             return trim_infinite_edge(obj, 5 * self.helper_scale)
         return obj
