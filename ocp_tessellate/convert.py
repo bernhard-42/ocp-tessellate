@@ -100,6 +100,7 @@ def get_type(obj: TopoDS_Shape) -> str:
         "TopoDS_Shell": "Shell",
         "TopoDS_Solid": "Solid",
         "TopoDS_CompSolid": "Solid",
+        "TopoDS_Compound": "Compound",
     }
     typ = kinds.get(class_name(obj))
     if typ is None:
@@ -125,6 +126,7 @@ def get_kind(typ: str) -> str:
         "Shell": "face",
         "Solid": "solid",
         "CompSolid": "solid",
+        "Compound": "compound",
     }
     kind = kinds.get(typ)
     if kind is None:
