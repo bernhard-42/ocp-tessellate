@@ -1298,7 +1298,7 @@ class OcpConverter:
 
         # =========================== Loop over all objects ========================== #
 
-        for cad_obj, obj_name, color, alpha in zip(cad_objs, names, colors, alphas):  # type: ignore [arg-type]
+        for cad_obj, obj_name, color, alpha in zip(cad_objs, names, colors, alphas):
             # =================== Silently skip enums and known types =================== #
             if (
                 isinstance(cad_obj, enum.Enum)
