@@ -642,7 +642,9 @@ def unroll_topods_compound(compound, typ=None):
             result.append(downcast(obj))
             if typ is None:
                 typ = type_name(obj)
-            elif typ != type_name(obj):
+            elif typ != type_name(obj) and not (
+                typ in ["Edge", "Wire"] and type_name(obj) in ["Edge", "Wire"]
+            ):
                 typ = "mixed"
         iterator.Next()
     return result, typ
