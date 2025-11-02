@@ -282,6 +282,8 @@ class Tessellator:
                     self.normals.extend(flat)
 
                 offset += poly.NbNodes()
+            else:
+                print(f"face {ind} ignored")
 
     def _compute_missing_normals(self):
         vertices = np.asarray(self.vertices).reshape(-1, 3)
