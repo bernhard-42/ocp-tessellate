@@ -601,15 +601,16 @@ class OcpConverter:
                 names=list(cad_obj.joints.keys()),
                 level=level + 1,
             )
-            joints.name = f"{name}_joints"
-            # an Assembly has the location already in the group, hence relocate
-            # the joint to compensate for the location
-            # (remember: joint.location = joint.parent.location * joint.relative_location)
-            if joints.loc is None:
-                joints.loc = location.Inverted()
-            else:
-                joints.loc = location.Inverted() * joints.loc
-            ocp_obj.add(joints)
+            joints.name = f"{name}.joints"
+            # Move the joint group to the same location as the object and adapt the single
+            # joints location to be relative to the group
+            joints.loc = ocp_obj.loc
+            for joint in joints.objects:
+                if joint.loc is None:
+                    joint.loc = joints.loc.Inverted()
+                else:
+                    joint.loc = joints.loc.Inverted() * joint.loc
+            ocp_obj.helpers = joints
 
         return ocp_obj.make_unique_names()
 
