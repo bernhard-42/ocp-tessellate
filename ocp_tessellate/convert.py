@@ -1663,7 +1663,9 @@ def tessellate_group(
                 progress=None if timeit else progress,
                 shape_id="n/a",
             )
-            meshed_instances.append(mesh)
+            if len(mesh["vertices"]) > 0:
+                meshed_instances.append(mesh)
+                t.info = f"instance {i} ignored"
             t.info = (
                 f"{{quality:{quality:.4f}, angular_tolerance:{angular_tolerance:.2f}}}"
             )
