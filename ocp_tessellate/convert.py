@@ -1305,18 +1305,7 @@ class OcpConverter:
                 or is_ocp_color(cad_obj)
                 or isinstance(cad_obj, (int, float, bool, str, np.number, np.ndarray))
             ):
-                continue
-
-            # =================== Support object with to_build123d method =================== #
-            
-            if hasattr(cad_obj, "to_build123d"):
-                try:
-                    cad_obj = cad_obj.to_build123d()
-                except Exception as ex:
-                    print(
-                        f"Cannot use 'to_build123d()' on '{obj_name}' of type {type(obj)}:",
-                        ex,
-                    )            
+                continue         
 
             # =========================== Map Vector to Vertex ========================== #
 

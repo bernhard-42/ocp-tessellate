@@ -7,7 +7,6 @@
 - Treat joints as helpers on the same level in assemblies to not change hierarchy (which could break animation)
 - Add nested bounding box method for objects
 - Ensure compounds with wires and edges are not seen as mixed compounds
-- Add support for objects with a `to_build123d()` method
 
 **Fixes**
 
