@@ -1590,10 +1590,11 @@ def tessellate_group(
 
         # Increase bounding box dimensions that are too small
         # Will only be used to calculate the viewing box size of the group
-        for a in ["x", "y", "z"]:
-            if bbox[f"{a}max"] - bbox[f"{a}min"] < 1e-6:
-                bbox[f"{a}max"] += 0.1
-                bbox[f"{a}min"] -= 0.1
+        if bbox is not None:
+            for a in ["x", "y", "z"]:
+                if bbox[f"{a}max"] - bbox[f"{a}min"] < 1e-6:
+                    bbox[f"{a}max"] += 0.1
+                    bbox[f"{a}min"] -= 0.1
 
         return bbox
 
