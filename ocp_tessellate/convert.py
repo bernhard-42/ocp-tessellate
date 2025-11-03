@@ -1307,6 +1307,17 @@ class OcpConverter:
             ):
                 continue
 
+            # =================== Support object with to_build123d method =================== #
+            
+            if hasattr(cad_obj, "to_build123d"):
+                try:
+                    cad_obj = cad_obj.to_build123d()
+                except Exception as ex:
+                    print(
+                        f"Cannot use 'to_build123d()' on '{obj_name}' of type {type(obj)}:",
+                        ex,
+                    )            
+
             # =========================== Map Vector to Vertex ========================== #
 
             if is_vector(cad_obj) or is_gp_vec(cad_obj):
