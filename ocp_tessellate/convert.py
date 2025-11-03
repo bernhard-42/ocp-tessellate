@@ -1305,7 +1305,7 @@ class OcpConverter:
                 or is_ocp_color(cad_obj)
                 or isinstance(cad_obj, (int, float, bool, str, np.number, np.ndarray))
             ):
-                continue         
+                continue
 
             # =========================== Map Vector to Vertex ========================== #
 
