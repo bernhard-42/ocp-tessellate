@@ -572,6 +572,7 @@ class OcpConverter:
                 colors=[child.color if color is None else color],
                 alphas=[alpha],
                 level=level + 1,
+                resolve_helpers=False,
             )
             if (
                 isinstance(sub_obj, OcpGroup)
