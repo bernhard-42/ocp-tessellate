@@ -86,9 +86,10 @@ class Hinge(Compound):
                     l5 = Line(l4 @ 1, (0, thickness))
                     Line(l5 @ 1, l1 @ 0)
                 make_face()
-                with Locations(
-                    (width - barrel_diameter / 2, barrel_diameter / 2)
-                ) as pin_center:
+                with Locations((
+                    width - barrel_diameter / 2,
+                    barrel_diameter / 2,
+                )) as pin_center:
                     Circle(pin_diameter / 2 + 0.1 * MM, mode=Mode.SUBTRACT)
             extrude(amount=length)
             add(hinge_profile.part, rotation=(90, 0, 0), mode=Mode.INTERSECT)
@@ -110,13 +111,16 @@ class Hinge(Compound):
                     (width - barrel_diameter, 0, length / 2), (90, 0, 0)
                 ),
             )
+
             # [Hinge Axis] (fixed with inner)
             if inner:
                 RigidJoint(
                     "hinge_axis",
-                    joint_location=Location(
-                        (width - barrel_diameter / 2, barrel_diameter / 2, 0)
-                    ),
+                    joint_location=Location((
+                        width - barrel_diameter / 2,
+                        barrel_diameter / 2,
+                        0,
+                    )),
                 )
             else:
                 RevoluteJoint(
@@ -126,11 +130,12 @@ class Hinge(Compound):
                     ),
                     angular_range=(90, 270),
                 )
+
             hole_locations = [hole.location for hole in holes]
             for hole, hole_location in enumerate(hole_locations):
                 CylindricalJoint(
                     label="hole" + str(hole),
-                    axis=hole_location.to_axis(),
+                    axis=Axis(hole_location),
                     linear_range=(-2 * CM, 2 * CM),
                     angular_range=(0, 360),
                 )
@@ -153,6 +158,8 @@ hinge_outer = Hinge(
     pin_diameter=4 * MM,
     inner=False,
 )
+hinge_outer.label = "outer_hinge"
+hinge_inner.label = "inner_hinge"
 
 with BuildPart() as box_builder:
     box = Box(30 * CM, 30 * CM, 10 * CM)
@@ -172,6 +179,7 @@ with BuildPart() as box_builder:
     )
 
 box = box_builder.part.moved(Location((0, 0, 5 * CM)))
+box.label = "box"
 
 with BuildPart() as lid_builder:
     Box(30 * CM, 30 * CM, 1 * CM, align=(Align.MIN, Align.CENTER, Align.MIN))
@@ -183,8 +191,15 @@ with BuildPart() as lid_builder:
         joint_location=Location((0, 0, 0), (0, 0, 180)),
     )
 lid = lid_builder.part
+lid.label = "lid"
 
-m6_screw = import_step("examples/M6-1x12-countersunk-screw.step")
+try:
+    m6_screw = import_step("examples/M6-1x12-countersunk-screw.step")
+except FileNotFoundError:
+    m6_screw = import_step("M6-1x12-countersunk-screw.step")
+
+m6_screw.label = "m6"
+
 m6_joint = RigidJoint("head", m6_screw, Location((0, 0, 0), (0, 0, 0)))
 
 box.joints["hinge_attachment"].connect_to(hinge_outer.joints["leaf"])
@@ -196,21 +211,5 @@ hinge_inner.joints["leaf"].connect_to(lid.joints["hinge_attachment"])
 hinge_outer.joints["hole2"].connect_to(m6_joint, position=5 * MM, angle=30)
 
 show(box, lid, hinge_outer, hinge_inner, m6_screw, render_joints=True)
-# %%
-# [Create assembly]
-box_assembly = Compound(label="assembly", children=[box, lid, hinge_inner, hinge_outer])
-# [Display assembly]
-print(box_assembly.show_topology())
-
-show(box_assembly, render_joints=True)
 
 # %%
-# [Add to the assembly by assigning the parent attribute of an object]
-m6_screw.parent = box_assembly
-print(box_assembly.show_topology())
-# %%
-# [Check that the components in the assembly don't intersect]
-child_intersect, children, volume = box_assembly.do_children_intersect(
-    include_parent=False
-)
-print(f"do children intersect: {child_intersect}")
