@@ -813,7 +813,7 @@ class OcpConverter:
 
         ocp_obj = self._handle_list(cad_obj, name, obj_name, color, alpha)
 
-        if self.show_parent:
+        if self.show_parent and level == 0:  # show just one level in CadQuery
             parents = self.handle_parent(parent_obj, level)
             parents = [parents[0].objects[0]]
 
