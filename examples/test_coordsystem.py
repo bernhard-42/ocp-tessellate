@@ -40,8 +40,8 @@ az = CoordAxis("az", oz, z_dir=dz)
 show(c, ax, ay, az)
 
 # %%
-p = Plane(Location((1, 2, 3), (10, 20, 30)), helper_scale=1)
-show(p)
+p = Plane(Location((1, 2, 3), (10, 20, 30)))
+show(p, helper_scale=0.2)
 # %%
 b = Box(1, 2, 3)
 show(b, Location(), helper_scale=0.5)
