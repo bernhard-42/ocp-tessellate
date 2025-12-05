@@ -20,6 +20,7 @@ import os
 import sys
 import tempfile
 from collections.abc import Iterable
+from typing import Any, Protocol, TypeGuard, TypedDict
 
 import numpy as np
 import OCP
@@ -58,6 +59,7 @@ from OCP.gp import (  # type: ignore
     gp_Trsf,
     gp_Vec,
     gp_Lin,
+    gp_XYZ,
 )
 from OCP.GProp import GProp_GProps  # type: ignore
 from OCP.Quantity import Quantity_ColorRGBA  # type: ignore
@@ -95,15 +97,18 @@ from OCP.TopTools import (  # type: ignore
     TopTools_IndexedDataMapOfShapeListOfShape,
     TopTools_IndexedMapOfShape,
 )
+from numpy.typing import ArrayLike
 
 from .utils import Color, distance, type_name
 
-#
+
+class VectorLike(Protocol):
+    def __iter__(self) -> Iterable[float]:
+        ...
+
 # %% Version
-#
 
-
-def occt_version():
+def occt_version() -> str:
     return OCP.__version__
 
 
@@ -145,7 +150,7 @@ def downcast(obj):
     return d_func(obj)
 
 
-def make_compound(objs):
+def make_compound(objs: Iterable[TopoDS_Shape]) -> TopoDS_Compound:
     comp = TopoDS_Compound()
     builder = TopoDS_Builder()
     builder.MakeCompound(comp)
@@ -325,39 +330,39 @@ def is_build123d_axis(obj):
 #
 
 
-def is_topods_shape(topods_shape):
+def is_topods_shape(topods_shape) -> TypeGuard[TopoDS_Shape]:
     return isinstance(topods_shape, TopoDS_Shape)
 
 
-def is_topods_compound(topods_shape):
+def is_topods_compound(topods_shape) -> TypeGuard[TopoDS_Compound]:
     return isinstance(topods_shape, TopoDS_Compound)
 
 
-def is_topods_compsolid(topods_shape):
+def is_topods_compsolid(topods_shape) -> TypeGuard[TopoDS_CompSolid]:
     return isinstance(topods_shape, TopoDS_CompSolid)
 
 
-def is_topods_solid(topods_shape):
+def is_topods_solid(topods_shape) -> TypeGuard[TopoDS_Solid]:
     return isinstance(topods_shape, TopoDS_Solid)
 
 
-def is_topods_shell(topods_shape):
+def is_topods_shell(topods_shape) -> TypeGuard[TopoDS_Shell]:
     return isinstance(topods_shape, TopoDS_Shell)
 
 
-def is_topods_face(topods_shape):
+def is_topods_face(topods_shape) -> TypeGuard[TopoDS_Face]:
     return isinstance(topods_shape, TopoDS_Face)
 
 
-def is_topods_wire(topods_shape):
+def is_topods_wire(topods_shape) -> TypeGuard[TopoDS_Wire]:
     return isinstance(topods_shape, TopoDS_Wire)
 
 
-def is_topods_edge(topods_shape):
+def is_topods_edge(topods_shape) -> TypeGuard[TopoDS_Edge]:
     return isinstance(topods_shape, TopoDS_Edge)
 
 
-def is_topods_vertex(topods_shape):
+def is_topods_vertex(topods_shape) -> TypeGuard[TopoDS_Vertex]:
     return isinstance(topods_shape, TopoDS_Vertex)
 
 
@@ -366,19 +371,19 @@ def is_line(topods_shape):
     return c.GetType() == GeomAbs_CurveType.GeomAbs_Line
 
 
-def is_toploc_location(obj):
+def is_toploc_location(obj) -> TypeGuard[TopLoc_Location]:
     return isinstance(obj, TopLoc_Location)
 
 
-def is_gp_plane(obj):
+def is_gp_plane(obj) -> TypeGuard[gp_Pln]:
     return isinstance(obj, gp_Pln)
 
 
-def is_gp_axis(obj):
+def is_gp_axis(obj) -> TypeGuard[gp_Ax1]:
     return isinstance(obj, gp_Ax1)
 
 
-def is_gp_vec(obj):
+def is_gp_vec(obj) -> TypeGuard[gp_Vec]:
     return isinstance(obj, gp_Vec)
 
 
@@ -423,7 +428,7 @@ def is_vertex(obj):
     return hasattr(obj, "wrapped") and is_topods_vertex(obj.wrapped)
 
 
-def is_ocp_color(obj):
+def is_ocp_color(obj) -> TypeGuard[Quantity_ColorRGBA]:
     return hasattr(obj, "wrapped") and isinstance(obj.wrapped, Quantity_ColorRGBA)
 
 
@@ -431,7 +436,7 @@ def is_location(obj):
     return hasattr(obj, "wrapped") and is_toploc_location(obj.wrapped)
 
 
-def is_empty_compound(obj):
+def is_empty_compound(obj) -> bool:
     if is_wrapped(obj) and obj.wrapped is None:
         return True
     if is_compound(obj):
@@ -460,7 +465,7 @@ def extent_or_size(obj):
         raise ValueError(f"Unknown type {type(obj)}")
 
 
-def get_compounds(shape):
+def get_compounds(shape: TopoDS_Shape) -> Iterable[TopoDS_Compound]:
     compound_map = TopTools_IndexedMapOfShape()
     TopExp.MapShapes_s(shape, TopAbs_COMPOUND, compound_map)
 
@@ -468,7 +473,7 @@ def get_compounds(shape):
         yield TopoDS.Compound_s(compound_map.FindKey(i))
 
 
-def get_solids(shape):
+def get_solids(shape: TopoDS_Shape) -> Iterable[TopoDS_Solid]:
     solid_map = TopTools_IndexedMapOfShape()
     TopExp.MapShapes_s(shape, TopAbs_SOLID, solid_map)
 
@@ -476,7 +481,7 @@ def get_solids(shape):
         yield TopoDS.Solid_s(solid_map.FindKey(i))
 
 
-def get_faces(shape):
+def get_faces(shape: TopoDS_Shape) -> Iterable[TopoDS_Face]:
     face_map = TopTools_IndexedMapOfShape()
     TopExp.MapShapes_s(shape, TopAbs_FACE, face_map)
 
@@ -484,7 +489,7 @@ def get_faces(shape):
         yield TopoDS.Face_s(face_map.FindKey(i))
 
 
-def get_wires(shape):
+def get_wires(shape: TopoDS_Shape) -> Iterable[TopoDS_Wire]:
     wire_map = TopTools_IndexedMapOfShape()
     TopExp.MapShapes_s(shape, TopAbs_WIRE, wire_map)
 
@@ -492,7 +497,7 @@ def get_wires(shape):
         yield TopoDS.Wire_s(wire_map.FindKey(i))
 
 
-def get_edges(shape, with_face=False):
+def get_edges(shape: TopoDS_Shape, with_face=False) -> Iterable[TopoDS_Edge]:
     edge_map = TopTools_IndexedMapOfShape()
     TopExp.MapShapes_s(shape, TopAbs_EDGE, edge_map)
 
@@ -514,7 +519,7 @@ def get_edges(shape, with_face=False):
             yield edge
 
 
-def get_vertices(shape):
+def get_vertices(shape: TopoDS_Shape) -> Iterable[TopoDS_Vertex]:
     vertex_map = TopTools_IndexedMapOfShape()
     TopExp.MapShapes_s(shape, TopAbs_VERTEX, vertex_map)
 
@@ -522,7 +527,7 @@ def get_vertices(shape):
         yield TopoDS.Vertex_s(vertex_map.FindKey(i))
 
 
-def get_downcasted_shape(shape):
+def get_downcasted_shape(shape: TopoDS_Shape) -> Iterable[TopoDS_Shape]:
     # if next(get_compounds(shape), None) is not None:
     #     objs = get_compounds(shape)
 
@@ -547,7 +552,7 @@ def get_downcasted_shape(shape):
     return [downcast(obj) for obj in objs]
 
 
-def get_point(vertex_or_pnt):
+def get_point(vertex_or_pnt: TopoDS_Vertex | gp_Pnt) -> tuple[float, float, float]:
     if is_topods_vertex(vertex_or_pnt):
         p = BRep_Tool.Pnt_s(vertex_or_pnt)
     else:
@@ -555,7 +560,7 @@ def get_point(vertex_or_pnt):
     return (p.X(), p.Y(), p.Z())
 
 
-def get_tuple(obj):
+def get_tuple(obj) -> tuple:
     if hasattr(obj, "to_tuple"):
         return obj.to_tuple()
     elif hasattr(obj, "toTuple"):
@@ -564,7 +569,7 @@ def get_tuple(obj):
         raise RuntimeError(f"Cannot convert {type(obj)} to tuple")
 
 
-def get_rgba(color, alpha=None, def_color=None):
+def get_rgba(color, alpha=None, def_color=None) -> Color | None:
     if color is None:
         if def_color is None:
             return None
@@ -600,7 +605,7 @@ def get_rgba(color, alpha=None, def_color=None):
     return rgba
 
 
-def list_topods_compound(compound):
+def list_topods_compound(compound: TopoDS_Compound) -> Iterable[TopoDS_Shape]:
     iterator = TopoDS_Iterator(compound)
     while iterator.More():
         yield downcast(iterator.Value())
@@ -663,7 +668,10 @@ def get_compound_type(compound):
     return typ
 
 
-def get_face_type(face):
+def get_face_type(face: TopoDS_Face) -> int:
+    """
+    Get the type of the face as an integer using GeomAbs_SurfaceType
+    """
     t = BRepAdaptor_Surface(face).GetType()
     if isinstance(t, int):
         return t
@@ -671,11 +679,14 @@ def get_face_type(face):
         return t.value
 
 
-def get_surface(face):
+def get_surface(face: TopoDS_Face) -> BRepAdaptor_Surface:
     return BRepAdaptor_Surface(face)
 
 
-def get_edge_type(edge):
+def get_edge_type(edge: TopoDS_Edge) -> int:
+    """
+    Get the type of the edge as an integer using GeomAbs_CurveType
+    """
     t = BRepAdaptor_Curve(edge).GetType()
     if isinstance(t, int):
         return t
@@ -683,11 +694,11 @@ def get_edge_type(edge):
         return t.value
 
 
-def get_curve(edge):
+def get_curve(edge: TopoDS_Edge) -> BRepAdaptor_Curve:
     return BRepAdaptor_Curve(edge)
 
 
-def get_plane(obj):
+def get_plane(obj: Any) -> gp_Pln | None:
     if is_topods_edge(obj):
         finder = BRepBuilderAPI_FindPlane(obj)
         if finder.Found():
@@ -706,7 +717,7 @@ def get_plane(obj):
     return None
 
 
-def axis_to_line(axis):
+def axis_to_line(axis: gp_Ax1) -> gp_Lin:
     return gp_Lin(axis.Location(), axis.Direction())
 
 
@@ -715,11 +726,11 @@ def axis_to_line(axis):
 #
 
 
-def ocp_color(r, g, b, alpha=1.0):
+def ocp_color(r: float, g: float, b: float, alpha: float = 1.0) -> Quantity_ColorRGBA:
     return Quantity_ColorRGBA(r, g, b, alpha)
 
 
-def vertex(obj):
+def vertex(obj: gp_Vec | gp_Pnt | gp_Dir | tuple[float, float, float]) -> TopoDS_Vertex:
     if isinstance(obj, (gp_Vec, gp_Pnt, gp_Dir)):
         x, y, z = obj.X(), obj.Y(), obj.Z()
     else:
@@ -728,7 +739,7 @@ def vertex(obj):
     return downcast(BRepBuilderAPI_MakeVertex(gp_Pnt(x, y, z)).Vertex())
 
 
-def vector(xyz):
+def vector(xyz: tuple[float, float, float]) -> gp_Vec:
     return gp_Vec(*xyz)
 
 
@@ -736,7 +747,7 @@ def axis(origin, z_dir):
     return gp_Ax1(gp_Pnt(*origin), gp_Dir(*z_dir))
 
 
-def rect(width, height, ax3=None):
+def rect(width: float, height: float, ax3: gp_Ax3 | None = None) -> TopoDS_Face:
     if ax3 is None:
         ax3 = gp_Ax3(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1), gp_Dir(1, 0, 0))
     return BRepBuilderAPI_MakeFace(
@@ -748,7 +759,7 @@ def rect(width, height, ax3=None):
     ).Face()
 
 
-def line(start, end):
+def line(start: gp_Pnt | tuple[float, float, float], end: gp_Pnt | tuple[float, float, float]) -> TopoDS_Edge:
     if isinstance(start, (list, tuple)):
         start = gp_Pnt(*start)
     if isinstance(end, (list, tuple)):
@@ -758,13 +769,13 @@ def line(start, end):
     )
 
 
-def circle(origin, z_dir, radius):
+def circle(origin: gp_Pnt | tuple[float, float, float], z_dir: gp_Dir | tuple[float, float, float], radius: float) -> TopoDS_Edge:
     ax = gp_Ax2(gp_Pnt(*origin), gp_Dir(*z_dir))
     circle_gp = gp_Circ(ax, radius)
     return BRepBuilderAPI_MakeEdge(circle_gp).Edge()
 
 
-def center_of_mass(obj):
+def center_of_mass(obj: TopoDS_Shape) -> tuple[float, float, float]:
     if is_topods_face(obj):
         properties = GProp_GProps()
         BRepGProp.SurfaceProperties_s(obj, properties)
@@ -776,7 +787,7 @@ def center_of_mass(obj):
     return (center.X(), center.Y(), center.Z())
 
 
-def center_of_geometry(obj):
+def center_of_geometry(obj: TopoDS_Face) -> tuple[float, float, float]:
     u0, u1, v0, v1 = BRepTools.UVBounds_s(obj)
     u = 0.5 * (u0 + u1)
     v = 0.5 * (v0 + v1)
@@ -787,7 +798,7 @@ def center_of_geometry(obj):
     return (center.X(), center.Y(), center.Z())
 
 
-def dist_shapes(obj1, obj2):
+def dist_shapes(obj1: TopoDS_Shape, obj2: TopoDS_Shape) -> tuple[float, gp_Pnt, gp_Pnt]:
     distCalc = BRepExtrema_DistShapeShape(obj1, obj2)
     distCalc.Perform()
 
@@ -801,19 +812,19 @@ def dist_shapes(obj1, obj2):
     return distance, point_on_shape1, point_on_shape2
 
 
-def area(obj):
+def area(obj: TopoDS_Face) -> float:
     properties = GProp_GProps()
     BRepGProp.SurfaceProperties_s(obj, properties)
     return properties.Mass()
 
 
-def volume(obj):
+def volume(obj: TopoDS_Shape) -> float:
     properties = GProp_GProps()
     BRepGProp.VolumeProperties_s(obj, properties)
     return properties.Mass()
 
 
-def end_points(obj):
+def end_points(obj: TopoDS_Edge) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
     curve = BRepAdaptor_Curve(obj)
     umin = curve.FirstParameter()
     umax = curve.LastParameter()
@@ -821,12 +832,12 @@ def end_points(obj):
     return (e1.X(), e1.Y(), e1.Z()), (e2.X(), e2.Y(), e2.Z())
 
 
-def point(obj):
+def point(obj: TopoDS_Vertex | gp_Pnt) -> tuple[float, float, float]:
     p = BRep_Tool.Pnt_s(obj)
     return (p.X(), p.Y(), p.Z())
 
 
-def is_closed(obj):
+def is_closed(obj: TopoDS_Shape) -> bool:
     return BRep_Tool.IsClosed_s(obj)
 
 
@@ -835,7 +846,7 @@ def is_closed(obj):
 #
 
 
-def tq_to_loc(t, q):
+def tq_to_loc(t: tuple[float, float, float], q: tuple[float, float, float, float]) -> TopLoc_Location:
     T = gp_Trsf()
     Q = gp_Quaternion(*q)
     V = gp_Vec(*t)
@@ -843,7 +854,7 @@ def tq_to_loc(t, q):
     return TopLoc_Location(T)
 
 
-def loc_to_tq(loc):
+def loc_to_tq(loc: TopLoc_Location) -> tuple[tuple[float, float, float], tuple[float, float, float, float]]:
     if loc is None:
         return (None, None)
 
@@ -853,11 +864,11 @@ def loc_to_tq(loc):
     return ((t.X(), t.Y(), t.Z()), (q.X(), q.Y(), q.Z(), q.W()))
 
 
-def identity_location():
+def identity_location() -> TopLoc_Location:
     return TopLoc_Location(gp_Trsf())
 
 
-def relocate(obj):
+def relocate(obj: TopoDS_Shape) -> tuple[TopoDS_Shape, TopLoc_Location]:
     loc = get_location(obj)
 
     if loc is None:
@@ -872,7 +883,7 @@ def relocate(obj):
     return obj2, loc
 
 
-def get_location(obj, as_none=True):
+def get_location(obj: Any, as_none: bool = True) -> TopLoc_Location | None:
     if obj is None:
         return None if as_none else identity_location()
     else:
@@ -909,7 +920,7 @@ def get_location(obj, as_none=True):
         raise TypeError(f"Unknown location typ {type(loc)}")
 
 
-def mul_locations(loc1, loc2):
+def mul_locations(loc1: TopLoc_Location | None, loc2: TopLoc_Location | None) -> TopLoc_Location | None:
     if loc1 is None:
         return loc2
     if loc2 is None:
@@ -917,18 +928,26 @@ def mul_locations(loc1, loc2):
     return loc1 * loc2
 
 
-def copy_location(loc):
+def copy_location(loc: TopLoc_Location) -> TopLoc_Location:
     return TopLoc_Location(loc.Transformation())
 
+class AxisCoord(TypedDict):
+    origin: gp_XYZ
+    z_dir: tuple[float, float, float]
 
-def get_axis_coord(axis):
+def get_axis_coord(axis: gp_Ax1) -> AxisCoord:
     return {
         "origin": axis.Location().Coord(),
         "z_dir": axis.Direction().Coord(),
     }
 
+class LocationCoord(TypedDict):
+    origin: tuple[float, float, float]
+    x_dir: tuple[float, float, float]
+    y_dir: tuple[float, float, float]
+    z_dir: tuple[float, float, float]
 
-def get_location_coord(loc):
+def get_location_coord(loc: TopLoc_Location) -> LocationCoord:
     trsf = loc.Transformation()
 
     origin = trsf.TranslationPart()
@@ -946,7 +965,7 @@ def get_location_coord(loc):
     }
 
 
-def loc_to_vecs(origin, x_dir, z_dir):
+def loc_to_vecs(origin: gp_XYZ, x_dir: gp_XYZ, z_dir: gp_XYZ) -> tuple[gp_Vec, gp_Vec, gp_Vec, gp_Vec]:
     ax3 = gp_Ax3(gp_Pnt(*origin), gp_Dir(*z_dir), gp_Dir(*x_dir))
     o = gp_Vec(ax3.Location().XYZ())
     x = gp_Vec(ax3.XDirection().XYZ())
@@ -955,7 +974,7 @@ def loc_to_vecs(origin, x_dir, z_dir):
     return (o, x, y, z)
 
 
-def loc_from_gp_pln(pln):
+def loc_from_gp_pln(pln: gp_Pln) -> TopLoc_Location:
     o = pln.Location()
     x = pln.XAxis().Direction()
     z = pln.Axis().Direction()
@@ -967,7 +986,7 @@ def loc_from_gp_pln(pln):
     return TopLoc_Location(trsf)
 
 
-def face_center_location(face):
+def face_center_location(face: TopoDS_Face) -> (gp_Pnt, gp_Vec, gp_Vec):
     surf = BRep_Tool.Surface_s(face)
     umin, umax, vmin, vmax = BRepTools.UVBounds_s(face)
     u = (umin + umax) / 2
@@ -988,7 +1007,7 @@ def face_center_location(face):
 #
 
 
-def axis_to_vecs(origin, z_dir):
+def axis_to_vecs(origin: VectorLike, z_dir: VectorLike) -> tuple[gp_Vec, gp_Vec, gp_Vec, gp_Vec]:
     ax3 = gp_Ax3(gp_Pnt(*origin), gp_Dir(*z_dir))
     o = gp_Vec(ax3.Location().XYZ())
     x = gp_Vec(ax3.XDirection().XYZ())
@@ -1002,23 +1021,27 @@ def axis_to_vecs(origin, z_dir):
 #
 
 
-def is_same_plane(plane1, plane2):
+def is_same_plane(plane1: TopoDS_Face | TopLoc_Location, plane2: TopoDS_Face | TopLoc_Location) -> bool:
     if is_topods_face(plane1):
-        plane1 = BRep_Tool.Surface_s(plane1)
+        first_plane = BRep_Tool.Surface_s(plane1)
     elif is_toploc_location(plane1):
         a = gp_Ax3()
         a.Transform(plane1.Transformation())
-        plane1 = gp_Pln(a)
+        first_plane = gp_Pln(a)
+    else:
+        raise ValueError(f"Unknown plane type: {type(plane1)}")
 
     if is_topods_face(plane2):
-        plane2 = BRep_Tool.Surface_s(plane2)
+        second_plane = BRep_Tool.Surface_s(plane2)
     elif is_toploc_location(plane2):
         a = gp_Ax3()
         a.Transform(plane2.Transformation())
-        plane2 = gp_Pln(a)
+        second_plane = gp_Pln(a)
+    else:
+        raise ValueError(f"Unknown plane type: {type(plane2)}")
 
-    coordSystem1 = plane1.Position()
-    coordSystem2 = plane2.Position()
+    coordSystem1 = first_plane.Position()
+    coordSystem2 = second_plane.Position()
 
     return (
         coordSystem1.Location().IsEqual(coordSystem2.Location(), 1e-6)
@@ -1028,7 +1051,7 @@ def is_same_plane(plane1, plane2):
     )
 
 
-def is_plane_xy(obj):
+def is_plane_xy(obj: TopoDS_Face | TopLoc_Location) -> bool:
     return is_same_plane(
         obj, gp_Pln(gp_Ax3(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1), gp_Dir(1, 0, 0)))
     )
@@ -1042,7 +1065,7 @@ def is_plane_xy(obj):
 # Caching helpers for bounding box
 
 
-def make_key(objs, loc=None, optimal=False):  # pylint: disable=unused-argument
+def make_key(objs: Iterable[TopoDS_Shape], loc: TopLoc_Location | None = None, optimal: bool = False) -> tuple[tuple[tuple[int, int], tuple[float, float, float, float]], TopLoc_Location | None]:  # pylint: disable=unused-argument
     # optimal is not used and as such ignored
     if not isinstance(objs, (tuple, list)):
         objs = [objs]
@@ -1051,7 +1074,7 @@ def make_key(objs, loc=None, optimal=False):  # pylint: disable=unused-argument
     return key
 
 
-def get_size(obj):
+def get_size(obj: Any) -> int:
     size = sys.getsizeof(obj)
     if isinstance(obj, dict):
         size += sum([get_size(v) + len(k) for k, v in obj.items()])
@@ -1244,7 +1267,7 @@ def nested_bounding_box(objs):
 #
 
 
-def rotate(q, v):
+def rotate(q: tuple[float, float, float, float], v: ArrayLike) -> np.ndarray:
     x, y, z, w = q
     x2 = 2 * x * x
     y2 = 2 * y * y
@@ -1263,8 +1286,15 @@ def rotate(q, v):
     ])
     return np.dot(v, R.T)
 
+class NumpyBBox(TypedDict):
+    xmin: float
+    xmax: float
+    ymin: float
+    ymax: float
+    zmin: float
+    zmax: float
 
-def np_bbox(p, t, q):
+def np_bbox(p: np.ndarray, t: np.ndarray | None = None, q: tuple[float, float, float, float] | None = None) -> NumpyBBox | None:
     if p.size == 0:
         return None
 
@@ -1287,11 +1317,11 @@ def np_bbox(p, t, q):
     }
 
 
-def is_forward(obj):
+def is_forward(obj: TopoDS_Edge | TopoDS_Wire) -> bool:
     return obj.Orientation() == TopAbs_Orientation.TopAbs_FORWARD
 
 
-def length(edge_or_wire):
+def length(edge_or_wire: TopoDS_Edge | TopoDS_Wire) -> float:
     if isinstance(edge_or_wire, TopoDS_Edge):
         curve = BRepAdaptor_Curve(edge_or_wire)
     else:
@@ -1299,7 +1329,7 @@ def length(edge_or_wire):
     return GCPnts_AbscissaPoint.Length_s(curve)
 
 
-def position_at(edge_or_wire, distance):
+def position_at(edge_or_wire: TopoDS_Edge | TopoDS_Wire, distance: float) -> gp_Pnt:
     if isinstance(edge_or_wire, TopoDS_Edge):
         curve = BRepAdaptor_Curve(edge_or_wire)
     else:
@@ -1311,7 +1341,7 @@ def position_at(edge_or_wire, distance):
     return curve.Value(parameter)
 
 
-def tangent_at(edge_or_wire, distance):
+def tangent_at(edge_or_wire: TopoDS_Edge | TopoDS_Wire, distance: float) -> tuple[gp_Pnt, gp_Dir]:
     if isinstance(edge_or_wire, TopoDS_Edge):
         curve = BRepAdaptor_Curve(edge_or_wire)
     else:
@@ -1331,7 +1361,7 @@ def tangent_at(edge_or_wire, distance):
     return (pnt, gp_Dir(vec))
 
 
-def tangent_edge_at(edge_or_wire, distance):
+def tangent_edge_at(edge_or_wire: TopoDS_Edge | TopoDS_Wire, distance: float) -> TopoDS_Edge:
     pnt, dir = tangent_at(edge_or_wire, distance)
     vec = gp_Vec(gp_Pnt(0, 0, 0), pnt)
     vec.Add(gp_Vec(dir))
@@ -1339,7 +1369,7 @@ def tangent_edge_at(edge_or_wire, distance):
     return line(pnt, pnt2)
 
 
-def trim_infinite_edge(edge_or_wire, scale):
+def trim_infinite_edge(edge_or_wire: TopoDS_Edge | TopoDS_Wire, scale: float) -> TopoDS_Edge:
     if length(edge_or_wire) > 1e90:
         pnt, dir = tangent_at(edge_or_wire, 0.5)
         start = gp_Vec(gp_Pnt(0, 0, 0), pnt)
@@ -1350,7 +1380,7 @@ def trim_infinite_edge(edge_or_wire, scale):
     return edge_or_wire
 
 
-def trim_infinite_face(face, scale):
+def trim_infinite_face(face: TopoDS_Face, scale: float) -> TopoDS_Face:
     if area(face) > 1e90:
         pnt, xdir, zdir = face_center_location(face)
         ax3 = gp_Ax3(pnt, gp_Dir(zdir), gp_Dir(xdir))
@@ -1363,7 +1393,7 @@ def trim_infinite_face(face, scale):
 # TODO replace with https://github.com/MatthiasJ1/ocp_serializer when published
 
 
-def serialize(shape, triangles=False, normals=False):
+def serialize(shape: TopoDS_Shape | None, triangles: bool = False, normals: bool = False) -> bytes | None:
     if shape is None:
         return None
 
@@ -1382,7 +1412,7 @@ def serialize(shape, triangles=False, normals=False):
     return buffer
 
 
-def deserialize(buffer):
+def deserialize(buffer: bytes | None) -> TopoDS_Shape | None:
     if buffer is None:
         return None
 
