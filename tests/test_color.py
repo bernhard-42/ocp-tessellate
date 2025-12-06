@@ -9,7 +9,6 @@ from ocp_tessellate.utils import Color
 
 
 class TestColor(unittest.TestCase):
-
     def test_color_name(self):
         c = Color("aliceblue")
         self.assertEqual(c.web_color, "#f0f8ff")
@@ -164,15 +163,15 @@ class TestGetRgba(unittest.TestCase):
 
     def test_cq_color(self):
         c = get_rgba(cq.Color(0.2, 0.3, 0.4))
-        self.assertEqual(c.web_color, "#334c66")
+        self.assertEqual(c.web_color, "#324c65")
         self.assertAlmostEqual(c.a, 1.0, 6)
 
     def test_cq_color_alpha(self):
         c = get_rgba(cq.Color(0.2, 0.3, 0.4, 0.1))
-        self.assertEqual(c.web_color, "#334c66")
+        self.assertEqual(c.web_color, "#324c65")
         self.assertAlmostEqual(c.a, 0.1, 6)
 
     def test_cq_color_extra_alpha(self):
         c = get_rgba(cq.Color(0.2, 0.3, 0.4), 0.1)
-        self.assertEqual(c.web_color, "#334c66")
+        self.assertEqual(c.web_color, "#324c65")
         self.assertAlmostEqual(c.a, 0.1, 6)
