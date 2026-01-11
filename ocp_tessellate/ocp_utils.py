@@ -101,11 +101,19 @@ from numpy.typing import ArrayLike
 
 from .utils import Color, distance, type_name
 
-
 class VectorLike(Protocol):
     def __iter__(self) -> Iterable[float]:
         ...
 
+_Vertex = TopoDS.Vertex if hasattr(TopoDS, "Vertex") else TopoDS.Vertex_s
+_Edge = TopoDS.Edge if hasattr(TopoDS, "Edge") else TopoDS.Edge_s
+_Wire = TopoDS.Wire if hasattr(TopoDS, "Wire") else TopoDS.Wire_s
+_Face = TopoDS.Face if hasattr(TopoDS, "Face") else TopoDS.Face_s
+_Shell = TopoDS.Shell if hasattr(TopoDS, "Shell") else TopoDS.Shell_s
+_Solid = TopoDS.Solid if hasattr(TopoDS, "Solid") else TopoDS.Solid_s
+_CompSolid = TopoDS.CompSolid if hasattr(TopoDS, "CompSolid") else TopoDS.CompSolid_s
+_Compound = TopoDS.Compound if hasattr(TopoDS, "Compound") else TopoDS.Compound_s
+#
 # %% Version
 
 def occt_version() -> str:
@@ -134,14 +142,14 @@ def ocp_hash(obj):
 
 
 downcast_LUT = {
-    TopAbs_VERTEX: TopoDS.Vertex_s,
-    TopAbs_EDGE: TopoDS.Edge_s,
-    TopAbs_WIRE: TopoDS.Wire_s,
-    TopAbs_FACE: TopoDS.Face_s,
-    TopAbs_SHELL: TopoDS.Shell_s,
-    TopAbs_SOLID: TopoDS.Solid_s,
-    TopAbs_COMPSOLID: TopoDS.CompSolid_s,
-    TopAbs_COMPOUND: TopoDS.Compound_s,
+    TopAbs_VERTEX: _Vertex,
+    TopAbs_EDGE: _Edge,
+    TopAbs_WIRE: _Wire,
+    TopAbs_FACE: _Face,
+    TopAbs_SHELL: _Shell,
+    TopAbs_SOLID: _Solid,
+    TopAbs_COMPSOLID: _CompSolid,
+    TopAbs_COMPOUND: _Compound,
 }
 
 
@@ -470,7 +478,7 @@ def get_compounds(shape: TopoDS_Shape) -> Iterable[TopoDS_Compound]:
     TopExp.MapShapes_s(shape, TopAbs_COMPOUND, compound_map)
 
     for i in range(1, extent_or_size(compound_map) + 1):
-        yield TopoDS.Compound_s(compound_map.FindKey(i))
+        yield _Compound(compound_map.FindKey(i))
 
 
 def get_solids(shape: TopoDS_Shape) -> Iterable[TopoDS_Solid]:
@@ -478,7 +486,7 @@ def get_solids(shape: TopoDS_Shape) -> Iterable[TopoDS_Solid]:
     TopExp.MapShapes_s(shape, TopAbs_SOLID, solid_map)
 
     for i in range(1, extent_or_size(solid_map) + 1):
-        yield TopoDS.Solid_s(solid_map.FindKey(i))
+        yield _Solid(solid_map.FindKey(i))
 
 
 def get_faces(shape: TopoDS_Shape) -> Iterable[TopoDS_Face]:
@@ -486,7 +494,7 @@ def get_faces(shape: TopoDS_Shape) -> Iterable[TopoDS_Face]:
     TopExp.MapShapes_s(shape, TopAbs_FACE, face_map)
 
     for i in range(1, extent_or_size(face_map) + 1):
-        yield TopoDS.Face_s(face_map.FindKey(i))
+        yield _Face(face_map.FindKey(i))
 
 
 def get_wires(shape: TopoDS_Shape) -> Iterable[TopoDS_Wire]:
@@ -494,7 +502,7 @@ def get_wires(shape: TopoDS_Shape) -> Iterable[TopoDS_Wire]:
     TopExp.MapShapes_s(shape, TopAbs_WIRE, wire_map)
 
     for i in range(1, extent_or_size(wire_map) + 1):
-        yield TopoDS.Wire_s(wire_map.FindKey(i))
+        yield _Wire(wire_map.FindKey(i))
 
 
 def get_edges(shape: TopoDS_Shape, with_face=False) -> Iterable[TopoDS_Edge]:
@@ -506,7 +514,7 @@ def get_edges(shape: TopoDS_Shape, with_face=False) -> Iterable[TopoDS_Edge]:
         TopExp.MapShapesAndAncestors_s(shape, TopAbs_EDGE, TopAbs_FACE, face_map)
 
     for i in range(1, extent_or_size(edge_map) + 1):
-        edge = TopoDS.Edge_s(edge_map.FindKey(i))
+        edge = _Edge(edge_map.FindKey(i))
 
         if with_face:
             face_list = face_map.FindFromKey(edge)
@@ -514,7 +522,7 @@ def get_edges(shape: TopoDS_Shape, with_face=False) -> Iterable[TopoDS_Edge]:
                 # print("no faces")
                 continue
 
-            yield edge, TopoDS.Face_s(face_list.First())
+            yield edge, _Face(face_list.First())
         else:
             yield edge
 
@@ -524,7 +532,7 @@ def get_vertices(shape: TopoDS_Shape) -> Iterable[TopoDS_Vertex]:
     TopExp.MapShapes_s(shape, TopAbs_VERTEX, vertex_map)
 
     for i in range(1, extent_or_size(vertex_map) + 1):
-        yield TopoDS.Vertex_s(vertex_map.FindKey(i))
+        yield _Vertex(vertex_map.FindKey(i))
 
 
 def get_downcasted_shape(shape: TopoDS_Shape) -> Iterable[TopoDS_Shape]:
