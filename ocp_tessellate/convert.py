@@ -1770,7 +1770,7 @@ def numpy_to_js(var, obj, indent=None):
         return f"var {var} = {result};"
 
 
-def export_three_cad_viewer_js(var, *objs, names=None, filename=None):
+def export_three_cad_viewer_js(var, *objs, names=None, colors=None, alphas=None, filename=None):
     def decode(instances, shapes):
         def walk(obj):
             typ = None
@@ -1790,7 +1790,7 @@ def export_three_cad_viewer_js(var, *objs, names=None, filename=None):
 
         walk(shapes)
 
-    part_group, instances = to_ocpgroup(*objs, names=names)
+    part_group, instances = to_ocpgroup(*objs, names=names, colors=colors, alphas=alphas)
     instances, shapes, map = tessellate_group(part_group, instances)
     decode(instances, shapes)
 
