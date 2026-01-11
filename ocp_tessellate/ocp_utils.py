@@ -62,7 +62,7 @@ from OCP.gp import (  # type: ignore
     gp_XYZ,
 )
 from OCP.GProp import GProp_GProps  # type: ignore
-from OCP.Quantity import Quantity_ColorRGBA  # type: ignore
+from OCP.Quantity import Quantity_ColorRGBA, Quantity_TypeOfColor  # type: ignore
 from OCP.TopAbs import (  # type: ignore
     TopAbs_COMPOUND,
     TopAbs_COMPSOLID,
@@ -588,11 +588,11 @@ def get_rgba(color, alpha=None, def_color=None) -> Color | None:
             rgba.a = alpha
 
     elif isinstance(color, Quantity_ColorRGBA):  # OCP
-        ocp_rgb = color.GetRGB()
+        r, g, b = color.GetRGB().Values(Quantity_TypeOfColor.Quantity_TOC_sRGB)
         rgba = Color((
-            ocp_rgb.Red(),
-            ocp_rgb.Green(),
-            ocp_rgb.Blue(),
+            int(round(r * 255)),
+            int(round(g * 255)),
+            int(round(b * 255)),
             color.Alpha() if alpha is None else alpha,
         ))
 

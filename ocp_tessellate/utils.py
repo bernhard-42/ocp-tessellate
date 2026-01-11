@@ -57,7 +57,7 @@ class Color:
             if any([isinstance(c, float) for c in rgb]) and all([
                 0.0 <= c <= 1.0 for c in rgb
             ]):
-                self.r, self.g, self.b = (int(c * 255) for c in rgb)
+                self.r, self.g, self.b = (int(round(c * 255, 0)) for c in rgb)
             elif all([isinstance(c, int) and (0 <= c <= 255) for c in rgb]):
                 self.r, self.g, self.b = rgb
             else:
@@ -71,9 +71,10 @@ class Color:
                 c = color.toTuple()
             else:
                 c = list(color)
-            self.r = int(c[0] * 255)
-            self.g = int(c[1] * 255)
-            self.b = int(c[2] * 255)
+            print(c)
+            self.r = int(round(c[0] * 255, 0))
+            self.g = int(round(c[1] * 255, 0))
+            self.b = int(round(c[2] * 255, 0))
             self.a = c[3]
 
         else:
