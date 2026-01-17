@@ -1,3 +1,8 @@
+## 3.1.1
+
+- Handle TopoDS.Vector/Vector_s dynamically for supporting both OCP 7.8 and 7.9
+- Add colors and alphas to export_three_cad_viewer_js
+- Add rounding to color conversion to int and use sRGB for OCP colors
 
 ## 3.1.0
 
@@ -57,11 +62,9 @@
 - Fix exporting simple STEP imports
 - Renamed tests and pytests folders
 
-
 ## v3.0.9
 
 - Add support for OCP 7.8.1
-
 
 ## v3.0.8
 
@@ -70,17 +73,14 @@
 - Enable switch from Extent to Size (being prepared for OCCT 7.8)
 - Add get_surface and get_curve to ocp_utils.py
 
-
 ## v3.0.7
 
 - none / deployment issues
-
 
 ## v3.0.6
 
 - Migrate to pyproject.toml
 - Support latest cadquery Sketch changes
-
 
 ## v3.0.5
 
