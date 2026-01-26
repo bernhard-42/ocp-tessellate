@@ -1,10 +1,14 @@
-## 3.1.1
+## v3.1.2
+
+- Remove a debug print
+
+## v3.1.1
 
 - Handle TopoDS.Vector/Vector_s dynamically for supporting both OCP 7.8 and 7.9
 - Add colors and alphas to export_three_cad_viewer_js
 - Add rounding to color conversion to int and use sRGB for OCP colors
 
-## 3.1.0
+## v3.1.0
 
 **Features**
 
@@ -24,36 +28,36 @@
 - Adapt to changed color definitions of build123d
 - Switch to ruff for linting and formatting
 
-## 3.0.17
+## v3.0.17
 
 - Make get_plane more robust
 - Added additional OCP functions to ocp_utils
 - Adapt to API changes of build123d
 
-## 3.0.16
+## v3.0.16
 
 - Fix the regression to have continue indented to much for the non showable case
 
-## 3.0.15
+## v3.0.15
 
 - Move the "unknown type " warning behind "debug=True" parameter
 - Replace hard coded "DEBUG" with parameter "debug"
 
-## 3.0.14
+## v3.0.14
 
 - Fix helix regression
 
-## 3.0.13
+## v3.0.13
 
 - Adapt to CadQuery's change in color from RGB to RGBs
 - Support compound of compound of edges
 
-## 3.0.11, 3.0.12
+## v3.0.11, v3.0.12
 
 - Support ShapeLists of Compounds
 - Support TopoDS_CompSolid
 
-## 3.0.10
+## v3.0.10
 
 - Support both hashing algorithms of OOCT
 - Minor adaptations to build123d fixes/changes

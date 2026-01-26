@@ -71,7 +71,7 @@ class Color:
                 c = color.toTuple()
             else:
                 c = list(color)
-            print(c)
+
             self.r = int(round(c[0] * 255, 0))
             self.g = int(round(c[1] * 255, 0))
             self.b = int(round(c[2] * 255, 0))
