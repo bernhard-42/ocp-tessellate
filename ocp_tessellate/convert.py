@@ -1049,11 +1049,13 @@ class OcpConverter:
                         for loc in cad_obj.locs
                     ]
                 else:
-                    compound = make_compound([
-                        downcast(obj.wrapped.Moved(loc.wrapped))
-                        for obj in objs
-                        for loc in cad_obj.locs
-                    ])
+                    compound = make_compound(
+                        [
+                            downcast(obj.wrapped.Moved(loc.wrapped))
+                            for obj in objs
+                            for loc in cad_obj.locs
+                        ]
+                    )
                 cad_objs.append(compound)
                 names.append(typ)
 
@@ -1770,7 +1772,15 @@ def numpy_to_js(var, obj, indent=None):
         return f"var {var} = {result};"
 
 
-def export_three_cad_viewer_js(var, *objs, names=None, colors=None, alphas=None, filename=None):
+def export_three_cad_viewer_js(
+    var,
+    *objs,
+    names=None,
+    colors=None,
+    alphas=None,
+    filename=None,
+    keep_instances=False,
+):
     def decode(instances, shapes):
         def walk(obj):
             typ = None
@@ -1790,11 +1800,17 @@ def export_three_cad_viewer_js(var, *objs, names=None, colors=None, alphas=None,
 
         walk(shapes)
 
-    part_group, instances = to_ocpgroup(*objs, names=names, colors=colors, alphas=alphas)
+    part_group, instances = to_ocpgroup(
+        *objs, names=names, colors=colors, alphas=alphas
+    )
     instances, shapes, map = tessellate_group(part_group, instances)
-    decode(instances, shapes)
+    if keep_instances:
+        j = json.dumps(numpy_to_buffer_json({"instances": instances, "shapes": shapes}))
+    else:
+        decode(instances, shapes)
 
-    j = numpy_to_js(var, shapes)
+        j = numpy_to_js(var, shapes)
+
     if filename is None:
         return j
     else:
