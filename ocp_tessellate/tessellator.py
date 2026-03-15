@@ -26,6 +26,7 @@ from cachetools import LRUCache, cached
 from OCP.BRep import BRep_Tool
 from OCP.BRepAdaptor import BRepAdaptor_Curve
 from OCP.BRepGProp import BRepGProp_Face
+from OCP.BRepTools import BRepTools
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
 from OCP.GCPnts import (
     GCPnts_QuasiUniformDeflection,
@@ -40,7 +41,6 @@ from OCP.TopLoc import TopLoc_Location
 from numpy.typing import NDArray
 
 from .ocp_utils import (
-    BoundingBox,
     get_edge_type,
     get_edges,
     get_face_type,
@@ -102,6 +102,7 @@ def make_key(
     debug=False,
     progress=None,
     shape_id=None,
+    compute_uvs=False,
 ):  # pylint: disable=unused-argument
     # quality is a measure of bounding box and deviation, hence can be ignored (and should due to accuracy issues
     # shape_id is also ignored
@@ -116,6 +117,7 @@ def make_key(
         angular_tolerance,
         compute_edges,
         compute_faces,
+        compute_uvs,
     )
 
     if progress is not None and cache.get(key) is not None:
@@ -179,6 +181,7 @@ class Tessellator:
         self.triangles_per_face: list[int] = []
         self.vertices: list[Coords] = []  # triangle vertices
         self.normals: list[Coords] = []
+        self.uvs: list[float] = []
         self.edges: list[tuple[Coords, Coords]] = []
         self.segments_per_edge: list[int] = []
 
@@ -204,8 +207,15 @@ class Tessellator:
         compute_faces: bool = True,
         compute_edges: bool = True,
         debug: bool = False,
+        deviation: float = 0.1,
+        compute_uvs: bool = False,
     ):
         self.shape = shape
+        self.compute_uvs = compute_uvs
+        if compute_uvs:
+            # Recover average dimension from quality and deviation for UV normalization.
+            # quality ≈ (xsize + ysize + zsize) / 300 * deviation, so quality * 100 / deviation ≈ (x+y+z)/3
+            self.bbox_max_dim = max(quality * 100 / deviation, 1e-10) if deviation > 0 else 1.0
 
         # count = self.number_solids(shape)
         with Timer(
@@ -284,18 +294,49 @@ class Tessellator:
                 self.triangles.extend(flat)
                 self.triangles_per_face.append(poly.NbTriangles())
 
-                # add normals
+                # add normals (and UVs if requested)
                 if poly.HasUVNodes():
                     prop = BRepGProp_Face(face)
                     normals_flat: list[Coords] = []
-                    for i in range(1, poly.NbNodes() + 1):
-                        u, v = poly.UVNode(i).Coord()
-                        prop.Normal(u, v, p_buf, n_buf)
-                        if n_buf.SquareMagnitude() > 0:
-                            n_buf.Normalize()
-                        normals_flat.extend(
-                            n_buf.Reversed().Coord() if internal else n_buf.Coord()
-                        )
+
+                    if self.compute_uvs:
+                        uvs_flat: list[float] = []
+                        u_min, u_max, v_min, v_max = BRepTools.UVBounds_s(face)
+
+                        # Compute physical scale per parameter unit at face center
+                        # to preserve aspect ratio and consistent tile size across faces.
+                        # Normalize against shape bounding box so 1 UV unit = bbox_max_dim.
+                        u_mid = (u_min + u_max) / 2
+                        v_mid = (v_min + v_max) / 2
+                        surf = BRep_Tool.Surface_s(face)
+                        d1_p = gp_Pnt()
+                        d1_u = gp_Vec()
+                        d1_v = gp_Vec()
+                        surf.D1(u_mid, v_mid, d1_p, d1_u, d1_v)
+                        scale_u = d1_u.Magnitude()  # physical length per unit of u
+                        scale_v = d1_v.Magnitude()  # physical length per unit of v
+
+                        for i in range(1, poly.NbNodes() + 1):
+                            u, v = poly.UVNode(i).Coord()
+                            prop.Normal(u, v, p_buf, n_buf)
+                            if n_buf.SquareMagnitude() > 0:
+                                n_buf.Normalize()
+                            normals_flat.extend(
+                                n_buf.Reversed().Coord() if internal else n_buf.Coord()
+                            )
+                            uvs_flat.append((u - u_min) * scale_u / self.bbox_max_dim if scale_u > 1e-10 else 0.5)
+                            uvs_flat.append((v - v_min) * scale_v / self.bbox_max_dim if scale_v > 1e-10 else 0.5)
+                        self.uvs.extend(uvs_flat)
+                    else:
+                        for i in range(1, poly.NbNodes() + 1):
+                            u, v = poly.UVNode(i).Coord()
+                            prop.Normal(u, v, p_buf, n_buf)
+                            if n_buf.SquareMagnitude() > 0:
+                                n_buf.Normalize()
+                            normals_flat.extend(
+                                n_buf.Reversed().Coord() if internal else n_buf.Coord()
+                            )
+
                     self.normals.extend(normals_flat)
 
                 offset += poly.NbNodes()
@@ -379,6 +420,9 @@ class Tessellator:
     def get_edge_types(self) -> NDArray[np.int32]:
         return np.asarray(self.edge_types, dtype=np.int32)
 
+    def get_uvs(self) -> NDArray[np.float32]:
+        return np.asarray(self.uvs, dtype=np.float32)
+
     def get_normals(self) -> NDArray[np.float32]:
         if len(self.normals) == 0:
             return self._compute_missing_normals()
@@ -407,6 +451,8 @@ class NativeTessellator:
         compute_faces=True,
         compute_edges=True,
         debug=False,
+        deviation=0.1,
+        compute_uvs=False,
     ):
         self.mesh = tessellate_c(
             shape,
@@ -443,11 +489,14 @@ class NativeTessellator:
     def get_segments_per_edge(self) -> NDArray[np.int32]:
         return self.mesh.segments_per_edge
 
+    def get_uvs(self) -> NDArray[np.float32]:
+        return np.array([], dtype=np.float32)
+
     def get_obj_vertices(self):
         return self.mesh.obj_vertices
 
 
-def compute_quality(bb: BoundingBox, deviation: float = 0.1) -> float:
+def compute_quality(bb, deviation: float = 0.1) -> float:
     # Since tessellation caching depends on quality, try to come up with stable a quality value
     quality = round_sig(
         (round_sig(bb.xsize, 3) + round_sig(bb.ysize, 3) + round_sig(bb.zsize, 3))
@@ -470,7 +519,7 @@ def _get_tesselator(progress, shape_id: str) -> TesselatorProtocol:
     return tess
 
 
-# cache key: (shape.hash, cache_key, deviaton, angular_tolerance, compute_edges, compute_faces)
+# cache key: (cache_key, deviation, angular_tolerance, compute_edges, compute_faces, compute_uvs)
 @cached(cache, key=make_key)
 def tessellate(
     shape: TopoDS_Shape | list[TopoDS_Shape] | tuple[TopoDS_Shape, ...],
@@ -484,6 +533,7 @@ def tessellate(
     debug: bool = False,
     progress=None,
     shape_id: str = "",
+    compute_uvs: bool = False,
 ) -> Tessellation:
     if isinstance(shape, (list, tuple)):
         if len(shape) == 1:
@@ -492,9 +542,9 @@ def tessellate(
             raise RuntimeError("Only single shapes are supported")
 
     tess = _get_tesselator(progress, shape_id)
-    tess.compute(shape, quality, angular_tolerance, compute_faces, compute_edges, debug)
+    tess.compute(shape, quality, angular_tolerance, compute_faces, compute_edges, debug, deviation=deviation, compute_uvs=compute_uvs)
 
-    return {
+    result = {
         "vertices": tess.get_vertices(),
         "triangles": tess.get_triangles(),
         "normals": tess.get_normals(),
@@ -507,6 +557,10 @@ def tessellate(
         "triangles_per_face": tess.get_triangles_per_face(),
         "segments_per_edge": tess.get_segments_per_edge(),
     }
+    # added for version 4 (parametric UVs, only when materials are present)
+    if compute_uvs:
+        result["uvs"] = tess.get_uvs()
+    return result
 
 
 def discretize_edge(

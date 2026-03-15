@@ -1,4 +1,4 @@
-from typing import Iterable, Protocol, TypedDict
+from typing import Iterable, NotRequired, Protocol, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -39,6 +39,7 @@ class Tessellation(TypedDict):
         edge_types: Type identifier for each edge. Shape (E,) See GeomAbs_Shape enum
         triangles_per_face: Triangle count per face. Shape (F,)
         segments_per_edge: Segment count per edge. Shape (M,)
+        uvs: Parametric UV coordinates per vertex (only present when materials are used). Shape (V, 2)
     """
     vertices: NDArray[np.float32]
     triangles: NDArray[np.int32]
@@ -49,6 +50,7 @@ class Tessellation(TypedDict):
     edge_types: NDArray[np.int32]
     triangles_per_face: NDArray[np.int32]
     segments_per_edge: NDArray[np.int32]
+    uvs: NotRequired[NDArray[np.float32]]
 
 
 class DiscretizedEdges(TypedDict):
@@ -72,6 +74,7 @@ class TesselatorProtocol(Protocol):
     def get_edge_types(self) -> NDArray[np.int32]: ...
     def get_triangles_per_face(self) -> NDArray[np.int32]: ...
     def get_segments_per_edge(self) -> NDArray[np.int32]: ...
+    def get_uvs(self) -> NDArray[np.float32]: ...
     def compute(
         self,
         shape: TopoDS_Shape,
@@ -80,4 +83,6 @@ class TesselatorProtocol(Protocol):
         compute_faces: bool = True,
         compute_edges: bool = True,
         debug: bool = False,
+        deviation: float = 0.1,
+        compute_uvs: bool = False,
     ): ...

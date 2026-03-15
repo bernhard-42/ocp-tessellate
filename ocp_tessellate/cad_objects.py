@@ -38,6 +38,7 @@ class OcpObject:
         width=None,
         show_faces=True,
         show_edges=True,
+        material=None,
     ):
         if obj is None and ref is None:
             raise ValueError("Either obj or ref must be provided")
@@ -56,6 +57,7 @@ class OcpObject:
         elif color is not None:
             self.color = Color(self.color)
         self.width = width
+        self.material = material
         self.helpers = None
 
     def dump(self, ind=0):
@@ -86,6 +88,7 @@ class OcpObject:
             self.width,
             self.state_faces,
             self.state_edges,
+            self.material,
         )
 
     def set_states(self, show_faces, show_edges):
@@ -126,6 +129,7 @@ class OcpObject:
                 "state": self.to_state(),
                 "color": self.color.web_color,
                 "alpha": self.color.a,
+                "material": self.material,
                 "texture": texture,
                 "loc": None if self.loc is None else loc_to_tq(self.loc),
                 "renderback": self.kind == "face",
@@ -153,6 +157,7 @@ class OcpObject:
                     "shape": values,
                     "state": self.to_state(),
                     "color": color,
+                    "material": self.material,
                     "loc": None if self.loc is None else loc_to_tq(self.loc),
                     "bb": bb,
                 },
