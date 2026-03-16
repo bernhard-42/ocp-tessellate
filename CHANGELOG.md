@@ -1,3 +1,8 @@
+## v 3.2.0
+
+- Support for material property on CAD objects
+- Add instanced format to the js exporter
+
 ## v3.1.2
 
 - Remove a debug print
