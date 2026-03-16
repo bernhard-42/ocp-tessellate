@@ -40,10 +40,12 @@ release:
 	git tag -a v$(CURRENT_VERSION) -m "Latest release: $(CURRENT_VERSION)"
 	
 create-release:
-	@github-release release -u bernhard-42 -r ocp-tessellate -t v$(CURRENT_VERSION) -n ocp_tessellate-$(CURRENT_VERSION)
-	@sleep 2
-	@github-release upload  -u bernhard-42 -r ocp-tessellate -t v$(CURRENT_VERSION) -n ocp_tessellate-$(CURRENT_VERSION).tar.gz -f dist/ocp_tessellate-$(CURRENT_VERSION).tar.gz
-	@github-release upload  -u bernhard-42 -r ocp-tessellate -t v$(CURRENT_VERSION) -n ocp_tessellate-$(CURRENT_VERSION)-py3-none-any.whl -f dist/ocp_tessellate-$(CURRENT_VERSION)-py3-none-any.whl
+	@gh release create v$(CURRENT_VERSION) \
+		dist/ocp_tessellate-$(CURRENT_VERSION).tar.gz \
+		dist/ocp_tessellate-$(CURRENT_VERSION)-py3-none-any.whl \
+		--title "ocp_tessellate-$(CURRENT_VERSION)" \
+		--notes "v$(CURRENT_VERSION)" \
+		--target main
 
 install: dist
 	@echo "=> Installing ocp-tessellate"
