@@ -278,9 +278,9 @@ class OcpConverter:
 
         @return: The material string or None
         """
-        if material is not None:
+        if material:
             return material
-        elif hasattr(obj, "material") and obj.material is not None:
+        elif hasattr(obj, "material") and obj.material:
             return obj.material
         else:
             return None
@@ -605,7 +605,7 @@ class OcpConverter:
         ocp_obj = OcpGroup(name=name, loc=location)
 
         for child in cad_obj.children:
-            child_material = child.material if material is None and hasattr(child, "material") else material
+            child_material = child.material if not material and hasattr(child, "material") else material
             sub_obj = self.to_ocp(
                 child,
                 names=[None if child.label == "" else child.label],
@@ -682,7 +682,7 @@ class OcpConverter:
 
         ocp_obj = OcpGroup(name=name, loc=get_location(cad_obj, as_none=False))
         if cad_obj.obj is not None:
-            cq_material = cad_obj.material if material is None and hasattr(cad_obj, "material") else material
+            cq_material = cad_obj.material if not material and hasattr(cad_obj, "material") else material
             sub_obj = self.to_ocp(
                 cad_obj.obj,
                 names=[cad_obj.name],
@@ -1030,7 +1030,7 @@ class OcpConverter:
             obj = cad_obj.edges()
             obj_name = get_name(cad_obj, obj_name, "Edge")
 
-        builder_material = cad_obj.material if material is None and hasattr(cad_obj, "material") else material
+        builder_material = cad_obj.material if not material and hasattr(cad_obj, "material") else material
 
         ocp_obj = self.to_ocp(
             obj,
