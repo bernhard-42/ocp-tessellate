@@ -58,6 +58,7 @@ class OcpObject:
             self.color = Color(self.color)
         self.width = width
         self.material = material
+        self.normalize_uvs = True
         self.helpers = None
 
     def dump(self, ind=0):
@@ -130,6 +131,7 @@ class OcpObject:
                 "color": self.color.web_color,
                 "alpha": self.color.a,
                 "material": self.material,
+                "normalize_uvs": self.normalize_uvs,
                 "texture": texture,
                 "loc": None if self.loc is None else loc_to_tq(self.loc),
                 "renderback": self.kind == "face",

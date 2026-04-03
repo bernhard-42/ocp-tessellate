@@ -1689,12 +1689,12 @@ def tessellate_group(
 
     # Find which instance refs have materials so we only compute UVs when needed
     def _refs_with_materials(parts):
-        refs = set()
+        refs = {}
         for part in parts:
             if "parts" in part:
-                refs |= _refs_with_materials(part["parts"])
+                refs.update(_refs_with_materials(part["parts"]))
             elif part.get("type") == "shapes" and part.get("material"):
-                refs.add(part["shape"]["ref"])
+                refs[part["shape"]["ref"]] = part.get("normalize_uvs", True)
         return refs
 
     material_refs = _refs_with_materials(shapes.get("parts", []))
@@ -1736,6 +1736,7 @@ def tessellate_group(
                 progress=None if timeit else progress,
                 shape_id="n/a",
                 compute_uvs=(i in material_refs),
+                normalize_uvs=material_refs.get(i, True),
             )
             if len(mesh["vertices"]) > 0:
                 meshed_instances.append(mesh)

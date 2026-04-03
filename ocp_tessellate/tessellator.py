@@ -103,6 +103,7 @@ def make_key(
     progress=None,
     shape_id=None,
     compute_uvs=False,
+    normalize_uvs=True,
 ):  # pylint: disable=unused-argument
     # quality is a measure of bounding box and deviation, hence can be ignored (and should due to accuracy issues
     # shape_id is also ignored
@@ -118,6 +119,7 @@ def make_key(
         compute_edges,
         compute_faces,
         compute_uvs,
+        normalize_uvs,
     )
 
     if progress is not None and cache.get(key) is not None:
@@ -209,10 +211,12 @@ class Tessellator:
         debug: bool = False,
         deviation: float = 0.1,
         compute_uvs: bool = False,
+        normalize_uvs: bool = True,
     ):
         self.shape = shape
         self.compute_uvs = compute_uvs
-        if compute_uvs:
+        self.normalize_uvs = normalize_uvs
+        if compute_uvs and normalize_uvs:
             # Recover average dimension from quality and deviation for UV normalization.
             # quality ≈ (xsize + ysize + zsize) / 300 * deviation, so quality * 100 / deviation ≈ (x+y+z)/3
             self.bbox_max_dim = max(quality * 100 / deviation, 1e-10) if deviation > 0 else 1.0
@@ -301,31 +305,58 @@ class Tessellator:
 
                     if self.compute_uvs:
                         uvs_flat: list[float] = []
-                        u_min, u_max, v_min, v_max = BRepTools.UVBounds_s(face)
 
-                        # Compute physical scale per parameter unit at face center
-                        # to preserve aspect ratio and consistent tile size across faces.
-                        # Normalize against shape bounding box so 1 UV unit = bbox_max_dim.
-                        u_mid = (u_min + u_max) / 2
-                        v_mid = (v_min + v_max) / 2
-                        surf = BRep_Tool.Surface_s(face)
-                        d1_p = gp_Pnt()
-                        d1_u = gp_Vec()
-                        d1_v = gp_Vec()
-                        surf.D1(u_mid, v_mid, d1_p, d1_u, d1_v)
-                        scale_u = d1_u.Magnitude()  # physical length per unit of u
-                        scale_v = d1_v.Magnitude()  # physical length per unit of v
+                        if self.normalize_uvs:
+                            u_min, u_max, v_min, v_max = BRepTools.UVBounds_s(face)
 
-                        for i in range(1, poly.NbNodes() + 1):
-                            u, v = poly.UVNode(i).Coord()
-                            prop.Normal(u, v, p_buf, n_buf)
-                            if n_buf.SquareMagnitude() > 0:
-                                n_buf.Normalize()
-                            normals_flat.extend(
-                                n_buf.Reversed().Coord() if internal else n_buf.Coord()
-                            )
-                            uvs_flat.append((u - u_min) * scale_u / self.bbox_max_dim if scale_u > 1e-10 else 0.5)
-                            uvs_flat.append((v - v_min) * scale_v / self.bbox_max_dim if scale_v > 1e-10 else 0.5)
+                            # Compute physical scale per parameter unit at face center
+                            # to preserve aspect ratio and consistent tile size across faces.
+                            # Normalize against shape bounding box so 1 UV unit = bbox_max_dim.
+                            u_mid = (u_min + u_max) / 2
+                            v_mid = (v_min + v_max) / 2
+                            surf = BRep_Tool.Surface_s(face)
+                            d1_p = gp_Pnt()
+                            d1_u = gp_Vec()
+                            d1_v = gp_Vec()
+                            surf.D1(u_mid, v_mid, d1_p, d1_u, d1_v)
+                            scale_u = d1_u.Magnitude()  # physical length per unit of u
+                            scale_v = d1_v.Magnitude()  # physical length per unit of v
+
+                            for i in range(1, poly.NbNodes() + 1):
+                                u, v = poly.UVNode(i).Coord()
+                                prop.Normal(u, v, p_buf, n_buf)
+                                if n_buf.SquareMagnitude() > 0:
+                                    n_buf.Normalize()
+                                normals_flat.extend(
+                                    n_buf.Reversed().Coord()
+                                    if internal
+                                    else n_buf.Coord()
+                                )
+                                uvs_flat.append(
+                                    (u - u_min) * scale_u / self.bbox_max_dim
+                                    if scale_u > 1e-10
+                                    else 0.5
+                                )
+                                uvs_flat.append(
+                                    (v - v_min) * scale_v / self.bbox_max_dim
+                                    if scale_v > 1e-10
+                                    else 0.5
+                                )
+                        else:
+                            # Use raw parametric UVs, matching OCCT's RWGltf_CafWriter
+                            # V is flipped (1-v) per glTF convention (top-left origin)
+                            for i in range(1, poly.NbNodes() + 1):
+                                u, v = poly.UVNode(i).Coord()
+                                prop.Normal(u, v, p_buf, n_buf)
+                                if n_buf.SquareMagnitude() > 0:
+                                    n_buf.Normalize()
+                                normals_flat.extend(
+                                    n_buf.Reversed().Coord()
+                                    if internal
+                                    else n_buf.Coord()
+                                )
+                                uvs_flat.append(u)
+                                uvs_flat.append(1.0 - v)
                         self.uvs.extend(uvs_flat)
                     else:
                         for i in range(1, poly.NbNodes() + 1):
@@ -534,6 +565,7 @@ def tessellate(
     progress=None,
     shape_id: str = "",
     compute_uvs: bool = False,
+    normalize_uvs: bool = True,
 ) -> Tessellation:
     if isinstance(shape, (list, tuple)):
         if len(shape) == 1:
@@ -542,7 +574,17 @@ def tessellate(
             raise RuntimeError("Only single shapes are supported")
 
     tess = _get_tesselator(progress, shape_id)
-    tess.compute(shape, quality, angular_tolerance, compute_faces, compute_edges, debug, deviation=deviation, compute_uvs=compute_uvs)
+    tess.compute(
+        shape,
+        quality,
+        angular_tolerance,
+        compute_faces,
+        compute_edges,
+        debug,
+        deviation=deviation,
+        compute_uvs=compute_uvs,
+        normalize_uvs=normalize_uvs,
+    )
 
     result = {
         "vertices": tess.get_vertices(),
