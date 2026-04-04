@@ -1,3 +1,11 @@
+## v3.2.2
+
+- Add a `normalize_uvs` flag that allows UV coordinates to be passed through raw (unnormalized) or normalized
+
+## v3.2.1
+
+- Fix bug where materials for sub assemblies were lost
+
 ## v 3.2.0
 
 - Support for material property on CAD objects
