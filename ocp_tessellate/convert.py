@@ -480,6 +480,7 @@ class OcpConverter:
         alpha: float,
         level: int,
         material: Union[str, None] = None,
+        default_name:str="List"
     ) -> OcpGroup:
         """
         Handle lists and tuples of objects.
@@ -496,7 +497,7 @@ class OcpConverter:
         self._debug(level, "handle_list_tuple", obj_name)
         return self._unroll_iterable(
             zip([None] * len(cad_obj), cad_obj),
-            get_name(cad_obj, obj_name, "List"),
+            get_name(cad_obj, obj_name, default_name),
             color,
             alpha,
             level,
@@ -1457,7 +1458,9 @@ class OcpConverter:
 
             # build123d ShapeList
             elif is_build123d_shapelist(cad_obj):
-                ocp_obj = self.handle_shape_list(cad_obj, obj_name, color, alpha, level, material)
+                # Treat shapelists like lists
+                # ocp_obj = self.handle_shape_list(cad_obj, obj_name, color, alpha, level, material)
+                ocp_obj = self.handle_list_tuple(cad_obj, obj_name, color, alpha, level, material, default_name="ShapeList")
 
             # CadQuery Workplane objects
             elif is_cadquery(cad_obj) and not is_cadquery_empty_workplane(cad_obj):
