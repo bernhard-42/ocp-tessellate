@@ -1534,9 +1534,6 @@ class OcpConverter:
 
         group.make_unique_names()
 
-        if group.length == 1 and isinstance(group.objects[0], OcpGroup):
-            group = group.cleanup()
-
         return group
 
 
@@ -1598,6 +1595,9 @@ def to_ocpgroup(
         loc=loc,
         default_color=default_color,
     )
+
+    if ocp_group.length == 1 and isinstance(ocp_group.objects[0], OcpGroup):
+        ocp_group = ocp_group.cleanup()
 
     return ocp_group, converter.instances
 
