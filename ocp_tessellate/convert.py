@@ -293,6 +293,7 @@ class OcpConverter:
         color: Union[ColorLike, Tuple[ColorLike, ColorLike, ColorLike], None],
         alpha: float,
         material: Union[str, None] = None,
+        mode: Union[Tuple[int, int], None] = None,
     ) -> OcpObject:
         """
         Unify the objects in a list to a single TopoDS_Shape or a TopoDS_Compound for
@@ -303,6 +304,7 @@ class OcpConverter:
         @param name: The name of the object
         @param color: The color of the object
         @param alpha: The alpha value of the object
+        @param mode: The (state_faces, state_edges) 2-tuple of 0/1 ints
 
         @return: The unified OcpObject
         """
@@ -342,7 +344,7 @@ class OcpConverter:
         if kind in ("solid", "face", "shell"):
             cache_id = create_cache_id(ocp_obj)
             ref, loc = self.get_instance(ocp_obj, cache_id, name)
-            return OcpObject(
+            ocp_object = OcpObject(
                 kind,
                 ref=ref,
                 name=name,
@@ -352,7 +354,7 @@ class OcpConverter:
                 material=material,
             )
         else:
-            return OcpObject(
+            ocp_object = OcpObject(
                 kind,
                 obj=ocp_obj,
                 name=name,
@@ -360,6 +362,12 @@ class OcpConverter:
                 width=LINE_WIDTH if kind == "edge" else POINT_SIZE,
                 material=material,
             )
+
+        if mode is not None:
+            ocp_object.state_faces = mode[0]
+            ocp_object.state_edges = mode[1]
+
+        return ocp_object
 
     def get_color_for_object(
         self,
@@ -439,6 +447,7 @@ class OcpConverter:
         alpha: float,
         level: int,
         material: Union[str, None] = None,
+        mode: Union[Tuple[int, int], None] = None,
     ) -> OcpGroup:
         """
         Unroll the objects in an iterable and convert them to OcpObject and OcpGroup hierarchies.
@@ -449,6 +458,7 @@ class OcpConverter:
         @param alpha: The alpha value of the color
         @param level: The level of the hierarchy
         @param material: The material string
+        @param mode: The (state_faces, state_edges) 2-tuple of 0/1 ints
 
         @return: The OcpGroup hierarchy
         """
@@ -460,6 +470,7 @@ class OcpConverter:
                 colors=[color],
                 alphas=[alpha],
                 materials=[material],
+                modes=[mode],
                 level=level + 1,
                 resolve_helpers=False,
             )
@@ -480,7 +491,8 @@ class OcpConverter:
         alpha: float,
         level: int,
         material: Union[str, None] = None,
-        default_name:str="List"
+        default_name:str="List",
+        mode: Union[Tuple[int, int], None] = None,
     ) -> OcpGroup:
         """
         Handle lists and tuples of objects.
@@ -491,6 +503,7 @@ class OcpConverter:
         @param alpha: The alpha value of the color
         @param level: The level of the hierarchy
         @param material: The material string
+        @param mode: The (state_faces, state_edges) 2-tuple of 0/1 ints
 
         @return: The OcpGroup hierarchy
         """
@@ -502,6 +515,7 @@ class OcpConverter:
             alpha,
             level,
             material,
+            mode,
         )
 
     def handle_dict(
@@ -512,6 +526,7 @@ class OcpConverter:
         alpha: float,
         level: int,
         material: Union[str, None] = None,
+        mode: Union[Tuple[int, int], None] = None,
     ) -> OcpGroup:
         """
         Handle dictionaries of objects.
@@ -521,6 +536,7 @@ class OcpConverter:
         @param color: The color of the object
         @param alpha: The alpha value of the color
         @param material: The material string
+        @param mode: The (state_faces, state_edges) 2-tuple of 0/1 ints
 
         @return: The OcpGroup hierarchy
         """
@@ -533,6 +549,7 @@ class OcpConverter:
             alpha,
             level,
             material,
+            mode,
         )
 
     def handle_compound(
@@ -543,6 +560,7 @@ class OcpConverter:
         alpha: float,
         level: int,
         material: Union[str, None] = None,
+        mode: Union[Tuple[int, int], None] = None,
     ) -> OcpGroup:
         """
         Handle compounds and topods_compounds.
@@ -553,6 +571,7 @@ class OcpConverter:
         @param alpha: The alpha value of the color
         @param level: The level of the hierarchy
         @param material: The material string
+        @param mode: The (state_faces, state_edges) 2-tuple of 0/1 ints
 
         @return: The OcpGroup hierarchy
         """
@@ -574,6 +593,7 @@ class OcpConverter:
             alpha,
             level,
             material,
+            mode,
         )
 
     # ================================= Assemblies ================================== #
@@ -586,6 +606,7 @@ class OcpConverter:
         alpha: float,
         level: int,
         material: Union[str, None] = None,
+        mode: Union[Tuple[int, int], None] = None,
     ) -> OcpGroup:
         """
         Handle build123d assemblies.
@@ -596,6 +617,7 @@ class OcpConverter:
         @param alpha: The alpha value of the color
         @param level: The level of the hierarchy
         @param material: The material string
+        @param mode: The (state_faces, state_edges) 2-tuple of 0/1 ints
 
         @return: The OcpGroup hierarchy
         """
@@ -613,6 +635,7 @@ class OcpConverter:
                 colors=[child.color if color is None else color],
                 alphas=[alpha],
                 materials=[child_material],
+                modes=[mode],
                 level=level + 1,
                 resolve_helpers=False,
             )
@@ -665,6 +688,7 @@ class OcpConverter:
         alpha: float,
         level: int,
         material: Union[str, None] = None,
+        mode: Union[Tuple[int, int], None] = None,
     ) -> OcpGroup:
         """
         Handle cadquery assemblies.
@@ -675,6 +699,7 @@ class OcpConverter:
         @param alpha: The alpha value of the color
         @param level: The level of the hierarchy
         @param material: The material string
+        @param mode: The (state_faces, state_edges) 2-tuple of 0/1 ints
 
         @return: The OcpGroup hierarchy
         """
@@ -690,6 +715,7 @@ class OcpConverter:
                 colors=[cad_obj.color if color is None else color],
                 alphas=alpha,
                 materials=[cq_material],
+                modes=[mode],
                 level=level + 1,
             )
             ocp_obj.add(sub_obj.objects[0])
@@ -790,7 +816,7 @@ class OcpConverter:
         group.make_unique_names()
         return group
 
-    def _handle_list(self, cad_obj, name, obj_name, color, alpha, material=None):
+    def _handle_list(self, cad_obj, name, obj_name, color, alpha, material=None, mode=None):
         """internal method"""
         # convert wires to edges
         if len(cad_obj) > 0 and is_wire(cad_obj[0]):
@@ -824,6 +850,7 @@ class OcpConverter:
             color=rgba,
             alpha=alpha,
             material=material,
+            mode=mode,
         )
 
     def handle_workplane(
@@ -834,6 +861,7 @@ class OcpConverter:
         alpha: float,
         level: int,
         material: Union[str, None] = None,
+        mode: Union[Tuple[int, int], None] = None,
     ) -> Union[OcpGroup, OcpObject]:
         """
         Handle cadquery Workplane.
@@ -844,6 +872,7 @@ class OcpConverter:
         @param alpha: The alpha value of the color
         @param level: The level of the hierarchy
         @param material: The material string
+        @param mode: The (state_faces, state_edges) 2-tuple of 0/1 ints
 
         @return: The OcpGroup hierarchy
         """
@@ -860,7 +889,7 @@ class OcpConverter:
             elif is_cadquery_sketch(cad_obj[0]):
                 return self.to_ocp(cad_obj).cleanup()
 
-        ocp_obj = self._handle_list(cad_obj, name, obj_name, color, alpha, material)
+        ocp_obj = self._handle_list(cad_obj, name, obj_name, color, alpha, material, mode)
 
         if self.show_parent and level == 0:  # show just one level in CadQuery
             parents = self.handle_parent(parent_obj, level)
@@ -878,6 +907,7 @@ class OcpConverter:
         alpha: float,
         level: int,
         material: Union[str, None] = None,
+        mode: Union[Tuple[int, int], None] = None,
     ) -> Union[OcpGroup, OcpObject]:
         """
         Handle build123d shape lists.
@@ -888,6 +918,7 @@ class OcpConverter:
         @param alpha: The alpha value of the color
         @param level: The level of the hierarchy
         @param material: The material string
+        @param mode: The (state_faces, state_edges) 2-tuple of 0/1 ints
 
         @return: The OcpGroup hierarchy
         """
@@ -896,7 +927,7 @@ class OcpConverter:
         self._debug(level, "handle_shapelist (build123d ShapeList)", obj_name)
         name = "ShapeList"
 
-        ocp_obj = self._handle_list(cad_obj, name, obj_name, color, alpha, material)
+        ocp_obj = self._handle_list(cad_obj, name, obj_name, color, alpha, material, mode)
 
         if self.show_parent:
             parents = self.handle_parent(parent_obj, level)
@@ -912,6 +943,7 @@ class OcpConverter:
         alpha: float,
         level: int,
         material: Union[str, None] = None,
+        mode: Union[Tuple[int, int], None] = None,
     ) -> Union[OcpGroup, OcpObject]:
         """
         Handle build123d or Cadquery shapes.
@@ -922,6 +954,7 @@ class OcpConverter:
         @param alpha: The alpha value of the color
         @param level: The level of the hierarchy
         @param material: The material string
+        @param mode: The (state_faces, state_edges) 2-tuple of 0/1 ints
 
         @return: The OcpGroup hierarchy
         """
@@ -958,6 +991,7 @@ class OcpConverter:
             color=color,
             alpha=alpha,
             material=material,
+            mode=mode,
         )
 
         if (
@@ -1001,6 +1035,7 @@ class OcpConverter:
         alpha: float,
         level: int,
         material: Union[str, None] = None,
+        mode: Union[Tuple[int, int], None] = None,
     ) -> OcpGroup:
         """
         Handle build123d Builder objects.
@@ -1011,6 +1046,7 @@ class OcpConverter:
         @param alpha: The alpha value of the color
         @param level: The level of the hierarchy
         @param material: The material string
+        @param mode: The (state_faces, state_edges) 2-tuple of 0/1 ints
 
         @return: The OcpGroup hierarchy
         """
@@ -1043,6 +1079,7 @@ class OcpConverter:
                 cad_obj.alpha if alpha is None and hasattr(cad_obj, "alpha") else alpha
             ],
             materials=[builder_material],
+            modes=[mode],
             level=level + 1,
         )
 
@@ -1069,6 +1106,7 @@ class OcpConverter:
         alpha: float,
         level: int,
         material: Union[str, None] = None,
+        mode: Union[Tuple[int, int], None] = None,
     ) -> OcpGroup:
         """
         Handle cadquery sketches.
@@ -1079,6 +1117,7 @@ class OcpConverter:
         @param alpha: The alpha value of the color
         @param level: The level of the hierarchy
         @param material: The material string
+        @param mode: The (state_faces, state_edges) 2-tuple of 0/1 ints
 
         @return: The OcpGroup hierarchy
         """
@@ -1131,6 +1170,7 @@ class OcpConverter:
             colors=[color] * len(cad_objs),
             alphas=[alpha] * len(cad_objs),
             materials=[material] * len(cad_objs),
+            modes=[mode] * len(cad_objs),
             level=level,
         )
         result.name = name
@@ -1284,6 +1324,7 @@ class OcpConverter:
         colors: Union[List[Union[ColorLike, None]], None] = None,
         alphas: Union[List[Union[float, None]], None] = None,
         materials: Union[List[Union[str, None]], None] = None,
+        modes: Union[List[Union[Tuple[int, int], None]], None] = None,
         loc: LocationLike = None,
         default_color: Union[ColorLike, None] = None,
         unroll_compounds: bool = False,
@@ -1298,6 +1339,7 @@ class OcpConverter:
         @param colors: The list of colors for the objects
         @param alphas: The list of alpha values for the objects
         @param materials: The list of material strings for the objects
+        @param modes: The list of (state_faces, state_edges) 2-tuples (0/1 ints) for the objects
         @param loc: The location of the objects
         @param default_color: The default color of the objects
         @param unroll_compounds: The flag to unroll compounds
@@ -1350,12 +1392,22 @@ class OcpConverter:
         else:
             raise ValueError(f"Invalid type {type(materials)} for materials")
 
+        if modes is None:
+            modes = [None] * len(cad_objs)
+        elif isinstance(modes, (tuple, list)):
+            if len(modes) != len(cad_objs):
+                raise ValueError(
+                    "Length of modes does not match the number of objects"
+                )
+        else:
+            raise ValueError(f"Invalid type {type(modes)} for modes")
+
         if default_color is not None:
             self.default_color = default_color
 
         # =========================== Loop over all objects ========================== #
 
-        for cad_obj, obj_name, color, alpha, material in zip(cad_objs, names, colors, alphas, materials):
+        for cad_obj, obj_name, color, alpha, material, mode in zip(cad_objs, names, colors, alphas, materials, modes):
             # =================== Silently skip enums and known types =================== #
             if (
                 isinstance(cad_obj, enum.Enum)
@@ -1403,7 +1455,7 @@ class OcpConverter:
                 )
                 and not any([class_name(o) == "Compound" for o in cad_obj])
             ):
-                ocp_obj = self.handle_list_tuple(cad_obj, obj_name, color, alpha, level, material)
+                ocp_obj = self.handle_list_tuple(cad_obj, obj_name, color, alpha, level, material, mode=mode)
 
             # Compounds / topods_compounds
             elif (
@@ -1417,11 +1469,11 @@ class OcpConverter:
                 and not is_build123d_assembly(cad_obj)
                 and not is_compsolid(cad_obj)
             ):
-                ocp_obj = self.handle_compound(cad_obj, obj_name, color, alpha, level, material)
+                ocp_obj = self.handle_compound(cad_obj, obj_name, color, alpha, level, material, mode=mode)
 
             # Dicts
             elif isinstance(cad_obj, dict):
-                ocp_obj = self.handle_dict(cad_obj, obj_name, color, alpha, level, material)
+                ocp_obj = self.handle_dict(cad_obj, obj_name, color, alpha, level, material, mode=mode)
 
             # =============================== Assemblies ================================ #
 
@@ -1433,6 +1485,7 @@ class OcpConverter:
                     alpha,
                     level,
                     material,
+                    mode=mode,
                 )
 
             elif is_cadquery_assembly(cad_obj):
@@ -1443,6 +1496,7 @@ class OcpConverter:
                     alpha,
                     level,
                     material,
+                    mode=mode,
                 )
             # =============================== Conversions =============================== #
 
@@ -1460,11 +1514,11 @@ class OcpConverter:
             elif is_build123d_shapelist(cad_obj):
                 # Treat shapelists like lists
                 # ocp_obj = self.handle_shape_list(cad_obj, obj_name, color, alpha, level, material)
-                ocp_obj = self.handle_list_tuple(cad_obj, obj_name, color, alpha, level, material, default_name="ShapeList")
+                ocp_obj = self.handle_list_tuple(cad_obj, obj_name, color, alpha, level, material, default_name="ShapeList", mode=mode)
 
             # CadQuery Workplane objects
             elif is_cadquery(cad_obj) and not is_cadquery_empty_workplane(cad_obj):
-                ocp_obj = self.handle_workplane(cad_obj, obj_name, color, alpha, level, material)
+                ocp_obj = self.handle_workplane(cad_obj, obj_name, color, alpha, level, material, mode=mode)
 
             # build123d LocationLists
             elif is_build123d_locationlist(cad_obj):
@@ -1473,7 +1527,7 @@ class OcpConverter:
             # build123d BuildPart, BuildSketch, BuildLine
             elif is_build123d(cad_obj):
                 ocp_obj = self.handle_build123d_builder(
-                    cad_obj, obj_name, color, alpha, level, material
+                    cad_obj, obj_name, color, alpha, level, material, mode=mode
                 )
 
             # TopoDS_Shape, TopoDS_Compound, TopoDS_Edge, TopoDS_Face, TopoDS_Shell,
@@ -1492,12 +1546,13 @@ class OcpConverter:
                     alpha,
                     level,
                     material,
+                    mode=mode,
                 )
 
             # Cadquery sketches
             elif is_cadquery_sketch(cad_obj):
                 ocp_obj = self.handle_cadquery_sketch(
-                    cad_obj, obj_name, color, alpha, level, material
+                    cad_obj, obj_name, color, alpha, level, material, mode=mode
                 )
 
             # build123d Location/Plane or TopLoc_Location or gp_Pln
@@ -1548,6 +1603,7 @@ def to_ocpgroup(
     colors: Union[List[Union[ColorLike, None]], None] = None,
     alphas: Union[List[Union[float, None]], None] = None,
     materials: Union[List[Union[str, None]], None] = None,
+    modes: Union[List[Union[Tuple[int, int], None]], None] = None,
     render_mates: bool = False,
     render_joints: bool = False,
     helper_scale: float = 1.0,
@@ -1566,6 +1622,7 @@ def to_ocpgroup(
     @param colors: The list of colors for the objects
     @param alphas: The list of alpha values for the objects
     @param materials: The list of material strings for the objects
+    @param modes: The list of (state_faces, state_edges) 2-tuples (0/1 ints) for the objects
     @param render_mates: The flag to render the mates
     @param render_joints: The flag to render the joints
     @param helper_scale: The scale of the helper objects
@@ -1592,6 +1649,7 @@ def to_ocpgroup(
         colors=colors,
         alphas=alphas,
         materials=materials,
+        modes=modes,
         loc=loc,
         default_color=default_color,
     )
@@ -1770,6 +1828,7 @@ def to_assembly(
     names: Union[List[Union[str, None]], None] = None,
     colors: Union[List[Union[ColorLike, None]], None] = None,
     alphas: Union[List[Union[float, None]], None] = None,
+    modes: Union[List[Union[Tuple[int, int], None]], None] = None,
     render_mates: bool = False,
     render_joints: bool = False,
     helper_scale: float = 1.0,
@@ -1787,6 +1846,7 @@ def to_assembly(
     @param names: The list of names for the objects
     @param colors: The list of colors for the objects
     @param alphas: The list of alpha values for the objects
+    @param modes: The list of (state_faces, state_edges) 2-tuples (0/1 ints) for the objects
     @param render_mates: The flag to render the mates
     @param render_joints: The flag to render the joints
     @param helper_scale: The scale of the helper objects
@@ -1804,6 +1864,7 @@ def to_assembly(
         names=names,
         colors=colors,
         alphas=alphas,
+        modes=modes,
         render_mates=render_mates,
         render_joints=render_joints,
         helper_scale=helper_scale,
@@ -1875,6 +1936,7 @@ def export_three_cad_viewer_js(
     names=None,
     colors=None,
     alphas=None,
+    modes=None,
     filename=None,
     keep_instances=False,
 ):
@@ -1898,7 +1960,7 @@ def export_three_cad_viewer_js(
         walk(shapes)
 
     part_group, instances = to_ocpgroup(
-        *objs, names=names, colors=colors, alphas=alphas
+        *objs, names=names, colors=colors, alphas=alphas, modes=modes
     )
     instances, shapes, map = tessellate_group(part_group, instances)
     if keep_instances:
