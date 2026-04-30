@@ -52,7 +52,8 @@ DEFAULT_COLOR = (0.8, 0.8, 0.8, 1)
 
 def clean_string(s):
     return (
-        "".join(ch for ch in s if unicodedata.category(ch)[0] != "C")
+        ""
+        .join(ch for ch in s if unicodedata.category(ch)[0] != "C")
         .replace(" ", "_")
         .replace(".", "_")
         .replace("(", "_")

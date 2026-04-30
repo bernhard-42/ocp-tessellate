@@ -628,7 +628,11 @@ class OcpConverter:
         ocp_obj = OcpGroup(name=name, loc=location)
 
         for child in cad_obj.children:
-            child_material = child.material if not material and hasattr(child, "material") else material
+            child_material = (
+                child.material
+                if not material and hasattr(child, "material")
+                else material
+            )
             sub_obj = self.to_ocp(
                 child,
                 names=[None if child.label == "" else child.label],
@@ -708,7 +712,11 @@ class OcpConverter:
 
         ocp_obj = OcpGroup(name=name, loc=get_location(cad_obj, as_none=False))
         if cad_obj.obj is not None:
-            cq_material = cad_obj.material if not material and hasattr(cad_obj, "material") else material
+            cq_material = (
+                cad_obj.material
+                if not material and hasattr(cad_obj, "material")
+                else material
+            )
             sub_obj = self.to_ocp(
                 cad_obj.obj,
                 names=[cad_obj.name],
@@ -816,7 +824,9 @@ class OcpConverter:
         group.make_unique_names()
         return group
 
-    def _handle_list(self, cad_obj, name, obj_name, color, alpha, material=None, mode=None):
+    def _handle_list(
+        self, cad_obj, name, obj_name, color, alpha, material=None, mode=None
+    ):
         """internal method"""
         # convert wires to edges
         if len(cad_obj) > 0 and is_wire(cad_obj[0]):
@@ -889,7 +899,9 @@ class OcpConverter:
             elif is_cadquery_sketch(cad_obj[0]):
                 return self.to_ocp(cad_obj).cleanup()
 
-        ocp_obj = self._handle_list(cad_obj, name, obj_name, color, alpha, material, mode)
+        ocp_obj = self._handle_list(
+            cad_obj, name, obj_name, color, alpha, material, mode
+        )
 
         if self.show_parent and level == 0:  # show just one level in CadQuery
             parents = self.handle_parent(parent_obj, level)
@@ -927,7 +939,9 @@ class OcpConverter:
         self._debug(level, "handle_shapelist (build123d ShapeList)", obj_name)
         name = "ShapeList"
 
-        ocp_obj = self._handle_list(cad_obj, name, obj_name, color, alpha, material, mode)
+        ocp_obj = self._handle_list(
+            cad_obj, name, obj_name, color, alpha, material, mode
+        )
 
         if self.show_parent:
             parents = self.handle_parent(parent_obj, level)
@@ -1059,7 +1073,9 @@ class OcpConverter:
             cad_obj.alpha if alpha is None and hasattr(cad_obj, "alpha") else alpha
         )
         builder_material = (
-            cad_obj.material if not material and hasattr(cad_obj, "material") else material
+            cad_obj.material
+            if not material and hasattr(cad_obj, "material")
+            else material
         )
 
         # Builder objects are homogeneous compounds (a sketch is all faces, a line
@@ -1173,13 +1189,11 @@ class OcpConverter:
                         for loc in cad_obj.locs
                     ]
                 else:
-                    compound = make_compound(
-                        [
-                            downcast(obj.wrapped.Moved(loc.wrapped))
-                            for obj in objs
-                            for loc in cad_obj.locs
-                        ]
-                    )
+                    compound = make_compound([
+                        downcast(obj.wrapped.Moved(loc.wrapped))
+                        for obj in objs
+                        for loc in cad_obj.locs
+                    ])
                 cad_objs.append(compound)
                 names.append(typ)
 
@@ -1420,9 +1434,7 @@ class OcpConverter:
             modes = [None] * len(cad_objs)
         elif isinstance(modes, (tuple, list)):
             if len(modes) != len(cad_objs):
-                raise ValueError(
-                    "Length of modes does not match the number of objects"
-                )
+                raise ValueError("Length of modes does not match the number of objects")
         else:
             raise ValueError(f"Invalid type {type(modes)} for modes")
 
@@ -1431,7 +1443,9 @@ class OcpConverter:
 
         # =========================== Loop over all objects ========================== #
 
-        for cad_obj, obj_name, color, alpha, material, mode in zip(cad_objs, names, colors, alphas, materials, modes):
+        for cad_obj, obj_name, color, alpha, material, mode in zip(
+            cad_objs, names, colors, alphas, materials, modes
+        ):
             # =================== Silently skip enums and known types =================== #
             if (
                 isinstance(cad_obj, enum.Enum)
@@ -1479,7 +1493,9 @@ class OcpConverter:
                 )
                 and not any([class_name(o) == "Compound" for o in cad_obj])
             ):
-                ocp_obj = self.handle_list_tuple(cad_obj, obj_name, color, alpha, level, material, mode=mode)
+                ocp_obj = self.handle_list_tuple(
+                    cad_obj, obj_name, color, alpha, level, material, mode=mode
+                )
 
             # Compounds / topods_compounds
             elif (
@@ -1493,11 +1509,15 @@ class OcpConverter:
                 and not is_build123d_assembly(cad_obj)
                 and not is_compsolid(cad_obj)
             ):
-                ocp_obj = self.handle_compound(cad_obj, obj_name, color, alpha, level, material, mode=mode)
+                ocp_obj = self.handle_compound(
+                    cad_obj, obj_name, color, alpha, level, material, mode=mode
+                )
 
             # Dicts
             elif isinstance(cad_obj, dict):
-                ocp_obj = self.handle_dict(cad_obj, obj_name, color, alpha, level, material, mode=mode)
+                ocp_obj = self.handle_dict(
+                    cad_obj, obj_name, color, alpha, level, material, mode=mode
+                )
 
             # =============================== Assemblies ================================ #
 
@@ -1551,7 +1571,9 @@ class OcpConverter:
 
             # CadQuery Workplane objects
             elif is_cadquery(cad_obj) and not is_cadquery_empty_workplane(cad_obj):
-                ocp_obj = self.handle_workplane(cad_obj, obj_name, color, alpha, level, material, mode=mode)
+                ocp_obj = self.handle_workplane(
+                    cad_obj, obj_name, color, alpha, level, material, mode=mode
+                )
 
             # build123d LocationLists
             elif is_build123d_locationlist(cad_obj):
@@ -1624,7 +1646,7 @@ class OcpConverter:
 
         if isinstance(group.objects[0], OcpGroup) and group.length == 1:
             group = group.cleanup()
-        
+
         return group
 
 

@@ -193,14 +193,10 @@ class OcpGroup:
     def __repr__(self):
         return self.dump()
 
-    @property 
+    @property
     def can_be_cleaned_up(self):
-        return (
-            self.name is None 
-            and is_identity(self.loc)
-            and len(self.objects) == 1
-        )
-    
+        return self.name is None and is_identity(self.loc) and len(self.objects) == 1
+
     @property
     def length(self):
         return len(self.objects)

@@ -7,6 +7,7 @@ from OCP.TopoDS import TopoDS_Edge, TopoDS_Face, TopoDS_Shape, TopoDS_Vertex
 Coords = tuple[float, float, float]
 TriangleIndices = tuple[int, int, int]
 
+
 class FaceMapper(TypedDict):
     faces: Iterable[TopoDS_Face]
     edges: Iterable[TopoDS_Edge]
@@ -28,7 +29,7 @@ class VertexMapper(TypedDict):
 class Tessellation(TypedDict):
     """
     Represents mesh tessellation data with vertices, triangles, and metadata.
-    
+
     Attributes:
         vertices: Array of vertex positions. Shape (V, 3)
         triangles: Array of triangle indices. Shape (T, 3)
@@ -41,6 +42,7 @@ class Tessellation(TypedDict):
         segments_per_edge: Segment count per edge. Shape (M,)
         uvs: Parametric UV coordinates per vertex (only present when materials are used). Shape (V, 2)
     """
+
     vertices: NDArray[np.float32]
     triangles: NDArray[np.int32]
     normals: NDArray[np.float32]

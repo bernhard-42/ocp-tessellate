@@ -101,9 +101,10 @@ from numpy.typing import ArrayLike
 
 from .utils import Color, distance, type_name
 
+
 class VectorLike(Protocol):
-    def __iter__(self) -> Iterable[float]:
-        ...
+    def __iter__(self) -> Iterable[float]: ...
+
 
 _Vertex = TopoDS.Vertex if hasattr(TopoDS, "Vertex") else TopoDS.Vertex_s
 _Edge = TopoDS.Edge if hasattr(TopoDS, "Edge") else TopoDS.Edge_s
@@ -115,6 +116,7 @@ _CompSolid = TopoDS.CompSolid if hasattr(TopoDS, "CompSolid") else TopoDS.CompSo
 _Compound = TopoDS.Compound if hasattr(TopoDS, "Compound") else TopoDS.Compound_s
 #
 # %% Version
+
 
 def occt_version() -> str:
     return OCP.__version__
@@ -767,7 +769,9 @@ def rect(width: float, height: float, ax3: gp_Ax3 | None = None) -> TopoDS_Face:
     ).Face()
 
 
-def line(start: gp_Pnt | tuple[float, float, float], end: gp_Pnt | tuple[float, float, float]) -> TopoDS_Edge:
+def line(
+    start: gp_Pnt | tuple[float, float, float], end: gp_Pnt | tuple[float, float, float]
+) -> TopoDS_Edge:
     if isinstance(start, (list, tuple)):
         start = gp_Pnt(*start)
     if isinstance(end, (list, tuple)):
@@ -777,7 +781,11 @@ def line(start: gp_Pnt | tuple[float, float, float], end: gp_Pnt | tuple[float, 
     )
 
 
-def circle(origin: gp_Pnt | tuple[float, float, float], z_dir: gp_Dir | tuple[float, float, float], radius: float) -> TopoDS_Edge:
+def circle(
+    origin: gp_Pnt | tuple[float, float, float],
+    z_dir: gp_Dir | tuple[float, float, float],
+    radius: float,
+) -> TopoDS_Edge:
     ax = gp_Ax2(gp_Pnt(*origin), gp_Dir(*z_dir))
     circle_gp = gp_Circ(ax, radius)
     return BRepBuilderAPI_MakeEdge(circle_gp).Edge()
@@ -832,7 +840,9 @@ def volume(obj: TopoDS_Shape) -> float:
     return properties.Mass()
 
 
-def end_points(obj: TopoDS_Edge) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+def end_points(
+    obj: TopoDS_Edge,
+) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
     curve = BRepAdaptor_Curve(obj)
     umin = curve.FirstParameter()
     umax = curve.LastParameter()
@@ -854,7 +864,9 @@ def is_closed(obj: TopoDS_Shape) -> bool:
 #
 
 
-def tq_to_loc(t: tuple[float, float, float], q: tuple[float, float, float, float]) -> TopLoc_Location:
+def tq_to_loc(
+    t: tuple[float, float, float], q: tuple[float, float, float, float]
+) -> TopLoc_Location:
     T = gp_Trsf()
     Q = gp_Quaternion(*q)
     V = gp_Vec(*t)
@@ -862,7 +874,9 @@ def tq_to_loc(t: tuple[float, float, float], q: tuple[float, float, float, float
     return TopLoc_Location(T)
 
 
-def loc_to_tq(loc: TopLoc_Location) -> tuple[tuple[float, float, float], tuple[float, float, float, float]]:
+def loc_to_tq(
+    loc: TopLoc_Location,
+) -> tuple[tuple[float, float, float], tuple[float, float, float, float]]:
     if loc is None:
         return (None, None)
 
@@ -877,8 +891,10 @@ def identity_location() -> TopLoc_Location:
     TopLoc_Location.Identity(loc)
     return loc
 
-def is_identity(loc:TopLoc_Location) -> bool:
+
+def is_identity(loc: TopLoc_Location) -> bool:
     return loc.IsIdentity()
+
 
 def relocate(obj: TopoDS_Shape) -> tuple[TopoDS_Shape, TopLoc_Location]:
     loc = get_location(obj)
@@ -932,7 +948,9 @@ def get_location(obj: Any, as_none: bool = True) -> TopLoc_Location | None:
         raise TypeError(f"Unknown location typ {type(loc)}")
 
 
-def mul_locations(loc1: TopLoc_Location | None, loc2: TopLoc_Location | None) -> TopLoc_Location | None:
+def mul_locations(
+    loc1: TopLoc_Location | None, loc2: TopLoc_Location | None
+) -> TopLoc_Location | None:
     if loc1 is None:
         return loc2
     if loc2 is None:
@@ -943,9 +961,11 @@ def mul_locations(loc1: TopLoc_Location | None, loc2: TopLoc_Location | None) ->
 def copy_location(loc: TopLoc_Location) -> TopLoc_Location:
     return TopLoc_Location(loc.Transformation())
 
+
 class AxisCoord(TypedDict):
     origin: gp_XYZ
     z_dir: tuple[float, float, float]
+
 
 def get_axis_coord(axis: gp_Ax1) -> AxisCoord:
     return {
@@ -953,11 +973,13 @@ def get_axis_coord(axis: gp_Ax1) -> AxisCoord:
         "z_dir": axis.Direction().Coord(),
     }
 
+
 class LocationCoord(TypedDict):
     origin: tuple[float, float, float]
     x_dir: tuple[float, float, float]
     y_dir: tuple[float, float, float]
     z_dir: tuple[float, float, float]
+
 
 def get_location_coord(loc: TopLoc_Location) -> LocationCoord:
     trsf = loc.Transformation()
@@ -977,7 +999,9 @@ def get_location_coord(loc: TopLoc_Location) -> LocationCoord:
     }
 
 
-def loc_to_vecs(origin: gp_XYZ, x_dir: gp_XYZ, z_dir: gp_XYZ) -> tuple[gp_Vec, gp_Vec, gp_Vec, gp_Vec]:
+def loc_to_vecs(
+    origin: gp_XYZ, x_dir: gp_XYZ, z_dir: gp_XYZ
+) -> tuple[gp_Vec, gp_Vec, gp_Vec, gp_Vec]:
     ax3 = gp_Ax3(gp_Pnt(*origin), gp_Dir(*z_dir), gp_Dir(*x_dir))
     o = gp_Vec(ax3.Location().XYZ())
     x = gp_Vec(ax3.XDirection().XYZ())
@@ -1019,7 +1043,9 @@ def face_center_location(face: TopoDS_Face) -> (gp_Pnt, gp_Vec, gp_Vec):
 #
 
 
-def axis_to_vecs(origin: VectorLike, z_dir: VectorLike) -> tuple[gp_Vec, gp_Vec, gp_Vec, gp_Vec]:
+def axis_to_vecs(
+    origin: VectorLike, z_dir: VectorLike
+) -> tuple[gp_Vec, gp_Vec, gp_Vec, gp_Vec]:
     ax3 = gp_Ax3(gp_Pnt(*origin), gp_Dir(*z_dir))
     o = gp_Vec(ax3.Location().XYZ())
     x = gp_Vec(ax3.XDirection().XYZ())
@@ -1033,7 +1059,9 @@ def axis_to_vecs(origin: VectorLike, z_dir: VectorLike) -> tuple[gp_Vec, gp_Vec,
 #
 
 
-def is_same_plane(plane1: TopoDS_Face | TopLoc_Location, plane2: TopoDS_Face | TopLoc_Location) -> bool:
+def is_same_plane(
+    plane1: TopoDS_Face | TopLoc_Location, plane2: TopoDS_Face | TopLoc_Location
+) -> bool:
     if is_topods_face(plane1):
         first_plane = BRep_Tool.Surface_s(plane1)
     elif is_toploc_location(plane1):
@@ -1077,7 +1105,13 @@ def is_plane_xy(obj: TopoDS_Face | TopLoc_Location) -> bool:
 # Caching helpers for bounding box
 
 
-def make_key(objs: Iterable[TopoDS_Shape], loc: TopLoc_Location | None = None, optimal: bool = False) -> tuple[tuple[tuple[int, int], tuple[float, float, float, float]], TopLoc_Location | None]:  # pylint: disable=unused-argument
+def make_key(
+    objs: Iterable[TopoDS_Shape],
+    loc: TopLoc_Location | None = None,
+    optimal: bool = False,
+) -> tuple[
+    tuple[tuple[int, int], tuple[float, float, float, float]], TopLoc_Location | None
+]:  # pylint: disable=unused-argument
     # optimal is not used and as such ignored
     if not isinstance(objs, (tuple, list)):
         objs = [objs]
@@ -1298,6 +1332,7 @@ def rotate(q: tuple[float, float, float, float], v: ArrayLike) -> np.ndarray:
     ])
     return np.dot(v, R.T)
 
+
 class NumpyBBox(TypedDict):
     xmin: float
     xmax: float
@@ -1306,7 +1341,12 @@ class NumpyBBox(TypedDict):
     zmin: float
     zmax: float
 
-def np_bbox(p: np.ndarray, t: np.ndarray | None = None, q: tuple[float, float, float, float] | None = None) -> NumpyBBox | None:
+
+def np_bbox(
+    p: np.ndarray,
+    t: np.ndarray | None = None,
+    q: tuple[float, float, float, float] | None = None,
+) -> NumpyBBox | None:
     if p.size == 0:
         return None
 
@@ -1353,7 +1393,9 @@ def position_at(edge_or_wire: TopoDS_Edge | TopoDS_Wire, distance: float) -> gp_
     return curve.Value(parameter)
 
 
-def tangent_at(edge_or_wire: TopoDS_Edge | TopoDS_Wire, distance: float) -> tuple[gp_Pnt, gp_Dir]:
+def tangent_at(
+    edge_or_wire: TopoDS_Edge | TopoDS_Wire, distance: float
+) -> tuple[gp_Pnt, gp_Dir]:
     if isinstance(edge_or_wire, TopoDS_Edge):
         curve = BRepAdaptor_Curve(edge_or_wire)
     else:
@@ -1373,7 +1415,9 @@ def tangent_at(edge_or_wire: TopoDS_Edge | TopoDS_Wire, distance: float) -> tupl
     return (pnt, gp_Dir(vec))
 
 
-def tangent_edge_at(edge_or_wire: TopoDS_Edge | TopoDS_Wire, distance: float) -> TopoDS_Edge:
+def tangent_edge_at(
+    edge_or_wire: TopoDS_Edge | TopoDS_Wire, distance: float
+) -> TopoDS_Edge:
     pnt, dir = tangent_at(edge_or_wire, distance)
     vec = gp_Vec(gp_Pnt(0, 0, 0), pnt)
     vec.Add(gp_Vec(dir))
@@ -1381,7 +1425,9 @@ def tangent_edge_at(edge_or_wire: TopoDS_Edge | TopoDS_Wire, distance: float) ->
     return line(pnt, pnt2)
 
 
-def trim_infinite_edge(edge_or_wire: TopoDS_Edge | TopoDS_Wire, scale: float) -> TopoDS_Edge:
+def trim_infinite_edge(
+    edge_or_wire: TopoDS_Edge | TopoDS_Wire, scale: float
+) -> TopoDS_Edge:
     if length(edge_or_wire) > 1e90:
         pnt, dir = tangent_at(edge_or_wire, 0.5)
         start = gp_Vec(gp_Pnt(0, 0, 0), pnt)
@@ -1405,7 +1451,9 @@ def trim_infinite_face(face: TopoDS_Face, scale: float) -> TopoDS_Face:
 # TODO replace with https://github.com/MatthiasJ1/ocp_serializer when published
 
 
-def serialize(shape: TopoDS_Shape | None, triangles: bool = False, normals: bool = False) -> bytes | None:
+def serialize(
+    shape: TopoDS_Shape | None, triangles: bool = False, normals: bool = False
+) -> bytes | None:
     if shape is None:
         return None
 

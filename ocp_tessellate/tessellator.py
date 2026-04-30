@@ -219,7 +219,9 @@ class Tessellator:
         if compute_uvs and normalize_uvs:
             # Recover average dimension from quality and deviation for UV normalization.
             # quality ≈ (xsize + ysize + zsize) / 300 * deviation, so quality * 100 / deviation ≈ (x+y+z)/3
-            self.bbox_max_dim = max(quality * 100 / deviation, 1e-10) if deviation > 0 else 1.0
+            self.bbox_max_dim = (
+                max(quality * 100 / deviation, 1e-10) if deviation > 0 else 1.0
+            )
 
         # count = self.number_solids(shape)
         with Timer(
@@ -288,13 +290,11 @@ class Tessellator:
                 flat: list[TriangleIndices] = []
                 for i in range(1, poly.NbTriangles() + 1):
                     coord: TriangleIndices = poly.Triangle(i).Get()
-                    flat.extend(
-                        (
-                            coord[0] + offset,
-                            coord[i1] + offset,
-                            coord[i2] + offset,
-                        )
-                    )
+                    flat.extend((
+                        coord[0] + offset,
+                        coord[i1] + offset,
+                        coord[i2] + offset,
+                    ))
                 self.triangles.extend(flat)
                 self.triangles_per_face.append(poly.NbTriangles())
 
