@@ -491,7 +491,7 @@ class OcpConverter:
         alpha: float,
         level: int,
         material: Union[str, None] = None,
-        default_name:str="List",
+        default_name: str = "List",
         mode: Union[Tuple[int, int], None] = None,
     ) -> OcpGroup:
         """
@@ -1052,51 +1052,74 @@ class OcpConverter:
         """
         self._debug(level, f"handle_build123d_builder {cad_obj._obj_name}", obj_name)
 
-        # bild123d BuildPart().part
-        if is_build123d_part(cad_obj):
-            obj = cad_obj.part
-            obj_name = get_name(cad_obj, obj_name, "Solid")
-
-        # build123d BuildSketch().sketch
-        elif is_build123d_sketch(cad_obj):
-            obj = cad_obj.sketch.faces()
-            obj_name = get_name(cad_obj, obj_name, "Face")
-
-        # build123d BuildLine().line
-        elif is_build123d_line(cad_obj):
-            obj = cad_obj.edges()
-            obj_name = get_name(cad_obj, obj_name, "Edge")
-
-        builder_material = cad_obj.material if not material and hasattr(cad_obj, "material") else material
-
-        ocp_obj = self.to_ocp(
-            obj,
-            names=[obj_name],
-            colors=[
-                cad_obj.color if color is None and hasattr(cad_obj, "color") else color
-            ],
-            alphas=[
-                cad_obj.alpha if alpha is None and hasattr(cad_obj, "alpha") else alpha
-            ],
-            materials=[builder_material],
-            modes=[mode],
-            level=level + 1,
+        builder_color = (
+            cad_obj.color if color is None and hasattr(cad_obj, "color") else color
+        )
+        builder_alpha = (
+            cad_obj.alpha if alpha is None and hasattr(cad_obj, "alpha") else alpha
+        )
+        builder_material = (
+            cad_obj.material if not material and hasattr(cad_obj, "material") else material
         )
 
-        if self.show_sketch_local and hasattr(cad_obj, "sketch_local"):
-            obj = cad_obj.sketch_local.faces()
-            ocp_obj.name = ocp_obj.objects[0].name
-            ocp_obj.objects[0].name = "sketch"
-            ocp_obj_local = self.to_ocp(
-                obj,
-                names=["sketch_local"],
-                colors=[color],
+        # Builder objects are homogeneous compounds (a sketch is all faces, a line
+        # is all edges) - the user's "one thing", not the N inner shapes that compose
+        # it. Bypass ShapeList unrolling and unify directly into a single OcpObject.
+        if is_build123d_part(cad_obj):
+            obj_name = get_name(cad_obj, obj_name, "Solid")
+            ocp_obj = self.to_ocp(
+                cad_obj.part,
+                names=[obj_name],
+                colors=[builder_color],
+                alphas=[builder_alpha],
+                materials=[builder_material],
+                modes=[mode],
                 level=level + 1,
-            ).objects[0]
-            ocp_obj_local.color.a = 0.2
-            ocp_obj.add(ocp_obj_local)
+            ).cleanup()
 
-        return ocp_obj.cleanup()
+        elif is_build123d_sketch(cad_obj):
+            obj_name = get_name(cad_obj, obj_name, "Face")
+            ocp_obj = self.unify(
+                [f.wrapped for f in cad_obj.sketch.faces()],
+                kind="face",
+                name=obj_name,
+                color=builder_color,
+                alpha=builder_alpha,
+                material=builder_material,
+                mode=mode,
+            )
+
+        elif is_build123d_line(cad_obj):
+            obj_name = get_name(cad_obj, obj_name, "Edge")
+            ocp_obj = self.unify(
+                [e.wrapped for e in cad_obj.edges()],
+                kind="edge",
+                name=obj_name,
+                color=builder_color,
+                alpha=builder_alpha,
+                material=builder_material,
+                mode=mode,
+            )
+
+        if self.show_sketch_local and hasattr(cad_obj, "sketch_local"):
+            sketch_local = self.unify(
+                [f.wrapped for f in cad_obj.sketch_local.faces()],
+                kind="face",
+                name="sketch_local",
+                color=color,
+                alpha=None,
+                material=None,
+                mode=None,
+            )
+            sketch_local.color.a = 0.2
+
+            sketch = ocp_obj
+            sketch.name = "sketch"
+            ocp_obj = OcpGroup(name=obj_name)
+            ocp_obj.add(sketch)
+            ocp_obj.add(sketch_local)
+
+        return ocp_obj
 
     def handle_cadquery_sketch(
         self,
@@ -1514,7 +1537,16 @@ class OcpConverter:
             elif is_build123d_shapelist(cad_obj):
                 # Treat shapelists like lists
                 # ocp_obj = self.handle_shape_list(cad_obj, obj_name, color, alpha, level, material)
-                ocp_obj = self.handle_list_tuple(cad_obj, obj_name, color, alpha, level, material, default_name="ShapeList", mode=mode)
+                ocp_obj = self.handle_list_tuple(
+                    cad_obj,
+                    obj_name,
+                    color,
+                    alpha,
+                    level,
+                    material,
+                    default_name="ShapeList",
+                    mode=mode,
+                )
 
             # CadQuery Workplane objects
             elif is_cadquery(cad_obj) and not is_cadquery_empty_workplane(cad_obj):

@@ -321,9 +321,10 @@ class TestsConvert(MyUnitTest):
     def test_show_solids_default_colors(self):
         c = OcpConverter()
         g = c.to_ocp(b2.solids())
-        o = g.objects[0]
-        self.assertEqual(g.length, 1)
-        self.assertEqual(o.color.web_color, "#e8b024")
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.length, 2)
+        for o in g.objects:
+            self.assertEqual(o.color.web_color, "#e8b024")
 
     def test_show_solids_list_default_colors(self):
         c = OcpConverter()
@@ -342,9 +343,10 @@ class TestsConvert(MyUnitTest):
     def test_show_shells_default_colors(self):
         c = OcpConverter()
         g = c.to_ocp(b2.shells())
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.color.web_color, "#ee82ee")
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.length, 2)
+        for o in g.objects:
+            self.assertEqual(o.color.web_color, "#ee82ee")
 
     def test_show_shells_list_default_colors(self):
         c = OcpConverter()
@@ -363,9 +365,10 @@ class TestsConvert(MyUnitTest):
     def test_show_faces_default_colors(self):
         c = OcpConverter()
         g = c.to_ocp(b2.faces())
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.color.web_color, "#ee82ee")
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.length, 12)
+        for o in g.objects:
+            self.assertEqual(o.color.web_color, "#ee82ee")
 
     def test_show_faces_list_default_colors(self):
         c = OcpConverter()
@@ -384,9 +387,10 @@ class TestsConvert(MyUnitTest):
     def test_show_wires_default_colors(self):
         c = OcpConverter()
         g = c.to_ocp(b2.wires())
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.color.web_color, "#ba55d3")
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.length, 12)
+        for o in g.objects:
+            self.assertEqual(o.color.web_color, "#ba55d3")
 
     def test_show_wires_list_default_colors(self):
         c = OcpConverter()
@@ -405,9 +409,10 @@ class TestsConvert(MyUnitTest):
     def test_show_edges_default_colors(self):
         c = OcpConverter()
         g = c.to_ocp(b2.edges())
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.color.web_color, "#ba55d3")
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.length, 24)
+        for o in g.objects:
+            self.assertEqual(o.color.web_color, "#ba55d3")
 
     def test_show_edges_list_default_colors(self):
         c = OcpConverter()
@@ -426,9 +431,10 @@ class TestsConvert(MyUnitTest):
     def test_show_vertices_default_colors(self):
         c = OcpConverter()
         g = c.to_ocp(b2.vertices())
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.color.web_color, "#ba55d3")
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.length, 16)
+        for o in g.objects:
+            self.assertEqual(o.color.web_color, "#ba55d3")
 
     def test_show_vertices_list_default_colors(self):
         c = OcpConverter()
@@ -449,14 +455,16 @@ class TestsConvert(MyUnitTest):
 
     def test_show_solids_colors_names(self):
         c = OcpConverter()
-        names = ["MySolidShapeList"]
-        colors = [bd.Color("Orange", 0.7)]
-        g = c.to_ocp(b2.solids(), names=names, colors=colors)
-        o = g.objects[0]
-        self.assertEqual(g.length, 1)
-        self.assertEqual(o.color.web_color, "#ffa500")
-        self.assertAlmostEqual(o.color.a, 0.7, 6)
-        self.assertEqual(o.name, "MySolidShapeList")
+        g = c.to_ocp(
+            b2.solids(),
+            names=["MySolidShapeList"],
+            colors=[bd.Color("Orange", 0.7)],
+        )
+        self.assertEqual(g.name, "MySolidShapeList")
+        self.assertEqual(g.length, 2)
+        for o in g.objects:
+            self.assertEqual(o.color.web_color, "#ffa500")
+            self.assertAlmostEqual(o.color.a, 0.7, 6)
 
     def test_show_solids_list_colors_names(self):
         c = OcpConverter()
@@ -479,9 +487,10 @@ class TestsConvert(MyUnitTest):
     def test_show_shells_colors_names(self):
         c = OcpConverter()
         g = c.to_ocp(b2.shells(), colors=[bd.Color("Orange", 0.7)])
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.color.web_color, "#ffa500")
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.length, 2)
+        for o in g.objects:
+            self.assertEqual(o.color.web_color, "#ffa500")
 
     def test_show_shells_list_colors_names(self):
         c = OcpConverter()
@@ -504,9 +513,10 @@ class TestsConvert(MyUnitTest):
     def test_show_faces_colors_names(self):
         c = OcpConverter()
         g = c.to_ocp(b2.faces(), colors=[bd.Color("Orange", 0.7)])
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.color.web_color, "#ffa500")
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.length, 12)
+        for o in g.objects:
+            self.assertEqual(o.color.web_color, "#ffa500")
 
     def test_show_faces_list_colors_names(self):
         c = OcpConverter()
@@ -529,9 +539,10 @@ class TestsConvert(MyUnitTest):
     def test_show_wires_colors_names(self):
         c = OcpConverter()
         g = c.to_ocp(b2.wires(), colors=[bd.Color("Orange", 1.0)])
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.color.web_color, "#ffa500")
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.length, 12)
+        for o in g.objects:
+            self.assertEqual(o.color.web_color, "#ffa500")
 
     def test_show_wires_list_colors_names(self):
         c = OcpConverter()
@@ -554,9 +565,10 @@ class TestsConvert(MyUnitTest):
     def test_show_edges_colors_names(self):
         c = OcpConverter()
         g = c.to_ocp(b2.edges(), colors=[bd.Color("Orange", 1.0)])
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.color.web_color, "#ffa500")
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.length, 24)
+        for o in g.objects:
+            self.assertEqual(o.color.web_color, "#ffa500")
 
     def test_show_edges_list_colors_names(self):
         c = OcpConverter()
@@ -579,9 +591,10 @@ class TestsConvert(MyUnitTest):
     def test_show_vertices_colors_names(self):
         c = OcpConverter()
         g = c.to_ocp(b2.vertices(), colors=[bd.Color("Orange", 1.0)])
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.color.web_color, "#ffa500")
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.length, 16)
+        for o in g.objects:
+            self.assertEqual(o.color.web_color, "#ffa500")
 
     def test_show_vertices_list_colors_names(self):
         c = OcpConverter()
@@ -690,9 +703,11 @@ class TestsShapeLists(MyUnitTest):
         c = OcpConverter()
         g = c.to_ocp(b.solids())
         i = c.instances
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.kind, "group")
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList(Solid)")
+        self.assertEqual(o.name, "Solid")
         self.assertEqual(o.kind, "solid")
         self.assertTrue(is_topods_solid(i[o.ref]["obj"]))
 
@@ -701,9 +716,11 @@ class TestsShapeLists(MyUnitTest):
         c = OcpConverter()
         g = c.to_ocp(b.shells())
         i = c.instances
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.kind, "group")
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList(Shell)")
+        self.assertEqual(o.name, "Shell")
         self.assertEqual(o.kind, "face")
         self.assertTrue(is_topods_shell(i[o.ref]["obj"]))
 
@@ -712,110 +729,124 @@ class TestsShapeLists(MyUnitTest):
         c = OcpConverter()
         g = c.to_ocp(b.faces())
         i = c.instances
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList(Face)")
-        self.assertEqual(o.kind, "face")
-        self.assertTrue(is_topods_compound(i[o.ref]["obj"]))
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.kind, "group")
+        self.assertEqual(g.length, 6)
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.name, "Face" if ind == 0 else f"Face({ind + 1})")
+            self.assertEqual(o.kind, "face")
+            self.assertTrue(is_topods_face(i[o.ref]["obj"]))
 
     def test_shapelist_edge(self):
         """Test that a shapelist of edges is converted correctly"""
         c = OcpConverter()
         g = c.to_ocp(b.edges())
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList(Edge)")
-        self.assertEqual(o.kind, "edge")
-        self.assertTrue(isinstance(o.obj, list))
-        self.assertTrue(all(is_topods_edge(e) for e in o.obj))
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.kind, "group")
+        self.assertEqual(g.length, 12)
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.name, "Edge" if ind == 0 else f"Edge({ind + 1})")
+            self.assertEqual(o.kind, "edge")
+            self.assertTrue(is_topods_edge(o.obj))
 
     def test_shapelist_wire(self):
         """Test that a shapelist of wires is converted correctly"""
         c = OcpConverter()
         g = c.to_ocp(b.wires())
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList(Wire)")
-        self.assertEqual(o.kind, "edge")
-        self.assertTrue(isinstance(o.obj, list))
-        self.assertTrue(all(is_topods_edge(e) for e in o.obj))
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.kind, "group")
+        self.assertEqual(g.length, 6)
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.name, "Wire" if ind == 0 else f"Wire({ind + 1})")
+            self.assertEqual(o.kind, "edge")
+            self.assertTrue(all(is_topods_edge(e) for e in o.obj))
 
     def test_shapelist_vertex(self):
         """Test that a shapelist of vertices is converted correctly"""
         c = OcpConverter()
         g = c.to_ocp(b.vertices())
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList(Vertex)")
-        self.assertEqual(o.kind, "vertex")
-        self.assertTrue(isinstance(o.obj, list))
-        self.assertTrue(all(is_topods_vertex(e) for e in o.obj))
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.kind, "group")
+        self.assertEqual(g.length, 8)
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.name, "Vertex" if ind == 0 else f"Vertex({ind + 1})")
+            self.assertEqual(o.kind, "vertex")
+            self.assertTrue(is_topods_vertex(o.obj))
 
     def test_shapelist_solids_2(self):
         """Test that a shapelist of solids is converted correctly"""
         c = OcpConverter()
         g = c.to_ocp(b2.solids())
         i = c.instances
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList(Solid)")
-        self.assertEqual(o.kind, "solid")
-        self.assertTrue(is_topods_compound(i[o.ref]["obj"]))
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.kind, "group")
+        self.assertEqual(g.length, 2)
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.name, "Solid" if ind == 0 else f"Solid({ind + 1})")
+            self.assertEqual(o.kind, "solid")
+            self.assertTrue(is_topods_solid(i[o.ref]["obj"]))
 
     def test_shapelist_shells_2(self):
         """Test that a shapelist of shells is converted correctly"""
         c = OcpConverter()
         g = c.to_ocp(b2.shells())
         i = c.instances
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList(Shell)")
-        self.assertEqual(o.kind, "face")
-        self.assertTrue(is_topods_compound(i[o.ref]["obj"]))
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.kind, "group")
+        self.assertEqual(g.length, 2)
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.name, "Shell" if ind == 0 else f"Shell({ind + 1})")
+            self.assertEqual(o.kind, "face")
+            self.assertTrue(is_topods_shell(i[o.ref]["obj"]))
 
     def test_shapelist_face_2(self):
         """Test that a shapelist of faces is converted correctly"""
         c = OcpConverter()
         g = c.to_ocp(b2.faces())
         i = c.instances
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList(Face)")
-        self.assertEqual(o.kind, "face")
-        self.assertTrue(is_topods_compound(i[o.ref]["obj"]))
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.kind, "group")
+        self.assertEqual(g.length, 12)
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.name, "Face" if ind == 0 else f"Face({ind + 1})")
+            self.assertEqual(o.kind, "face")
+            self.assertTrue(is_topods_face(i[o.ref]["obj"]))
 
     def test_shapelist_edge_2(self):
         """Test that a shapelist of edges is converted correctly"""
         c = OcpConverter()
         g = c.to_ocp(b2.edges())
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList(Edge)")
-        self.assertEqual(o.kind, "edge")
-        self.assertTrue(isinstance(o.obj, list))
-        self.assertTrue(all(is_topods_edge(e) for e in o.obj))
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.kind, "group")
+        self.assertEqual(g.length, 24)
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.name, "Edge" if ind == 0 else f"Edge({ind + 1})")
+            self.assertEqual(o.kind, "edge")
+            self.assertTrue(is_topods_edge(o.obj))
 
     def test_shapelist_wire_2(self):
         """Test that a shapelist of wires is converted correctly"""
         c = OcpConverter()
         g = c.to_ocp(b2.wires())
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList(Wire)")
-        self.assertEqual(o.kind, "edge")
-        self.assertTrue(isinstance(o.obj, list))
-        self.assertTrue(all(is_topods_edge(e) for e in o.obj))
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.kind, "group")
+        self.assertEqual(g.length, 12)
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.name, "Wire" if ind == 0 else f"Wire({ind + 1})")
+            self.assertEqual(o.kind, "edge")
+            self.assertTrue(all(is_topods_edge(e) for e in o.obj))
 
     def test_shapelist_vertex_2(self):
         """Test that a shapelist of vertices is converted correctly"""
         c = OcpConverter()
         g = c.to_ocp(b2.vertices())
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList(Vertex)")
-        self.assertEqual(o.kind, "vertex")
-        self.assertTrue(isinstance(o.obj, list))
-        self.assertTrue(all(is_topods_vertex(e) for e in o.obj))
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.kind, "group")
+        self.assertEqual(g.length, 16)
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.name, "Vertex" if ind == 0 else f"Vertex({ind + 1})")
+            self.assertEqual(o.kind, "vertex")
+            self.assertTrue(is_topods_vertex(o.obj))
 
     def test_shapelist_solids_2_list(self):
         """Test that a shapelist of solids is converted correctly"""
@@ -888,21 +919,24 @@ class TestsShapeLists(MyUnitTest):
         """Test that a shapelist of vertices is converted correctly"""
         c = OcpConverter()
         g = c.to_ocp(ShapeList([Vector(0, 1, 2), Vector(3, 4, 5)]))
-        o = g.objects[0]
-        self.assertEqual(g.length, 1)
-        self.assertEqual(o.name, "ShapeList(Vertex)")
-        self.assertEqual(o.kind, "vertex")
-        self.assertTrue(is_topods_vertex(o.obj[0]))
-        self.assertTrue(is_topods_vertex(o.obj[1]))
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.kind, "group")
+        self.assertEqual(g.length, 2)
+        for ind, o in enumerate(g.objects):
+            self.assertEqual(o.name, "Vertex" if ind == 0 else f"Vertex({ind + 1})")
+            self.assertEqual(o.kind, "vertex")
+            self.assertTrue(is_topods_vertex(o.obj))
 
     def test_shapeList_compound(self):
         """Test that a shapelist of a compound is converted correctly"""
         c = OcpConverter()
         g = c.to_ocp(ShapeList([r]))
         i = c.instances
+        self.assertEqual(g.name, "ShapeList")
+        self.assertEqual(g.kind, "group")
         self.assertEqual(g.length, 1)
         o = g.objects[0]
-        self.assertEqual(o.name, "ShapeList(Face)")
+        self.assertEqual(o.name, "Face")
         self.assertEqual(o.kind, "face")
         self.assertTrue(is_topods_face(i[o.ref]["obj"]))
 
