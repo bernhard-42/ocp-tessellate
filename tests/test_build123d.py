@@ -1309,3 +1309,119 @@ class TestComSolid(MyUnitTest):
         self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
         self.assertTrue(is_topods_solid(i[o.ref]["obj"]))
+
+
+class TestNestedContainers(MyUnitTest):
+    """Tests for nested user-supplied containers (lists, dicts, assemblies)"""
+
+    def test_list_with_solid_and_shapelist(self):
+        """A list mixing a solid and a shapelist preserves both levels"""
+        b = Box(1, 2, 3)
+        c = OcpConverter()
+        g = c.to_ocp([b, b.faces()])
+
+        self.assertEqual(g.name, "List")
+        self.assertEqual(g.kind, "group")
+        self.assertEqual(g.length, 2)
+
+        solid = g.objects[0]
+        self.assertEqual(solid.name, "Solid")
+        self.assertEqual(solid.kind, "solid")
+
+        shapelist = g.objects[1]
+        self.assertEqual(shapelist.name, "ShapeList")
+        self.assertEqual(shapelist.kind, "group")
+        self.assertEqual(shapelist.length, 6)
+        for ind, face in enumerate(shapelist.objects):
+            self.assertEqual(face.name, "Face" if ind == 0 else f"Face({ind + 1})")
+            self.assertEqual(face.kind, "face")
+
+    def test_dict_of_assembly(self):
+        """A dict whose value is a labelled assembly: the dict key wins for
+        the wrapper name; the inner assembly's children keep their labels"""
+        sphere = Sphere(1)
+        sphere.label = "sphere label"
+        sphere = Compound(children=[sphere])
+        sphere.label = "compound label"
+
+        c = OcpConverter()
+        g = c.to_ocp({"dict label": sphere})
+
+        self.assertEqual(g.name, "Dict")
+        self.assertEqual(g.kind, "group")
+        self.assertEqual(g.length, 1)
+
+        assembly = g.objects[0]
+        self.assertEqual(assembly.name, "dict label")
+        self.assertEqual(assembly.kind, "group")
+        self.assertEqual(assembly.length, 1)
+
+        leaf = assembly.objects[0]
+        self.assertEqual(leaf.name, "sphere label")
+        self.assertEqual(leaf.kind, "solid")
+
+    def test_list_of_assembly(self):
+        """A list whose element is a labelled assembly: the assembly's own
+        label is preserved (no dict key to override it)"""
+        sphere = Sphere(1)
+        sphere.label = "sphere label"
+        sphere = Compound(children=[sphere])
+        sphere.label = "compound label"
+
+        c = OcpConverter()
+        g = c.to_ocp([sphere])
+
+        self.assertEqual(g.name, "List")
+        self.assertEqual(g.kind, "group")
+        self.assertEqual(g.length, 1)
+
+        assembly = g.objects[0]
+        self.assertEqual(assembly.name, "compound label")
+        self.assertEqual(assembly.kind, "group")
+        self.assertEqual(assembly.length, 1)
+
+        leaf = assembly.objects[0]
+        self.assertEqual(leaf.name, "sphere label")
+        self.assertEqual(leaf.kind, "solid")
+
+    def test_dict_of_standard_compound(self):
+        """A dict whose value is a Standard Compound (Compound(...) with no
+        children, vs. an Assembly Compound which uses children=[...]) — the
+        compound is unwrapped by unify to its inner shape, so the inner
+        'sphere label' is not visible; kind is 'solid', not 'group'"""
+        sphere = Sphere(1)
+        sphere.label = "sphere label"
+        sphere = Compound(sphere)
+        sphere.label = "compound label"
+
+        c = OcpConverter()
+        g = c.to_ocp({"dict label": sphere})
+
+        self.assertEqual(g.name, "Dict")
+        self.assertEqual(g.kind, "group")
+        self.assertEqual(g.length, 1)
+
+        leaf = g.objects[0]
+        self.assertEqual(leaf.name, "dict label")
+        self.assertEqual(leaf.kind, "solid")
+
+    def test_list_of_standard_compound(self):
+        """A list whose element is a Standard Compound (Compound(...) with no
+        children, vs. an Assembly Compound which uses children=[...]) — the
+        compound is unwrapped by unify to its inner shape, so the inner
+        'sphere label' is not visible; kind is 'solid', not 'group'"""
+        sphere = Sphere(1)
+        sphere.label = "sphere label"
+        sphere = Compound(sphere)
+        sphere.label = "compound label"
+
+        c = OcpConverter()
+        g = c.to_ocp([sphere])
+
+        self.assertEqual(g.name, "List")
+        self.assertEqual(g.kind, "group")
+        self.assertEqual(g.length, 1)
+
+        leaf = g.objects[0]
+        self.assertEqual(leaf.name, "compound label")
+        self.assertEqual(leaf.kind, "solid")

@@ -873,8 +873,12 @@ def loc_to_tq(loc: TopLoc_Location) -> tuple[tuple[float, float, float], tuple[f
 
 
 def identity_location() -> TopLoc_Location:
-    return TopLoc_Location(gp_Trsf())
+    loc = TopLoc_Location()
+    TopLoc_Location.Identity(loc)
+    return loc
 
+def is_identity(loc:TopLoc_Location) -> bool:
+    return loc.IsIdentity()
 
 def relocate(obj: TopoDS_Shape) -> tuple[TopoDS_Shape, TopLoc_Location]:
     loc = get_location(obj)

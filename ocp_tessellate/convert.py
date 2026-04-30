@@ -475,7 +475,7 @@ class OcpConverter:
                 resolve_helpers=False,
             )
             if result.length > 0:
-                c_result = result.cleanup()
+                c_result = result.cleanup() if result.can_be_cleaned_up else result
                 ocp_obj.add(c_result)
                 if c_result.helpers is not None:
                     ocp_obj.add(c_result.helpers)
@@ -1372,7 +1372,8 @@ class OcpConverter:
         """
         if loc is None:
             loc = identity_location()
-        group = OcpGroup(loc=loc)
+        # ensures group.can_be_cleaned_up works
+        group = OcpGroup(name=None, loc=loc)
 
         # ============================= Validate parameters ============================= #
 
@@ -1621,6 +1622,9 @@ class OcpConverter:
 
         group.make_unique_names()
 
+        if isinstance(group.objects[0], OcpGroup) and group.length == 1:
+            group = group.cleanup()
+        
         return group
 
 
@@ -1686,8 +1690,8 @@ def to_ocpgroup(
         default_color=default_color,
     )
 
-    if ocp_group.length == 1 and isinstance(ocp_group.objects[0], OcpGroup):
-        ocp_group = ocp_group.cleanup()
+    if ocp_group.name is None:
+        ocp_group.name = "Group"
 
     return ocp_group, converter.instances
 
