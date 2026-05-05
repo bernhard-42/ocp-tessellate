@@ -1,3 +1,18 @@
+## v3.3.0
+
+**Features**
+
+- Add `modes` parameter to `to_ocpgroup` / `to_ocp` to control per-object face/edge selection state. Each mode is a `(state_faces, state_edges)` 2-tuple of 0/1 ints that maps directly onto `OcpObject.state_faces` / `state_edges`
+
+**Behavior changes**
+
+- `ShapeList` is no longer flattened into a single `OcpObject`. A `ShapeList` of N items now appears in the viewer tree as a `ShapeList` group with N children, exposing the internal structure (e.g. `b.faces()` shows each face individually)
+- Tighten the wrapper-cleanup invariant: only artificial `to_ocp` accumulator wrappers are collapsed during recursion. User-meaningful groups (assembly Compounds, dict entries, named ShapeLists) are now preserved verbatim. Fixes cases where `dict → assembly → solid` was being collapsed to `dict → solid`. New `OcpGroup.can_be_cleaned_up` property captures the invariant explicitly
+
+**Fixes**
+
+- Rewrite the `handle_build123d_builder` helper so `BuildSketch` / `BuildLine` outputs are unified explicitly via `unify`, matching the convention that homogeneous compounds are not unrolled. Resolves a `Rectangle - Rectangle` sketch appearing as two separate face entries instead of one
+
 ## v3.2.2
 
 - Add a `normalize_uvs` flag that allows UV coordinates to be passed through raw (unnormalized) or normalized
