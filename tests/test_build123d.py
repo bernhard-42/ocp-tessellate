@@ -1425,3 +1425,10 @@ class TestNestedContainers(MyUnitTest):
         leaf = g.objects[0]
         self.assertEqual(leaf.name, "compound label")
         self.assertEqual(leaf.kind, "solid")
+
+    def test_dict_value_skipped(self):
+        """A dict whose value is silently skipped (e.g. a scalar) must not
+        crash the end-of-to_ocp cleanup with IndexError on the empty group"""
+        c = OcpConverter()
+        g = c.to_ocp({"a_number": 42})
+        self.assertEqual(g.length, 0)

@@ -1644,7 +1644,7 @@ class OcpConverter:
 
         group.make_unique_names()
 
-        if isinstance(group.objects[0], OcpGroup) and group.length == 1:
+        if group.length == 1 and isinstance(group.objects[0], OcpGroup):
             group = group.cleanup()
 
         return group
