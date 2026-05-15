@@ -1,3 +1,9 @@
+## v3.3.1
+
+**Fixes**
+
+- Fix IndexError when an instance tessellates to zero vertices
+
 ## v3.3.0
 
 **Features**
