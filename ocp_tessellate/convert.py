@@ -1746,6 +1746,8 @@ def tessellate_group(
                     # the bounding box at the accumulated location
                     ind = shape["shape"]["ref"]
                     vertices = meshed_instances[ind]["vertices"]
+                    if len(vertices) == 0:
+                        continue
                     bb = np_bbox(vertices, *loc_to_tq(new_loc))
                 else:
                     # wires, edges, vertices already have a bounding box
@@ -1819,6 +1821,7 @@ def tessellate_group(
     material_refs = _refs_with_materials(shapes.get("parts", []))
 
     meshed_instances = []
+    ref_remap = {}
 
     deviation = preset("deviation", kwargs.get("deviation"))
     angular_tolerance = preset("angular_tolerance", kwargs.get("angular_tolerance"))
@@ -1857,12 +1860,37 @@ def tessellate_group(
                 compute_uvs=(i in material_refs),
                 normalize_uvs=material_refs.get(i, True),
             )
-            if len(mesh["vertices"]) > 0:
+            if len(mesh["vertices"]) == 0:
+                t.info = f"instance {i} ignored (empty mesh)"
+            else:
+                ref_remap[i] = len(meshed_instances)
                 meshed_instances.append(mesh)
-                t.info = f"instance {i} ignored"
-            t.info = (
-                f"{{quality:{quality:.4f}, angular_tolerance:{angular_tolerance:.2f}}}"
-            )
+                t.info = (
+                    f"{{quality:{quality:.4f}, angular_tolerance:{angular_tolerance:.2f}}}"
+                )
+
+    # Drop shape entries that referenced an empty mesh and remap the rest
+    # so refs stay valid after filtering.
+    def _remap_shape_refs(parts):
+        filtered = []
+        for part in parts:
+            if "parts" in part:
+                _remap_shape_refs(part["parts"])
+                filtered.append(part)
+            elif (
+                part.get("type") == "shapes"
+                and isinstance(part.get("shape"), dict)
+                and "ref" in part["shape"]
+            ):
+                old_ref = part["shape"]["ref"]
+                if old_ref in ref_remap:
+                    part["shape"]["ref"] = ref_remap[old_ref]
+                    filtered.append(part)
+            else:
+                filtered.append(part)
+        parts[:] = filtered
+
+    _remap_shape_refs(shapes.get("parts", []))
 
     shapes["normal_len"] = max_accuracy / deviation * 4 if render_normals else 0
     with Timer(timeit, "", "compute bounding box:", 2) as t:
