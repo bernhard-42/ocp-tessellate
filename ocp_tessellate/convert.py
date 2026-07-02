@@ -448,6 +448,7 @@ class OcpConverter:
         level: int,
         material: Union[str, None] = None,
         mode: Union[Tuple[int, int], None] = None,
+        loc: Union[TopLoc_Location, None] = None,
     ) -> OcpGroup:
         """
         Unroll the objects in an iterable and convert them to OcpObject and OcpGroup hierarchies.
@@ -462,7 +463,7 @@ class OcpConverter:
 
         @return: The OcpGroup hierarchy
         """
-        ocp_obj: OcpGroup = OcpGroup(name=obj_name)
+        ocp_obj: OcpGroup = OcpGroup(name=obj_name, loc=loc)
         for name, obj in objs:
             result = self.to_ocp(
                 obj,
@@ -550,6 +551,7 @@ class OcpConverter:
             level,
             material,
             mode,
+            loc=get_location(cad_obj, as_none=True),
         )
 
     def handle_compound(
