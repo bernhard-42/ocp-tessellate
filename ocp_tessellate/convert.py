@@ -582,6 +582,9 @@ class OcpConverter:
         elif is_topods_compound(cad_obj) or is_topods_compsolid(cad_obj):
             cad_objs = list(list_topods_compound(cad_obj))
 
+        if hasattr(cad_obj, "color") and cad_obj.color is not None:
+            color = cad_obj.color
+
         default_name = "Compound"
         if is_compsolid(cad_obj) or is_topods_compsolid(cad_obj):
             default_name = "CompSolid"
