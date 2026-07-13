@@ -1871,7 +1871,7 @@ def tessellate_group(
                 ref_remap[i] = len(meshed_instances)
                 meshed_instances.append(mesh)
                 t.info = (
-                    f"{{quality:{quality:.4f}, angular_tolerance:{angular_tolerance:.2f}}}"
+                    f"quality:{quality:.4f}, angular_tolerance:{angular_tolerance:.2f}"
                 )
 
     # Drop shape entries that referenced an empty mesh and remap the rest
