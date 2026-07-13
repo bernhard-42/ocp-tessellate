@@ -375,7 +375,7 @@ class OcpConverter:
         color: Union[ColorLike, Tuple[ColorLike, ColorLike, ColorLike], None] = None,
         alpha: Union[float, None] = None,
         kind: Union[str, None] = None,
-    ) -> Union[Color, Tuple[ColorLike, ColorLike, ColorLike]]:
+    ) -> Union[Color, Tuple[Color, Color, Color]]:
         """
         Get the color of the object based on the object type and the default colors.
 
@@ -1055,7 +1055,7 @@ class OcpConverter:
         level: int,
         material: Union[str, None] = None,
         mode: Union[Tuple[int, int], None] = None,
-    ) -> OcpGroup:
+    ) -> OcpGroup | OcpObject:
         """
         Handle build123d Builder objects.
 
