@@ -126,7 +126,7 @@ class TestsConvert(MyUnitTest):
 
     def test_buildsketch(self):
         """Test that a sketch is converted correctly"""
-        c = OcpConverter(show_sketch_local=False)
+        c = OcpConverter(show_locals=False)
         g = c.to_ocp(bs)
         i = c.instances
         self.assertEqual(g.length, 1)
@@ -177,7 +177,7 @@ class TestsConvert(MyUnitTest):
 
     def test_buildsketch_2(self):
         """Test that a sketch is converted correctly"""
-        c = OcpConverter(show_sketch_local=False)
+        c = OcpConverter(show_locals=False)
         g = c.to_ocp(bs2)
         i = c.instances
         self.assertEqual(g.length, 1)
@@ -229,7 +229,7 @@ class TestsConvert(MyUnitTest):
 
     def test_buildsketch_name(self):
         """Test that the name is set correctly for a sketch"""
-        c = OcpConverter(show_sketch_local=False)
+        c = OcpConverter(show_locals=False)
         g = c.to_ocp(bs, names=["bs"])
         i = c.instances
         self.assertEqual(g.length, 1)
@@ -657,7 +657,7 @@ class TestsConvert2(MyUnitTest):
 
     def test_buildsketch(self):
         """Test that a sketch is converted correctly"""
-        c = OcpConverter(show_sketch_local=False)
+        c = OcpConverter(show_locals=False)
         g = c.to_ocp(bs2)
         i = c.instances
         self.assertEqual(g.length, 1)

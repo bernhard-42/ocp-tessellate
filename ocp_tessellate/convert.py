@@ -190,7 +190,7 @@ class OcpConverter:
         render_joints=False,
         render_mates=False,
         show_parent=False,
-        show_sketch_local=True,
+        show_locals=True,
         debug: bool = False,
     ):
         """The initializer of the OcpConverter.
@@ -203,7 +203,7 @@ class OcpConverter:
         self.render_joints = render_joints
         self.render_mates = render_mates
         self.show_parent = show_parent
-        self.show_sketch_local = show_sketch_local
+        self.show_locals = show_locals
         self.debug = debug
         self.default_color = get_default("default_color")
 
@@ -1069,6 +1069,32 @@ class OcpConverter:
 
         @return: The OcpGroup hierarchy
         """
+
+        def add_local(local_objects, prefix, kind, color, ocp_obj):
+            obj_local = self.unify(
+                [f.wrapped for f in local_objects],
+                kind=kind,
+                name=f"{prefix}_local",
+                color=color,
+                alpha=None,
+                material=None,
+                mode=None,
+            )
+            assert isinstance(obj_local.color, Color), (
+                f"Unknown color type {type(obj_local.color)}"
+            )
+            if prefix == "line":
+                obj_local.color = obj_local.color.set_saturation(0.2)
+            else:
+                obj_local.color.a = 0.2
+
+            obj = ocp_obj
+            obj.name = prefix
+            ocp_obj = OcpGroup(name=obj_name)
+            ocp_obj.add(obj)
+            ocp_obj.add(obj_local)
+            return ocp_obj
+
         self._debug(level, f"handle_build123d_builder {cad_obj._obj_name}", obj_name)
 
         builder_color = (
@@ -1113,7 +1139,7 @@ class OcpConverter:
         elif is_build123d_line(cad_obj):
             obj_name = get_name(cad_obj, obj_name, "Edge")
             ocp_obj = self.unify(
-                [e.wrapped for e in cad_obj.edges()],
+                [e.wrapped for e in cad_obj.line.edges()],
                 kind="edge",
                 name=obj_name,
                 color=builder_color,
@@ -1121,24 +1147,21 @@ class OcpConverter:
                 material=builder_material,
                 mode=mode,
             )
+        else:
+            raise TypeError(f"Not a build123d builder type {type(cad_obj)}")
 
-        if self.show_sketch_local and hasattr(cad_obj, "sketch_local"):
-            sketch_local = self.unify(
-                [f.wrapped for f in cad_obj.sketch_local.faces()],
-                kind="face",
-                name="sketch_local",
-                color=color,
-                alpha=None,
-                material=None,
-                mode=None,
+        if self.show_locals and hasattr(cad_obj, "line_local"):
+            ocp_obj = add_local(
+                cad_obj.line_local.edges(), "line", "edge", color, ocp_obj
             )
-            sketch_local.color.a = 0.2
-
-            sketch = ocp_obj
-            sketch.name = "sketch"
-            ocp_obj = OcpGroup(name=obj_name)
-            ocp_obj.add(sketch)
-            ocp_obj.add(sketch_local)
+        elif self.show_locals and hasattr(cad_obj, "sketch_local"):
+            ocp_obj = add_local(
+                cad_obj.sketch_local.faces(), "sketch", "face", color, ocp_obj
+            )
+        elif self.show_locals and hasattr(cad_obj, "part_local"):
+            ocp_obj = add_local(
+                cad_obj.part_local.faces(), "part", "solid", color, ocp_obj
+            )
 
         return ocp_obj
 
@@ -1672,7 +1695,7 @@ def to_ocpgroup(
     helper_scale: float = 1.0,
     default_color: Union[ColorLike, None] = None,
     show_parent: bool = False,
-    show_sketch_local: bool = True,
+    show_locals: bool = True,
     loc: LocationLike = None,
     progress: Union[Progress, None] = None,
     debug: bool = False,
@@ -1691,7 +1714,7 @@ def to_ocpgroup(
     @param helper_scale: The scale of the helper objects
     @param default_color: The default color of the objects
     @param show_parent: The flag to show the parent
-    @param show_sketch_local: The flag to render the sketch local
+    @param show_locals: The flag to render the part/sketch/line based on XY plane
     @param loc: The location of the objects
     @param progress: The progress bar
 
@@ -1703,7 +1726,7 @@ def to_ocpgroup(
         render_joints=render_joints,
         render_mates=render_mates,
         show_parent=show_parent,
-        show_sketch_local=show_sketch_local,
+        show_locals=show_locals,
         debug=debug,
     )
     ocp_group = converter.to_ocp(
@@ -1925,7 +1948,7 @@ def to_assembly(
     helper_scale: float = 1.0,
     default_color: Union[ColorLike, None] = None,
     show_parent: bool = False,
-    show_sketch_local: bool = True,
+    show_locals: bool = True,
     loc: LocationLike = None,
     progress: Union[Progress, None] = None,
 ) -> Tuple[OcpGroup, List[Any]]:
@@ -1943,7 +1966,7 @@ def to_assembly(
     @param helper_scale: The scale of the helper objects
     @param default_color: The default color of the objects
     @param show_parent: The flag to show the parent
-    @param show_sketch_local: The flag to render the sketch local
+    @param show_locals: The flag to render the sketch local
     @param loc: The location of the objects
     @param progress: The progress bar
 
@@ -1961,7 +1984,7 @@ def to_assembly(
         helper_scale=helper_scale,
         default_color=default_color,
         show_parent=show_parent,
-        show_sketch_local=show_sketch_local,
+        show_locals=show_locals,
         loc=loc,
         progress=progress,
     )

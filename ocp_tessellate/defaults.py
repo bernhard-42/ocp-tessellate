@@ -76,7 +76,7 @@ class Defaults:
         - ambient_intensity   Intensity of ambient light (default=0.75)
         - direct_intensity    Intensity of direct lights (default=0.15)
         - show_parent:        Show the parent for edges, faces and vertices objects (default=False)
-        - show_sketch_local:  In build123d show local sketch in addition to relocate sketch (default=True)
+        - show_locals:        In build123d show local part/sketch/line in addition to the relocated object (default=True)
         - show_bbox:          Show bounding box (default=False)
         - tools:              Show the viewer tools like the object tree (default=True)
         - glass:              Show the viewer in glass mode, i.e (CAD navigation as transparent overlay (default=False)
@@ -141,7 +141,7 @@ class Defaults:
             "roughness": 0.65,
             "reset_camera": True,
             "show_parent": False,
-            "show_sketch_local": True,
+            "show_locals": True,
             "show_bbox": False,
             "position": None,
             "quaternion": None,
@@ -174,6 +174,15 @@ def set_defaults(**kwargs):
             "once",
         )
         kwargs["grid"] = (kwargs["grid"], False, False)
+
+    if kwargs.get("show_sketch_local") is not None:
+        warn(
+            "Using show_sketch_local is deprecated, please use show_locals",
+            DeprecationWarning,
+            "once",
+        )
+        kwargs["show_locals"] = kwargs["show_sketch_local"]
+        del kwargs["show_sketch_local"]
 
     DEFAULTS.set_defaults(**kwargs)
 

@@ -1,4 +1,5 @@
 import base64
+import colorsys
 import json
 import math
 import time
@@ -112,6 +113,11 @@ class Color:
     @property
     def web_color(self):
         return rgb_to_hex((self.r, self.g, self.b))
+
+    def set_saturation(self, sat_target):
+        h, s, v = colorsys.rgb_to_hsv(self.r / 255, self.g / 255, self.b / 255)
+        r, g, b = colorsys.hsv_to_rgb(h, sat_target, v)
+        return Color((int(round(r * 255)), int(round(g * 255)), int(round(b * 255))))
 
 
 #
