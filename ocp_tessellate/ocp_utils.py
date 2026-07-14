@@ -319,7 +319,8 @@ def is_build123d_locationlist(obj):
     return (
         isinstance(obj, Iterable)
         and hasattr(obj, "locations")
-        and hasattr(obj, "_current")
+        and hasattr(obj, "__enter__")
+        and hasattr(obj, "__exit__")
     )
 
 
