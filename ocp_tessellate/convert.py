@@ -1097,54 +1097,78 @@ class OcpConverter:
 
         self._debug(level, f"handle_build123d_builder {cad_obj._obj_name}", obj_name)
 
-        builder_color = (
-            cad_obj.color if color is None and hasattr(cad_obj, "color") else color
-        )
-        builder_alpha = (
-            cad_obj.alpha if alpha is None and hasattr(cad_obj, "alpha") else alpha
-        )
-        builder_material = (
-            cad_obj.material
-            if not material and hasattr(cad_obj, "material")
-            else material
-        )
+        def get_color(color):
+            if color is None:
+                return None
+            return Color(color)
+
+        builder_color = get_color(getattr(cad_obj, "color", color))
+        builder_material = getattr(cad_obj, "material", material)
 
         # Builder objects are homogeneous compounds (a sketch is all faces, a line
         # is all edges) - the user's "one thing", not the N inner shapes that compose
         # it. Bypass ShapeList unrolling and unify directly into a single OcpObject.
         if is_build123d_part(cad_obj):
             obj_name = get_name(cad_obj, obj_name, "Solid")
+            part_color = get_color(cad_obj.part.color)
+            part_color = builder_color if part_color is None else part_color
+            part_alpha = (
+                part_color.a
+                if (part_color is not None and isinstance(part_color.a, (int, float)))
+                else 1.0
+            )
+            part_material = getattr(cad_obj.part, "material", builder_material)
+
             ocp_obj = self.to_ocp(
                 cad_obj.part,
                 names=[obj_name],
-                colors=[builder_color],
-                alphas=[builder_alpha],
-                materials=[builder_material],
+                colors=[part_color],
+                alphas=[part_alpha],
+                materials=[part_material],
                 modes=[mode],
                 level=level + 1,
             ).cleanup()
 
         elif is_build123d_sketch(cad_obj):
             obj_name = get_name(cad_obj, obj_name, "Face")
+            sketch_color = get_color(cad_obj.sketch.color)
+            sketch_color = builder_color if sketch_color is None else sketch_color
+            sketch_alpha = (
+                sketch_color.a
+                if (
+                    sketch_color is not None
+                    and isinstance(sketch_color.a, (int, float))
+                )
+                else 1.0
+            )
+            sketch_material = getattr(cad_obj.sketch, "material", None)
             ocp_obj = self.unify(
                 [f.wrapped for f in cad_obj.sketch.faces()],
                 kind="face",
                 name=obj_name,
-                color=builder_color,
-                alpha=builder_alpha,
-                material=builder_material,
+                color=sketch_color,
+                alpha=sketch_alpha,
+                material=builder_material
+                if sketch_material is None
+                else sketch_material,
                 mode=mode,
             )
 
         elif is_build123d_line(cad_obj):
             obj_name = get_name(cad_obj, obj_name, "Edge")
+            line_color = get_color(cad_obj.line.color)
+            line_color = builder_color if line_color is None else line_color
+            line_alpha = (
+                line_color.a
+                if (line_color is not None and isinstance(line_color.a, (int, float)))
+                else 1.0
+            )
             ocp_obj = self.unify(
                 [e.wrapped for e in cad_obj.line.edges()],
                 kind="edge",
                 name=obj_name,
-                color=builder_color,
-                alpha=builder_alpha,
-                material=builder_material,
+                color=line_color,
+                alpha=line_alpha,
                 mode=mode,
             )
         else:
@@ -1152,15 +1176,15 @@ class OcpConverter:
 
         if self.show_locals and hasattr(cad_obj, "line_local"):
             ocp_obj = add_local(
-                cad_obj.line_local.edges(), "line", "edge", color, ocp_obj
+                cad_obj.line_local.edges(), "line", "edge", line_color, ocp_obj
             )
         elif self.show_locals and hasattr(cad_obj, "sketch_local"):
             ocp_obj = add_local(
-                cad_obj.sketch_local.faces(), "sketch", "face", color, ocp_obj
+                cad_obj.sketch_local.faces(), "sketch", "face", sketch_color, ocp_obj
             )
         elif self.show_locals and hasattr(cad_obj, "part_local"):
             ocp_obj = add_local(
-                cad_obj.part_local.faces(), "part", "solid", color, ocp_obj
+                cad_obj.part_local.faces(), "part", "solid", part_color, ocp_obj
             )
 
         return ocp_obj

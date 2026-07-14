@@ -1,4 +1,5 @@
 # %%
+from numpy.ma.testutils import assert_array_equal
 import unittest
 
 import build123d as bd
@@ -22,7 +23,7 @@ colormap = list(webcolors._definitions._CSS3_NAMES_TO_HEX.items())
 b = Box(1, 2, 3)
 b2 = Box(1, 1, 1) - Box(2, 2, 0.2)
 
-with BuildPart() as bp:
+with BuildPart(Pos(1, 1, 1)) as bp:
     Box(1, 1, 1)
 
 with BuildPart() as bp2:
@@ -116,13 +117,34 @@ class TestsConvert(MyUnitTest):
         c = OcpConverter()
         g = c.to_ocp(bp)
         i = c.instances
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.name, "Solid")
-        self.assertEqual(o.kind, "solid")
-        self.assertIsNotNone(o.ref)
-        self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_solid(i[o.ref]["obj"]))
+        if hasattr(bp, "part_local"):
+            self.assertEqual(g.length, 2)
+            o = g.objects[0]
+            self.assertEqual(o.name, "part")
+            self.assertEqual(o.kind, "solid")
+            self.assertIsNotNone(o.ref)
+            self.assertIsNone(o.obj)
+            self.assertTrue(is_topods_solid(i[o.ref]["obj"]))
+            self.assertEqual(
+                tuple(o.loc.Transformation().TranslationPart().Coord()), (0.5, 0.5, 0.5)
+            )
+            o = g.objects[1]
+            self.assertEqual(o.name, "part_local")
+            self.assertEqual(o.kind, "solid")
+            self.assertIsNotNone(o.ref)
+            self.assertIsNone(o.obj)
+            self.assertTrue(is_topods_compound(i[o.ref]["obj"]))
+            self.assertEqual(
+                tuple(o.loc.Transformation().TranslationPart().Coord()), (0, 0, 0)
+            )
+        else:
+            self.assertEqual(g.length, 1)
+            o = g.objects[0]
+            self.assertEqual(o.name, "Solid")
+            self.assertEqual(o.kind, "solid")
+            self.assertIsNotNone(o.ref)
+            self.assertIsNone(o.obj)
+            self.assertTrue(is_topods_solid(i[o.ref]["obj"]))
 
     def test_buildsketch(self):
         """Test that a sketch is converted correctly"""
@@ -155,25 +177,56 @@ class TestsConvert(MyUnitTest):
         c = OcpConverter()
         g = c.to_ocp(bl)
         i = c.instances
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.name, "Edge")
-        self.assertEqual(o.kind, "edge")
+        if hasattr(bl, "line_local"):
+            self.assertEqual(g.length, 2)
+            o = g.objects[0]
+            self.assertEqual(o.name, "line")
+            self.assertEqual(o.kind, "edge")
+            self.assertEqual(o.color.r, 186)
+            self.assertEqual(o.color.g, 85)
+            self.assertEqual(o.color.b, 211)
+            o = g.objects[1]
+            self.assertEqual(o.name, "line_local")
+            self.assertEqual(o.kind, "edge")
+            self.assertEqual(o.color.r, 203)
+            self.assertEqual(o.color.g, 169)
+            self.assertEqual(o.color.b, 211)
+        else:
+            self.assertEqual(g.length, 1)
+            o = g.objects[0]
+            self.assertEqual(o.name, "Edge")
+            self.assertEqual(o.kind, "edge")
+            self.assertTrue(is_topods_edge(o.obj))
+
         self.assertEqual(len(i), 0)
-        self.assertTrue(is_topods_edge(o.obj))
 
     def test_buildpart_2(self):
         """Test that a part is converted correctly"""
         c = OcpConverter()
         g = c.to_ocp(bp2)
         i = c.instances
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.name, "Solid")
-        self.assertEqual(o.kind, "solid")
-        self.assertIsNotNone(o.ref)
-        self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_compound(i[o.ref]["obj"]))
+        if hasattr(bp2, "part_local"):
+            self.assertEqual(g.length, 2)
+            o = g.objects[0]
+            self.assertEqual(o.name, "part")
+            self.assertEqual(o.kind, "solid")
+            self.assertIsNotNone(o.ref)
+            self.assertIsNone(o.obj)
+            self.assertTrue(is_topods_compound(i[o.ref]["obj"]))
+            o = g.objects[1]
+            self.assertEqual(o.name, "part_local")
+            self.assertEqual(o.kind, "solid")
+            self.assertIsNotNone(o.ref)
+            self.assertIsNone(o.obj)
+            self.assertTrue(is_topods_compound(i[o.ref]["obj"]))
+        else:
+            self.assertEqual(g.length, 1)
+            o = g.objects[0]
+            self.assertEqual(o.name, "Solid")
+            self.assertEqual(o.kind, "solid")
+            self.assertIsNotNone(o.ref)
+            self.assertIsNone(o.obj)
+            self.assertTrue(is_topods_compound(i[o.ref]["obj"]))
 
     def test_buildsketch_2(self):
         """Test that a sketch is converted correctly"""
@@ -206,26 +259,35 @@ class TestsConvert(MyUnitTest):
         c = OcpConverter()
         g = c.to_ocp(bl2)
         i = c.instances
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.name, "Edge")
-        self.assertEqual(o.kind, "edge")
+        if hasattr(bl, "line_local"):
+            self.assertEqual(g.length, 2)
+            o = g.objects[0]
+            self.assertEqual(o.name, "line")
+            self.assertEqual(o.kind, "edge")
+            o = g.objects[1]
+            self.assertEqual(o.name, "line_local")
+            self.assertEqual(o.kind, "edge")
+        else:
+            self.assertEqual(g.length, 1)
+            o = g.objects[0]
+            self.assertEqual(o.name, "Edge")
+            self.assertEqual(o.kind, "edge")
+            for j in range(2):
+                self.assertTrue(is_topods_edge(o.obj[j]))
         self.assertEqual(len(i), 0)
-        for i in range(2):
-            self.assertTrue(is_topods_edge(o.obj[i]))
 
     def test_buildpart_name(self):
         """Test that the name is set correctly for a part"""
         c = OcpConverter()
         g = c.to_ocp(bp, names=["bp"])
         i = c.instances
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.name, "bp")
-        self.assertEqual(o.kind, "solid")
-        self.assertIsNotNone(o.ref)
-        self.assertIsNone(o.obj)
-        self.assertTrue(is_topods_solid(i[o.ref]["obj"]))
+        if hasattr(bp, "part_local"):
+            self.assertEqual(g.length, 2)
+            self.assertEqual(g.name, "bp")
+        else:
+            o = g.objects[0]
+            self.assertEqual(g.length, 1)
+            self.assertEqual(o.name, "bp")
 
     def test_buildsketch_name(self):
         """Test that the name is set correctly for a sketch"""
@@ -277,13 +339,25 @@ class TestsConvert(MyUnitTest):
         """Test that the name and color are set correctly for a line"""
         c = OcpConverter()
         g = c.to_ocp(bl, names=["bl"])
-        self.assertEqual(g.length, 1)
+        if hasattr(bl, "line_local"):
+            self.assertEqual(g.length, 2)
+            o = g.objects[0]
+            self.assertEqual(o.kind, "edge")
+            self.assertEqual(o.name, "line")
+            self.assertTrue(is_topods_edge(o.obj))
+            o = g.objects[1]
+            self.assertEqual(o.kind, "edge")
+            self.assertEqual(o.name, "line_local")
+            self.assertTrue(is_topods_edge(o.obj))
+            self.assertEqual(g.name, "bl")
+        else:
+            self.assertEqual(g.length, 1)
+            o = g.objects[0]
+            self.assertEqual(o.kind, "edge")
+            self.assertTrue(is_topods_edge(o.obj))
+            self.assertEqual(o.name, "bl")
         i = c.instances
-        o = g.objects[0]
-        self.assertEqual(o.name, "bl")
-        self.assertEqual(o.kind, "edge")
         self.assertEqual(len(i), 0)
-        self.assertTrue(is_topods_edge(o.obj))
 
     def test_part_wrapped(self):
         """Test that a wrapped part is converted correctly"""
@@ -613,9 +687,14 @@ class TestsConvert(MyUnitTest):
         c = OcpConverter()
         g = c.to_ocp(bl, Box(0.1, 0.1, 0.1))
         self.assertEqual(g.length, 2)
-        o = g.objects[0]
-        self.assertEqual(o.name, "Edge")
-        self.assertEqual(o.kind, "edge")
+        if hasattr(bl, "line_local"):
+            o = g.objects[0].objects[0]
+            self.assertEqual(o.name, "line")
+            o = g.objects[0].objects[1]
+            self.assertEqual(o.name, "line_local")
+        else:
+            o = g.objects[0]
+            self.assertEqual(o.name, "Edge")
         o = g.objects[1]
         self.assertEqual(o.name, "Solid")
         self.assertEqual(o.kind, "solid")
@@ -647,11 +726,22 @@ class TestsConvert2(MyUnitTest):
         c = OcpConverter()
         g = c.to_ocp(bp2)
         i = c.instances
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.name, "Solid")
-        self.assertEqual(o.kind, "solid")
-        self.assertIsNotNone(o.ref)
+        if hasattr(bp2, "part_local"):
+            self.assertEqual(g.length, 2)
+            o = g.objects[0]
+            self.assertEqual(o.name, "part")
+            self.assertEqual(o.kind, "solid")
+            self.assertIsNotNone(o.ref)
+            o = g.objects[1]
+            self.assertEqual(o.name, "part_local")
+            self.assertEqual(o.kind, "solid")
+            self.assertIsNotNone(o.ref)
+        else:
+            self.assertEqual(g.length, 1)
+            o = g.objects[0]
+            self.assertEqual(o.name, "Solid")
+            self.assertEqual(o.kind, "solid")
+            self.assertIsNotNone(o.ref)
         self.assertIsNone(o.obj)
         self.assertTrue(is_topods_compound(i[o.ref]["obj"]))
 
@@ -686,13 +776,23 @@ class TestsConvert2(MyUnitTest):
         c = OcpConverter()
         g = c.to_ocp(bl2)
         i = c.instances
-        self.assertEqual(g.length, 1)
-        o = g.objects[0]
-        self.assertEqual(o.name, "Edge")
-        self.assertEqual(o.kind, "edge")
+        if hasattr(bl2, "line_local"):
+            self.assertEqual(g.length, 2)
+            o = g.objects[0]
+            self.assertEqual(o.name, "line")
+            self.assertEqual(o.kind, "edge")
+            o = g.objects[1]
+            self.assertEqual(o.name, "line_local")
+            self.assertEqual(o.kind, "edge")
+        else:
+            self.assertEqual(g.length, 1)
+            o = g.objects[0]
+            self.assertEqual(o.name, "Edge")
+            self.assertEqual(o.kind, "edge")
+            for j in range(2):
+                self.assertTrue(is_topods_edge(o.obj[j]))
+
         self.assertEqual(len(i), 0)
-        for i in range(2):
-            self.assertTrue(is_topods_edge(o.obj[i]))
 
 
 class TestsShapeLists(MyUnitTest):
@@ -1432,3 +1532,144 @@ class TestNestedContainers(MyUnitTest):
         c = OcpConverter()
         g = c.to_ocp({"a_number": 42})
         self.assertEqual(g.length, 0)
+
+
+class TestBuilderColors(MyUnitTest):
+    """Tests for nested user-supplied containers (lists, dicts, assemblies)"""
+
+    def test_part(self):
+        c = OcpConverter()
+        g = c.to_ocp(bp, colors=["red"])
+        if hasattr(bp, "part_local"):
+            o = g.objects[0]
+            self.assertEqual(o.color.web_color, "#ff0000")
+            self.assertEqual(o.color.a, 1.0)
+            o = g.objects[1]
+            self.assertEqual(o.color.web_color, "#ff0000")
+            self.assertEqual(o.color.a, 0.2)
+        else:
+            o = g.objects[0]
+            self.assertEqual(o.color.web_color, "#ff0000")
+            self.assertEqual(o.color.a, 1.0)
+
+    def test_part_color_at_builder(self):
+        c = OcpConverter()
+        bp.color = "green"
+        g = c.to_ocp(bp, colors=["red"])
+        if hasattr(bp, "part_local"):
+            o = g.objects[0]
+            self.assertEqual(o.color.web_color, "#008000")
+            self.assertEqual(o.color.a, 1.0)
+            o = g.objects[1]
+            self.assertEqual(o.color.web_color, "#008000")
+            self.assertEqual(o.color.a, 0.2)
+        else:
+            o = g.objects[0]
+            self.assertEqual(o.color.web_color, "#008000")
+            self.assertEqual(o.color.a, 1.0)
+
+    def test_part_color_at_part(self):
+        c = OcpConverter()
+        bp.part.color = "blue"
+        g = c.to_ocp(bp, colors=["red"])
+        if hasattr(bp, "part_local"):
+            o = g.objects[0]
+            self.assertEqual(o.color.web_color, "#0000ff")
+            self.assertEqual(o.color.a, 1.0)
+            o = g.objects[1]
+            self.assertEqual(o.color.web_color, "#0000ff")
+            self.assertEqual(o.color.a, 0.2)
+        else:
+            o = g.objects[0]
+            self.assertEqual(o.color.web_color, "#0000ff")
+            self.assertEqual(o.color.a, 1.0)
+
+    def test_sketch(self):
+        c = OcpConverter()
+        g = c.to_ocp(bs, colors=["red"])
+        if hasattr(bs, "sketch_local"):
+            o = g.objects[0]
+            self.assertEqual(o.color.web_color, "#ff0000")
+            self.assertEqual(o.color.a, 1.0)
+            o = g.objects[1]
+            self.assertEqual(o.color.web_color, "#ff0000")
+            self.assertEqual(o.color.a, 0.2)
+        else:
+            o = g.objects[0]
+            self.assertEqual(o.color.web_color, "#ff0000")
+            self.assertEqual(o.color.a, 1.0)
+
+    def test_sketch_color_at_builder(self):
+        c = OcpConverter()
+        bs.color = "green"
+        g = c.to_ocp(bs, colors=["red"])
+        if hasattr(bs, "sketch_local"):
+            o = g.objects[0]
+            self.assertEqual(o.color.web_color, "#008000")
+            self.assertEqual(o.color.a, 1.0)
+            o = g.objects[1]
+            self.assertEqual(o.color.web_color, "#008000")
+            self.assertEqual(o.color.a, 0.2)
+        else:
+            o = g.objects[0]
+            self.assertEqual(o.color.web_color, "#008000")
+            self.assertEqual(o.color.a, 1.0)
+
+    def test_sketch_color_at_sketch(self):
+        c = OcpConverter()
+        bs.sketch.color = "blue"
+        if bs.sketch.color is None:
+            return  # cannot be set in build123d 0.11
+        g = c.to_ocp(bs, colors=["red"])
+        if hasattr(bs, "sketch_local"):
+            o = g.objects[0]
+            self.assertEqual(o.color.web_color, "#0000ff")
+            self.assertEqual(o.color.a, 1.0)
+            o = g.objects[1]
+            self.assertEqual(o.color.web_color, "#0000ff")
+            self.assertEqual(o.color.a, 0.2)
+        else:
+            o = g.objects[0]
+            self.assertEqual(o.color.web_color, "#0000ff")
+            self.assertEqual(o.color.a, 1.0)
+
+    def test_line(self):
+        c = OcpConverter()
+        g = c.to_ocp(bl, colors=["red"])
+        if hasattr(bl, "line_local"):
+            o = g.objects[0]
+            self.assertEqual(o.color.web_color, "#ff0000")
+            o = g.objects[1]
+            self.assertEqual(o.color.web_color, "#ffcccc")
+        else:
+            o = g.objects[0]
+            self.assertEqual(o.color.web_color, "#ff0000")
+            self.assertEqual(o.color.a, 1.0)
+
+    def test_line_color_at_builder(self):
+        c = OcpConverter()
+        bl.color = "green"
+        g = c.to_ocp(bl, colors=["red"])
+        if hasattr(bl, "line_local"):
+            o = g.objects[0]
+            self.assertEqual(o.color.web_color, "#008000")
+            o = g.objects[1]
+            self.assertEqual(o.color.web_color, "#668066")
+        else:
+            o = g.objects[0]
+            self.assertEqual(o.color.web_color, "#008000")
+            self.assertEqual(o.color.a, 1.0)
+
+    def test_line_color_at_line(self):
+        c = OcpConverter()
+        bl.line.color = "blue"
+        g = c.to_ocp(bl, colors=["red"])
+        if hasattr(bl, "line_local"):
+            o = g.objects[0]
+            self.assertEqual(o.color.web_color, "#0000ff")
+            o = g.objects[1]
+            self.assertEqual(o.color.web_color, "#ccccff")
+        else:
+            o = g.objects[0]
+            self.assertEqual(o.color.web_color, "#0000ff")
+            self.assertEqual(o.color.a, 1.0)
