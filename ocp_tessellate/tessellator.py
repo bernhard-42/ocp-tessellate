@@ -303,12 +303,19 @@ class Tessellator:
                     prop = BRepGProp_Face(face)
                     normals_flat: list[Coords] = []
 
+                    # Parametric bounds of the face. The tessellation can store a
+                    # node's UV one ULP outside these bounds at a parametric
+                    # singularity (e.g. a sphere pole), and BRepGProp_Face.Normal
+                    # evaluated just across the singularity returns an inward-
+                    # flipped normal (visible as a dark spot at the pole for radii
+                    # like 3, 6, 12, 24 ...). Clamp the UV used for the normal to
+                    # the face domain to keep the evaluation on the correct side.
+                    u_min, u_max, v_min, v_max = BRepTools.UVBounds_s(face)
+
                     if self.compute_uvs:
                         uvs_flat: list[float] = []
 
                         if self.normalize_uvs:
-                            u_min, u_max, v_min, v_max = BRepTools.UVBounds_s(face)
-
                             # Compute physical scale per parameter unit at face center
                             # to preserve aspect ratio and consistent tile size across faces.
                             # Normalize against shape bounding box so 1 UV unit = bbox_max_dim.
@@ -324,7 +331,9 @@ class Tessellator:
 
                             for i in range(1, poly.NbNodes() + 1):
                                 u, v = poly.UVNode(i).Coord()
-                                prop.Normal(u, v, p_buf, n_buf)
+                                un = min(max(u, u_min), u_max)
+                                vn = min(max(v, v_min), v_max)
+                                prop.Normal(un, vn, p_buf, n_buf)
                                 if n_buf.SquareMagnitude() > 0:
                                     n_buf.Normalize()
                                 normals_flat.extend(
@@ -347,7 +356,9 @@ class Tessellator:
                             # V is flipped (1-v) per glTF convention (top-left origin)
                             for i in range(1, poly.NbNodes() + 1):
                                 u, v = poly.UVNode(i).Coord()
-                                prop.Normal(u, v, p_buf, n_buf)
+                                un = min(max(u, u_min), u_max)
+                                vn = min(max(v, v_min), v_max)
+                                prop.Normal(un, vn, p_buf, n_buf)
                                 if n_buf.SquareMagnitude() > 0:
                                     n_buf.Normalize()
                                 normals_flat.extend(
@@ -361,7 +372,9 @@ class Tessellator:
                     else:
                         for i in range(1, poly.NbNodes() + 1):
                             u, v = poly.UVNode(i).Coord()
-                            prop.Normal(u, v, p_buf, n_buf)
+                            un = min(max(u, u_min), u_max)
+                            vn = min(max(v, v_min), v_max)
+                            prop.Normal(un, vn, p_buf, n_buf)
                             if n_buf.SquareMagnitude() > 0:
                                 n_buf.Normalize()
                             normals_flat.extend(
