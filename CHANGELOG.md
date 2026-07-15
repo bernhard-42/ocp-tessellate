@@ -1,3 +1,25 @@
+## v3.4.1
+
+**Fixes**
+
+- Clamp UV bounds to their min and max to avoid visualisation artefacts
+
+## v3.4.0
+
+**Features**
+
+- Support the new build123d builder paradigm, i.e. support `part_local`, `sketch_local` and `line_local` of build123d. Changed `show_sketch_local` to `show_locals`
+- Support dict subclasses that carry locations
+
+**Fixes**
+
+- Fix color handling for builder objects
+- Fix detection of build123d `LocationList`s
+- Fix object handling for the new edges
+- Propagate color into unrolled mixed compounds
+- Remove surrounding `{}` from the timing message
+- Type hint fixes
+
 ## v3.3.1
 
 **Fixes**
