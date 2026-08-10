@@ -1,3 +1,17 @@
+## v3.5.0
+
+**Features**
+
+- `default_facecolor`, `default_thickedgecolor` and `default_vertexcolor` are now proper defaults beside `default_color` and `default_edgecolor`: settable via `set_defaults` and accepted as arguments by `to_ocp`, `to_ocpgroup` and `to_assembly`. Precedence is explicit argument, then `set_defaults`, then the module constants `FACE_COLOR`, `THICK_EDGE_COLOR` and `VERTEX_COLOR`, which remain as fallbacks so that code assigning them directly keeps working. Those constants, and the unused `EDGE_COLOR`, will be removed in a future major
+
+**Fixes**
+
+- `set_defaults` silently accepted unknown keys, typos included. The check compared a missing key against `float("nan")`, which never equals itself, so the "not a valid argument" warning could never be reached
+
+**Deprecated**
+
+- The module constants `FACE_COLOR`, `THICK_EDGE_COLOR` and `VERTEX_COLOR`, the unused `EDGE_COLOR`, and the root re-exports `is_cadquery` and `occt_version` will be removed in 4.0.0. Use the `default_*color` parameters or `set_defaults` for the first three, and import predicates from `ocp_tessellate.ocp_utils`
+
 ## v3.4.1
 
 **Fixes**

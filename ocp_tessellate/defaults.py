@@ -48,6 +48,9 @@ class Defaults:
         - edge_accuracy:      Edges: Precision of edge discretization (default=None, i.e. use mesh quality)
         - default_color:      Default face color (default=(232, 176, 36))
         - default_edgecolor:  Default edge color (default="#707070")
+        - default_facecolor:  Color of a face shown on its own (default="Violet")
+        - default_thickedgecolor: Color of an edge or wire shown on its own (default="MediumOrchid")
+        - default_vertexcolor: Color of a vertex shown on its own (default="MediumOrchid")
         - optimal_bb:         Use optimal bounding box (default=False)
         - render_normals:     Render vertex normals(default=False)
         - render_edges:       Render edges  (default=True)
@@ -90,9 +93,15 @@ class Defaults:
         - quality             Use 'deviation'to control smoothness of rendered edges
         """
 
+        # Membership, not a sentinel comparison: the previous test was
+        # `get_default(k, float("nan")) == float("nan")`, and since nan never
+        # equals itself that branch could not be taken - every key was accepted
+        # silently, typos included. Keys whose default is legitimately None
+        # (default_facecolor and friends) are present in the dict, so `in` is
+        # the right question to ask.
         for k, v in kwargs.items():
-            if self.get_default(k, float("nan")) == float("nan"):
-                print(f"Paramater {k} is not a valid argument for show()")
+            if k not in self.defaults:
+                print(f"Parameter {k} is not a valid argument for show()")
             else:
                 self.defaults[k] = v
 
@@ -116,6 +125,14 @@ class Defaults:
             "edge_accuracy": None,
             "default_color": (232, 176, 36),
             "default_edgecolor": "#707070",
+            # None means "fall back to the module constants in convert.py".
+            # Those constants are still what ocp_vscode <= 4.x assigns to
+            # directly, so they remain the seed until they are removed in a
+            # later major. An explicit value here, or an explicit argument to
+            # to_ocp/to_ocpgroup/to_assembly, takes precedence over both.
+            "default_facecolor": None,
+            "default_thickedgecolor": None,
+            "default_vertexcolor": None,
             "default_opacity": 0.5,
             "optimal_bb": False,
             "render_normals": False,
@@ -287,6 +304,9 @@ def tessellation_args(config):
             "edge_accuracy",
             "default_color",
             "default_edgecolor",
+            "default_facecolor",
+            "default_thickedgecolor",
+            "default_vertexcolor",
             "optimal_bb",
             "render_normals",
             "render_edges",

@@ -31,6 +31,12 @@ THICK_EDGE_COLOR = "MediumOrchid"
 VERTEX_COLOR = "MediumOrchid"
 FACE_COLOR = "Violet"
 
+
+def _default_or(value, fallback):
+    """Return value unless it is None, in which case the fallback."""
+    return fallback if value is None else value
+
+
 # Alias for every object containing a "wrapped" attribute of type TopoDS_Shape
 Wrapped = Any
 # Alias for build123d and CadQuery compounds
@@ -206,6 +212,20 @@ class OcpConverter:
         self.show_locals = show_locals
         self.debug = debug
         self.default_color = get_default("default_color")
+        # Precedence for the three colors below: an explicit argument to
+        # to_ocp wins, then a value set via set_defaults, then the module
+        # constant. The constant is last rather than absent because
+        # ocp_vscode <= 4.x assigns to it directly on every show, and that
+        # has to keep working until those assignments are gone.
+        self.default_facecolor = _default_or(
+            get_default("default_facecolor"), FACE_COLOR
+        )
+        self.default_thickedgecolor = _default_or(
+            get_default("default_thickedgecolor"), THICK_EDGE_COLOR
+        )
+        self.default_vertexcolor = _default_or(
+            get_default("default_vertexcolor"), VERTEX_COLOR
+        )
 
     def _debug(self, level, msg, name=None, prefix="debug:", end="\n"):
         if self.debug:
@@ -388,20 +408,20 @@ class OcpConverter:
         """
         default_colors = {
             # ocp types
-            "TopoDS_Edge": THICK_EDGE_COLOR,
-            "TopoDS_Face": FACE_COLOR,
-            "TopoDS_Shell": FACE_COLOR,
+            "TopoDS_Edge": self.default_thickedgecolor,
+            "TopoDS_Face": self.default_facecolor,
+            "TopoDS_Shell": self.default_facecolor,
             "TopoDS_Solid": self.default_color,
             "TopoDS_CompSolid": self.default_color,
-            "TopoDS_Vertex": VERTEX_COLOR,
-            "TopoDS_Wire": THICK_EDGE_COLOR,
+            "TopoDS_Vertex": self.default_vertexcolor,
+            "TopoDS_Wire": self.default_thickedgecolor,
             # kind of objects
-            "edge": THICK_EDGE_COLOR,
-            "wire": THICK_EDGE_COLOR,
-            "face": FACE_COLOR,
-            "shell": FACE_COLOR,
+            "edge": self.default_thickedgecolor,
+            "wire": self.default_thickedgecolor,
+            "face": self.default_facecolor,
+            "shell": self.default_facecolor,
             "solid": self.default_color,
-            "vertex": VERTEX_COLOR,
+            "vertex": self.default_vertexcolor,
         }
 
         if color is not None:
@@ -1416,6 +1436,9 @@ class OcpConverter:
         modes: Union[List[Union[Tuple[int, int], None]], None] = None,
         loc: LocationLike = None,
         default_color: Union[ColorLike, None] = None,
+        default_facecolor: Union[ColorLike, None] = None,
+        default_thickedgecolor: Union[ColorLike, None] = None,
+        default_vertexcolor: Union[ColorLike, None] = None,
         unroll_compounds: bool = False,
         level: int = 0,
         resolve_helpers=True,
@@ -1431,6 +1454,9 @@ class OcpConverter:
         @param modes: The list of (state_faces, state_edges) 2-tuples (0/1 ints) for the objects
         @param loc: The location of the objects
         @param default_color: The default color of the objects
+        @param default_facecolor: Color of a face shown on its own
+        @param default_thickedgecolor: Color of an edge or wire shown on its own
+        @param default_vertexcolor: Color of a vertex shown on its own
         @param unroll_compounds: The flag to unroll compounds
         @param level: The level of the hierarchy
 
@@ -1492,6 +1518,12 @@ class OcpConverter:
 
         if default_color is not None:
             self.default_color = default_color
+        if default_facecolor is not None:
+            self.default_facecolor = default_facecolor
+        if default_thickedgecolor is not None:
+            self.default_thickedgecolor = default_thickedgecolor
+        if default_vertexcolor is not None:
+            self.default_vertexcolor = default_vertexcolor
 
         # =========================== Loop over all objects ========================== #
 
@@ -1718,6 +1750,9 @@ def to_ocpgroup(
     render_joints: bool = False,
     helper_scale: float = 1.0,
     default_color: Union[ColorLike, None] = None,
+    default_facecolor: Union[ColorLike, None] = None,
+    default_thickedgecolor: Union[ColorLike, None] = None,
+    default_vertexcolor: Union[ColorLike, None] = None,
     show_parent: bool = False,
     show_locals: bool = True,
     loc: LocationLike = None,
@@ -1737,6 +1772,9 @@ def to_ocpgroup(
     @param render_joints: The flag to render the joints
     @param helper_scale: The scale of the helper objects
     @param default_color: The default color of the objects
+    @param default_facecolor: Color of a face shown on its own
+    @param default_thickedgecolor: Color of an edge or wire shown on its own
+    @param default_vertexcolor: Color of a vertex shown on its own
     @param show_parent: The flag to show the parent
     @param show_locals: The flag to render the part/sketch/line based on XY plane
     @param loc: The location of the objects
@@ -1762,6 +1800,9 @@ def to_ocpgroup(
         modes=modes,
         loc=loc,
         default_color=default_color,
+        default_facecolor=default_facecolor,
+        default_thickedgecolor=default_thickedgecolor,
+        default_vertexcolor=default_vertexcolor,
     )
 
     if ocp_group.name is None:
@@ -1971,6 +2012,9 @@ def to_assembly(
     render_joints: bool = False,
     helper_scale: float = 1.0,
     default_color: Union[ColorLike, None] = None,
+    default_facecolor: Union[ColorLike, None] = None,
+    default_thickedgecolor: Union[ColorLike, None] = None,
+    default_vertexcolor: Union[ColorLike, None] = None,
     show_parent: bool = False,
     show_locals: bool = True,
     loc: LocationLike = None,
@@ -1989,6 +2033,9 @@ def to_assembly(
     @param render_joints: The flag to render the joints
     @param helper_scale: The scale of the helper objects
     @param default_color: The default color of the objects
+    @param default_facecolor: Color of a face shown on its own
+    @param default_thickedgecolor: Color of an edge or wire shown on its own
+    @param default_vertexcolor: Color of a vertex shown on its own
     @param show_parent: The flag to show the parent
     @param show_locals: The flag to render the sketch local
     @param loc: The location of the objects
@@ -2007,6 +2054,9 @@ def to_assembly(
         render_joints=render_joints,
         helper_scale=helper_scale,
         default_color=default_color,
+        default_facecolor=default_facecolor,
+        default_thickedgecolor=default_thickedgecolor,
+        default_vertexcolor=default_vertexcolor,
         show_parent=show_parent,
         show_locals=show_locals,
         loc=loc,
