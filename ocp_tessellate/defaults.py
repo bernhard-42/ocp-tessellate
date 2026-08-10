@@ -207,9 +207,13 @@ def set_defaults(**kwargs):
 def apply_defaults(**kwargs):
     result = dict(get_defaults())
     for k, v in kwargs.items():
-        if result.get(k, float("nan")) != float(
-            "nan"
-        ):  # use a value that will never be used ("" and None are used)
+        # Membership, for the same reason as in `Defaults.set_defaults` above:
+        # the previous test was `result.get(k, float("nan")) != float("nan")`,
+        # and since nan never equals itself it was true for every key, so
+        # unknown keys were written into the result and the warning below was
+        # unreachable. The nan sentinel was reaching for "a value no caller can
+        # pass", because None and "" are both legitimate; `in` asks directly.
+        if k in result:
             result[k] = v
         else:
             print(f"unknown parameter {k}")
