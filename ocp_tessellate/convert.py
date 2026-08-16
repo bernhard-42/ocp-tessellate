@@ -1817,7 +1817,7 @@ def tessellate_group(
     kwargs: Union[Dict, None] = None,
     progress: Union[Progress, None] = None,
     timeit: bool = False,
-) -> Tuple[List, Dict, Dict, Dict]:
+) -> Tuple[List, Dict, Dict]:
     """
     Tessellate a OcpGroup and instances as converted by to_ocp_group.
 
