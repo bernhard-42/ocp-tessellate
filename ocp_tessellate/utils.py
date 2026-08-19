@@ -15,11 +15,19 @@ def round_sig(x, sig):
 
 def warn(message, warning=RuntimeWarning, when="always"):
     # pylint: disable=unused-argument
-    def warning_on_one_line(message, category, filename, lineno, file=None, line=None):
+    def warning_on_one_line(
+        message: Warning | str,
+        category: type[Warning],
+        filename: str,
+        lineno: int,
+        line: str | None = None,
+    ) -> str:
         return "%s: %s" % (category.__name__, message)
 
     warn_format = warnings.formatwarning
-    warnings.formatwarning = warning_on_one_line
+    # replacing the module-level formatter is the documented warnings idiom,
+    # but ty treats the stdlib def as non-assignable
+    warnings.formatwarning = warning_on_one_line  # ty: ignore[invalid-assignment]
     warnings.simplefilter(when, warning)
     warnings.warn(message + "\n", warning)
     warnings.formatwarning = warn_format
@@ -178,7 +186,7 @@ def get_color(in_color, def_color, alpha):
     return color
 
 
-def make_unique(names):
+def make_unique(names: list[str | None]) -> list[str | None]:
     found = {}
     unique_names = []
     for name in names:
@@ -240,7 +248,7 @@ def numpy_to_buffer_json(value):
             return {
                 "shape": obj.shape,
                 "dtype": str(obj.dtype),
-                "buffer": base64.b64encode(memoryview(obj)).decode(),
+                "buffer": base64.b64encode(obj.tobytes()).decode(),
                 "codec": "b64",
             }
         elif isinstance(obj, (tuple, list)):

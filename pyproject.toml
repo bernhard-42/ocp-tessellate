@@ -26,7 +26,15 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 
-dependencies = ["webcolors~=24.8.0", "numpy", "cachetools>=5.5.0,<8", "imagesize"]
+dependencies = [
+    "webcolors~=24.8.0",
+    "numpy",
+    "cachetools>=5.5.0,<8",
+    "imagesize",
+    # drop typing_extensions once requires-python is >=3.11
+    # (only needed for NotRequired/TypedDict in ocp_tessellate/types.py)
+    "typing_extensions>=4.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -37,6 +45,13 @@ dev = ["questionary~=1.10.0", "bump-my-version", "black", "twine", "pytest"]
 [project.urls]
 "Homepage" = "https://github.com/bernhard-42/ocp-tessellate"
 "Bug Tracker" = "https://github.com/bernhard-42/ocp-tessellate/issues"
+
+# ty settings
+
+[tool.ty.rules]
+# suppressions for optional imports (cadquery, ocp_addons) are unused in the
+# dev environment where everything is installed - do not fail on them
+unused-ignore-comment = "ignore"
 
 # black settings
 

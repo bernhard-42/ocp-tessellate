@@ -1,9 +1,14 @@
 import base64
+from typing import Callable
 
 import imagesize
+from OCP.TopLoc import TopLoc_Location
+from OCP.TopoDS import TopoDS_Shape
 
 from ocp_tessellate.defaults import get_default
 from ocp_tessellate.ocp_utils import (
+    BoundingBox,
+    VectorLike,
     axis_to_vecs,
     copy_location,
     copy_topods_shape,
@@ -17,6 +22,7 @@ from ocp_tessellate.ocp_utils import (
     tq_to_loc,
     is_identity,
 )
+from ocp_tessellate.types import ConvertedVertices, DiscretizedEdges, Instance
 from ocp_tessellate.utils import Color, make_unique
 
 UNSELECTED = 0
@@ -25,26 +31,42 @@ EMPTY = 3
 
 PROTOCOL_VERSION = 3
 
+# Callbacks provided by tessellate_group to discretize edge and vertex leaves
+# during collect
+EdgeDiscretizer = Callable[
+    [list[TopoDS_Shape], str, str], tuple[DiscretizedEdges, BoundingBox]
+]
+VertexConverter = Callable[
+    [list[TopoDS_Shape], str, str], tuple[ConvertedVertices, BoundingBox]
+]
+
 
 class OcpObject:
+    # set by ImageFace.to_ocp for kind "imageface" and consumed in collect
+    image: str | None = None
+    image_type: str | None = None
+    image_width: int | None = None
+    image_height: int | None = None
+    height: float | None = None
+
     def __init__(
         self,
-        kind,
-        obj=None,
-        ref=None,
-        cache_id=None,
-        name="Object",
-        loc=None,
-        color=None,
-        width=None,
-        show_faces=True,
-        show_edges=True,
-        material=None,
+        kind: str,
+        obj: TopoDS_Shape | list[TopoDS_Shape] | None = None,
+        ref: int | None = None,
+        cache_id: str | None = None,
+        name: str = "Object",
+        loc: TopLoc_Location | None = None,
+        color: Color | list[Color] | tuple[Color, ...] | None = None,
+        width: float | None = None,
+        show_faces: bool = True,
+        show_edges: bool = True,
+        material: str | None = None,
     ):
         if obj is None and ref is None:
             raise ValueError("Either obj or ref must be provided")
 
-        self.id = None
+        self.id: str | None = None
         self.obj = obj
         self.kind = kind
         self.ref = ref
@@ -52,17 +74,21 @@ class OcpObject:
         self.name = name
         self.set_states(show_faces, show_edges)
         self.loc = loc
-        self.color = color
+        # a tuple color deliberately goes through Color() unchanged: per-item
+        # colors are only supported as a list, everything else is one color
+        self.color: Color | list[Color] | None
         if isinstance(color, list):
-            self.color = [Color(c) for c in self.color]
+            self.color = [Color(c) for c in color]
         elif color is not None:
-            self.color = Color(self.color)
+            self.color = Color(color)
+        else:
+            self.color = None
         self.width = width
         self.material = material
         self.normalize_uvs = True
-        self.helpers = None
+        self.helpers: OcpGroup | None = None
 
-    def dump(self, ind=0):
+    def dump(self, ind: int = 0) -> str:
         if self.obj is None:
             obj_repl = f"ref={self.ref}"
         else:
@@ -78,32 +104,46 @@ class OcpObject:
     def __repr__(self):
         return self.dump()
 
-    def copy(self):
+    def copy(self) -> "OcpObject":
+        if self.obj is None:
+            obj = None
+        elif isinstance(self.obj, list):
+            obj = [copy_topods_shape(o) for o in self.obj]
+        else:
+            obj = copy_topods_shape(self.obj)
+
         return OcpObject(
             self.kind,
-            copy_topods_shape(self.obj),
+            obj,
             self.ref,
             self.cache_id,
             self.name,
             copy_location(self.loc),
-            Color(self.color),
+            self.color,
             self.width,
-            self.state_faces,
-            self.state_edges,
+            self.state_faces == SELECTED,
+            self.state_edges == SELECTED,
             self.material,
         )
 
-    def set_states(self, show_faces, show_edges):
+    def set_states(self, show_faces: bool, show_edges: bool) -> None:
         self.state_faces = SELECTED if show_faces else UNSELECTED
         self.state_edges = SELECTED if show_edges else UNSELECTED
 
-    def to_state(self):
+    def to_state(self) -> list[int]:
         if self.kind in ("solid", "face"):
             return [self.state_faces, self.state_edges]
         else:
             return [EMPTY, SELECTED]
 
-    def collect(self, path, instances, loc, discretize_edges, convert_vertices):
+    def collect(
+        self,
+        path: str,
+        instances: list[Instance],
+        loc: TopLoc_Location | None,
+        discretize_edges: EdgeDiscretizer | None,
+        convert_vertices: VertexConverter | None,
+    ):
         self.id = f"{path}/{self.name}"
         texture = None
 
@@ -122,6 +162,12 @@ class OcpObject:
             self.kind = "face"
 
         if self.kind in ("solid", "face", "shell"):
+            # unify guarantees shape kinds are deduplicated into an instance
+            # ref with a single resolved color
+            assert self.ref is not None, f"'{self.name}' has no instance ref"
+            assert isinstance(self.color, Color), (
+                f"'{self.name}' has no resolved color"
+            )
             return dict(id=self.id, shape=instances[self.ref], loc=combined_loc), {
                 "id": self.id,
                 "type": "shapes",
@@ -141,15 +187,19 @@ class OcpObject:
             }
 
         elif self.kind in ("edge", "vertex"):
+            # unify guarantees edge/vertex kinds keep their shapes and a color
+            assert self.obj is not None, f"'{self.name}' has no shapes"
+            assert self.color is not None, f"'{self.name}' has no color"
             convert = convert_vertices if self.kind == "vertex" else discretize_edges
-            if not isinstance(self.obj, list):
-                self.obj = [self.obj]
-            values, bb = convert(self.obj, self.name, self.id)
+            assert convert is not None, f"no converter for kind {self.kind}"
+            objs = [self.obj] if isinstance(self.obj, TopoDS_Shape) else self.obj
+            self.obj = objs
+            values, bb = convert(objs, self.name, self.id)
 
-            if isinstance(self.color, (list, tuple)):
-                color = [c.web_color for c in self.color]
-            else:
+            if isinstance(self.color, Color):
                 color = self.color.web_color
+            else:
+                color = [c.web_color for c in self.color]
 
             result = (
                 dict(id=self.id, shape=self.obj, loc=None),
@@ -176,15 +226,20 @@ class OcpObject:
 
 
 class OcpGroup:
-    def __init__(self, objs=None, name="Group", loc=None):
-        self.id = None
-        self.objects = [] if objs is None else objs
+    def __init__(
+        self,
+        objs: "list[OcpObject | OcpGroup] | None" = None,
+        name: str | None = "Group",
+        loc: TopLoc_Location | None = None,
+    ):
+        self.id: str | None = None
+        self.objects: list[OcpObject | OcpGroup] = [] if objs is None else objs
         self.name = name
         self.kind = "group"
         self.loc = loc
-        self.helpers = None
+        self.helpers: OcpGroup | None = None
 
-    def dump(self, ind=0):
+    def dump(self, ind: int = 0) -> str:
         result = f"{' ' * ind}OcpGroup('{self.name}', loc={loc_to_tq(self.loc)}\n"
         for obj in self.objects:
             result += obj.dump(ind + 4) + "\n"
@@ -194,25 +249,27 @@ class OcpGroup:
         return self.dump()
 
     @property
-    def can_be_cleaned_up(self):
+    def can_be_cleaned_up(self) -> bool:
         return self.name is None and is_identity(self.loc) and len(self.objects) == 1
 
     @property
-    def length(self):
+    def length(self) -> int:
         return len(self.objects)
 
-    def add(self, *objs):
+    def add(self, *objs: "OcpObject | OcpGroup") -> None:
         for obj in objs:
             self.objects.append(obj)
 
-    def make_unique_names(self):
+    def make_unique_names(self) -> "OcpGroup":
         if self.length > 1:
             names = make_unique([obj.name for obj in self.objects])
             for obj, name in zip(self.objects, names):
-                obj.name = name
+                # make_unique maps None to None, so only named objects change
+                if name is not None:
+                    obj.name = name
         return self
 
-    def cleanup(self):
+    def cleanup(self) -> "OcpObject | OcpGroup":
         if self.length == 1:
             result = self.objects[0]
             result.loc = mul_locations(self.loc, result.loc)
@@ -244,7 +301,12 @@ class OcpGroup:
         return c(self)
 
     def collect(
-        self, path, instances, loc=None, discretize_edges=None, convert_vertices=None
+        self,
+        path: str,
+        instances: list[Instance],
+        loc: TopLoc_Location | None = None,
+        discretize_edges: EdgeDiscretizer | None = None,
+        convert_vertices: VertexConverter | None = None,
     ):
         self.id = f"{path}/{self.name}"
 
@@ -277,11 +339,11 @@ class OcpGroup:
 
 
 class OcpInstancesGroup:
-    def __init__(self, instances, ocpgrp):
+    def __init__(self, instances: list[Instance], ocpgrp: OcpGroup):
         self.ocpgrp = ocpgrp
         self.instances = instances
 
-    def apply_offset(self, offset, obj=None):
+    def apply_offset(self, offset: int, obj: OcpObject | OcpGroup | None = None) -> None:
         if obj is None:
             obj = self.ocpgrp
         if isinstance(obj, OcpGroup):
@@ -295,14 +357,14 @@ class OcpInstancesGroup:
 class OcpWrapper:
     def __init__(
         self,
-        objs,
-        kind,
-        name,
-        color,
-        loc=None,
-        width=None,
-        show_edges=True,
-        show_faces=True,
+        objs: list[TopoDS_Shape],
+        kind: str,
+        name: str,
+        color: Color | list[Color],
+        loc: TopLoc_Location | None = None,
+        width: float | None = None,
+        show_edges: bool = True,
+        show_faces: bool = True,
     ):
         self.objs = objs
         self.kind = kind
@@ -313,7 +375,7 @@ class OcpWrapper:
         self.show_edges = show_edges
         self.show_faces = show_faces
 
-    def to_ocp(self):
+    def to_ocp(self) -> OcpObject:
         return OcpObject(
             self.kind,
             self.objs,
@@ -327,7 +389,14 @@ class OcpWrapper:
 
 
 class CoordAxis(OcpWrapper):
-    def __init__(self, name, origin, z_dir, color=None, size=1):
+    def __init__(
+        self,
+        name: str,
+        origin: VectorLike,
+        z_dir: VectorLike,
+        color: Color | None = None,
+        size: float = 1,
+    ):
         if color is None:
             color = Color("black")
         o, x, y, z = axis_to_vecs(origin, z_dir)
@@ -353,7 +422,14 @@ class CoordAxis(OcpWrapper):
 
 
 class CoordSystem(OcpWrapper):
-    def __init__(self, name, origin, x_dir, z_dir, size=1):
+    def __init__(
+        self,
+        name: str,
+        origin: VectorLike,
+        x_dir: VectorLike,
+        z_dir: VectorLike,
+        size: float = 1,
+    ):
         o, x, y, z = loc_to_vecs(origin, x_dir, z_dir)
         x_edge = line(o, o + size * x)
         y_edge = line(o, o + size * y)
@@ -366,11 +442,11 @@ class CoordSystem(OcpWrapper):
 class ImageFace(OcpWrapper):
     def __init__(
         self,
-        image_path,
-        scale=1.0,
-        origin_pixels=(0, 0),
+        image_path: str,
+        scale: float | tuple[float, float] = 1.0,
+        origin_pixels: tuple[float, float] = (0, 0),
         location=None,
-        name="ImageFace",
+        name: str = "ImageFace",
     ):
         self.image_width, self.image_height = imagesize.get(image_path)
         x = origin_pixels[0]
@@ -400,7 +476,7 @@ class ImageFace(OcpWrapper):
         self.width = ws
         self.height = hs
 
-    def to_ocp(self):
+    def to_ocp(self) -> OcpObject:
         result = super().to_ocp()
         result.image = self.image
         result.image_type = self.image_type
@@ -414,11 +490,11 @@ class ImageFace(OcpWrapper):
 class OCP_Part(OcpWrapper):
     def __init__(
         self,
-        shape,
-        name="Part",
-        color=None,
-        show_faces=True,
-        show_edges=True,
+        shape: TopoDS_Shape,
+        name: str = "Part",
+        color: Color | None = None,
+        show_faces: bool = True,
+        show_edges: bool = True,
     ):
         if color is None:
             color = Color(get_default("default_color"))
@@ -431,11 +507,11 @@ class OCP_Part(OcpWrapper):
 class OCP_Faces(OCP_Part):
     def __init__(
         self,
-        faces,
-        name="Faces",
-        color=None,
-        show_faces=True,
-        show_edges=True,
+        faces: list[TopoDS_Shape],
+        name: str = "Faces",
+        color: Color | None = None,
+        show_faces: bool = True,
+        show_edges: bool = True,
     ):
         if color is None:
             color = Color("Violet")
@@ -444,7 +520,13 @@ class OCP_Faces(OCP_Part):
 
 
 class OCP_Edges(OcpWrapper):
-    def __init__(self, edges, name="Edges", color=None, width=1):
+    def __init__(
+        self,
+        edges: list[TopoDS_Shape],
+        name: str = "Edges",
+        color: Color | list[Color] | None = None,
+        width: float = 1,
+    ):
         if color is None:
             color = Color("MediumOrchid")
         super().__init__(edges, "edge", name, color, width=width)
@@ -452,7 +534,13 @@ class OCP_Edges(OcpWrapper):
 
 
 class OCP_Vertices(OcpWrapper):
-    def __init__(self, vertices, name="Vertices", color=None, size=1):
+    def __init__(
+        self,
+        vertices: list[TopoDS_Shape],
+        name: str = "Vertices",
+        color: Color | None = None,
+        size: float = 1,
+    ):
         if color is None:
             color = Color("MediumOrchid")
         super().__init__(vertices, "vertex", name, color, width=size)
@@ -460,21 +548,27 @@ class OCP_Vertices(OcpWrapper):
 
 
 class OCP_PartGroup(list):
-    def __init__(self, objects, name="Group", loc=None):
+    def __init__(
+        self,
+        objects: list[OcpWrapper],
+        name: str = "Group",
+        loc: TopLoc_Location | None = None,
+    ):
         super().__init__(objects)
         self.objs = objects
         self.loc = loc
         self.name = name
-        self.index = 0
+        # _index, not index, to avoid shadowing list.index
+        self._index = 0
 
     def __iter__(self):
-        self.index = 0
+        self._index = 0
         return self
 
-    def __next__(self):
-        if self.index < len(self.objs):
-            result = self.objs[self.index]
-            self.index += 1
+    def __next__(self) -> OcpWrapper:
+        if self._index < len(self.objs):
+            result = self.objs[self._index]
+            self._index += 1
             return result
         else:
             raise StopIteration
@@ -482,5 +576,5 @@ class OCP_PartGroup(list):
     def __getitem__(self, i):
         return self.objs[i]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.objs)

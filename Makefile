@@ -1,4 +1,4 @@
-.PHONY: clean_notebooks wheel install tests check_version dist check_dist upload_test upload bump release create-release docker docker_upload
+.PHONY: clean_notebooks wheel install tests typecheck check_version dist check_dist upload_test upload bump release create-release docker docker_upload
 
 PYCACHE := $(shell find . -name '__pycache__')
 EGGS := $(wildcard *.egg-info)
@@ -8,6 +8,10 @@ CURRENT_VERSION := $(shell awk '/current_version =/ {print substr($$3, 2, length
 clean:
 	@echo "=> Cleaning"
 	@rm -fr build dist $(EGGS) $(PYCACHE)
+
+typecheck:
+	@echo "=> Type checking (ty)"
+	ty check ocp_tessellate tests/typing_conformance.py
 
 prepare: clean
 	git add .

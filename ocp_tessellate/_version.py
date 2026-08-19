@@ -24,7 +24,10 @@ def get_version(version):
     r = re.compile(
         r"(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)\-{0,1}(?P<release>\D*)(?P<build>\d*)"
     )
-    major, minor, patch, release, build = r.match(version).groups()
+    m = r.match(version)
+    if m is None:
+        raise ValueError(f"Invalid version: {version}")
+    major, minor, patch, release, build = m.groups()
     return VersionInfo(major, minor, patch, release, build)
 
 

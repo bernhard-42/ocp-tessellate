@@ -14,6 +14,18 @@
 **Changes**
 
 - Widen the `cachetools` constraint from `~=5.5.0` to `>=5.5.0,<8` so the pin no longer holds back consumer environments. The API surface used (`LRUCache`, `cached`, `Cache.get`) is unchanged through 7.1.7, and the test suite passes against it ([#13](https://github.com/bernhard-42/ocp-tessellate/issues/13))
+- Complete typing overhaul: `ty check ocp_tessellate` is clean with no `Any`, no casts and four scoped, commented suppressions. Duck-typed build123d/CadQuery objects are described as Protocols in `ocp_tessellate.types`, verified against the real classes by `tests/typing_conformance.py`; the `is_*` predicates narrow via `TypeIs`/`TypeGuard`; `to_ocp`/`to_ocpgroup` accept `object` and let the predicates narrow. New `make typecheck` target runs the gate
+- Add `typing_extensions>=4.0` as a dependency (for `NotRequired`/`TypedDict` on Python 3.10 and `TypeIs`); drop it when the floor is 3.11
+
+**Fixes (found by the typing pass)**
+
+- `handle_cadquery_assembly` passed a scalar to `to_ocp(alphas=...)`, a guaranteed `ValueError` for any non-None alpha on a CadQuery assembly
+- `NativeTessellator.compute` did not accept the `normalize_uvs` argument `tessellate()` passes, crashing whenever the native tessellator was enabled
+- `StepReader.get_shape_details` compared the `ShapeType` method instead of calling it, so the nested-compsolid warning could never fire
+- `StepReader.load` with `cache_name` called the removed `load_assembly`/`save_assembly`; both now raise `NotImplementedError` with a clear message instead of `AttributeError`
+- `get_location`'s `to_location` branch read the `location` attribute the preceding branch had just proven absent, always raising `AttributeError`
+- `circle()` and `point()` crashed on the `gp_Pnt`/`gp_Dir` inputs their signatures promised; `is_plane_xy` passed a `gp_Pln` into a function that rejected it; a `None` location crashed the bounding-box accumulation of `tessellate_group`
+- `handle_cadquery_sketch` no longer mutates the user's Sketch object during conversion
 
 **Deprecated**
 

@@ -1,18 +1,21 @@
 import os
 import time
 import unicodedata
+from copy import copy as shallow_copy
+from typing import Union
+
+from typing_extensions import TypedDict
 
 try:
-    import cadquery as cq
+    import cadquery as cq  # pyright: ignore[reportMissingImports]  # ty:ignore[unresolved-import]
 except ImportError:
     pass
 
 try:
     from build123d import *
-    import copy
 
     def clone(obj, label=None, color=None, location=None):
-        new_obj = copy.copy(obj)
+        new_obj = shallow_copy(obj)
         if label is not None:
             new_obj.label = label
         if color is not None:
@@ -25,7 +28,8 @@ try:
 except ImportError:
     pass
 
-import OCP
+import OCP  # noqa: F401
+from OCP.IFSelect import IFSelect_RetDone
 from OCP.Quantity import Quantity_ColorRGBA
 from OCP.STEPCAFControl import STEPCAFControl_Reader
 from OCP.STEPControl import STEPControl_Reader
@@ -36,11 +40,14 @@ from OCP.TDocStd import TDocStd_Document
 from OCP.TopAbs import TopAbs_COMPOUND, TopAbs_COMPSOLID, TopAbs_FACE, TopAbs_SOLID
 from OCP.TopExp import TopExp_Explorer
 from OCP.TopLoc import TopLoc_Location
+from OCP.TopoDS import TopoDS_Shape
 from OCP.XCAFDoc import (
     XCAFDoc_ColorCurv,
     XCAFDoc_ColorGen,
     XCAFDoc_ColorSurf,
+    XCAFDoc_ColorTool,
     XCAFDoc_DocumentTool,
+    XCAFDoc_ShapeTool,
 )
 
 # from ocp_tessellate.ocp_utils import deserialize, loc_to_tq, serialize, tq_to_loc
@@ -48,6 +55,16 @@ from ocp_tessellate.utils import warn
 from ocp_tessellate.ocp_utils import make_compound
 
 DEFAULT_COLOR = (0.8, 0.8, 0.8, 1)
+
+RGBA = tuple[float, float, float, float]
+
+
+class AssemblyObject(TypedDict):
+    name: str
+    loc: Union[TopLoc_Location, None]
+    color: Union[RGBA, None]
+    shape: Union[TopoDS_Shape, None]
+    shapes: Union["list[AssemblyObject]", None]
 
 
 def clean_string(s):
@@ -66,13 +83,18 @@ class StepReader:
         self.analyse_faces = analyse_faces
         self.split_compounds = split_compounds
         self.use_colors = use_colors
-        self.shape_tool = None
-        self.color_tool = None
-        self.assemblies = None
+        self.shape_tool: Union[XCAFDoc_ShapeTool, None] = None
+        self.color_tool: Union[XCAFDoc_ColorTool, None] = None
+        self.assemblies: Union[list[AssemblyObject], None] = None
 
     def _create_assembly_object(
-        self, name, loc=None, color=None, shape=None, children=None
-    ):
+        self,
+        name: str,
+        loc: Union[TopLoc_Location, None] = None,
+        color: Union[RGBA, None] = None,
+        shape: Union[TopoDS_Shape, None] = None,
+        children: Union["list[AssemblyObject]", None] = None,
+    ) -> AssemblyObject:
         """
         Create a new object
         :param name: object name
@@ -114,17 +136,20 @@ class StepReader:
         :return: str
         """
 
-        def to_list(c):
+        def to_list(c: Quantity_ColorRGBA) -> RGBA:
             return (c.GetRGB().Red(), c.GetRGB().Green(), c.GetRGB().Blue(), c.Alpha())
 
-        def get_col(obj):
+        def get_col(obj) -> Union[RGBA, None]:
+            color_tool = self.color_tool
+            assert color_tool is not None, "load() first"
             col = Quantity_ColorRGBA()
             if (
-                self.color_tool.GetColor(obj, XCAFDoc_ColorGen, col)
-                or self.color_tool.GetColor(obj, XCAFDoc_ColorSurf, col)
-                or self.color_tool.GetColor(obj, XCAFDoc_ColorCurv, col)
+                color_tool.GetColor(obj, XCAFDoc_ColorGen, col)
+                or color_tool.GetColor(obj, XCAFDoc_ColorSurf, col)
+                or color_tool.GetColor(obj, XCAFDoc_ColorCurv, col)
             ):
                 return to_list(col)
+            return None
 
         if not self.use_colors:
             return DEFAULT_COLOR
@@ -155,6 +180,7 @@ class StepReader:
         :param label: TDF_label of a STEP file
         :return: TopLoc_Location
         """
+        assert self.shape_tool is not None, "load() first"
         return self.shape_tool.GetLocation_s(label)
 
     def get_shape(self, label):
@@ -163,6 +189,7 @@ class StepReader:
         :param label: TDF_label of a STEP file
         :return: TopoDS_Shape
         """
+        assert self.shape_tool is not None, "load() first"
         return self.shape_tool.GetShape_s(label)
 
     def get_shape_details(self, label, name, loc):
@@ -186,7 +213,7 @@ class StepReader:
                 shapes.append(sub_shape)
                 i += 1
 
-            elif shape.ShapeType == TopAbs_COMPSOLID:
+            elif shape.ShapeType() == TopAbs_COMPSOLID:
                 warn(f"Nested compsolids not supported yet: {name}")
 
             it.Next()
@@ -200,26 +227,28 @@ class StepReader:
         :param loc: object location (TopLoc_Location)
         :return: list of AssemblyObjects
         """
+        shape_tool = self.shape_tool
+        assert shape_tool is not None, "load() first"
         labels = TDF_LabelSequence()
         if label is None:
             # Get all non referenced top level labels
-            self.shape_tool.GetFreeShapes(labels)
+            shape_tool.GetFreeShapes(labels)
         else:
             # get all sub-components of the label
-            self.shape_tool.GetComponents_s(label, labels)
+            shape_tool.GetComponents_s(label, labels)
 
-        result = []
+        result: list[AssemblyObject] = []
 
         for i in range(labels.Length()):
             sub_label = labels.Value(i + 1)
 
-            if self.shape_tool.IsReference_s(sub_label):
+            if shape_tool.IsReference_s(sub_label):
                 ref_label = TDF_Label()
-                self.shape_tool.GetReferredShape_s(sub_label, ref_label)
+                shape_tool.GetReferredShape_s(sub_label, ref_label)
             else:
                 ref_label = sub_label
 
-            is_assembly = self.shape_tool.IsAssembly_s(ref_label)
+            is_assembly = shape_tool.IsAssembly_s(ref_label)
 
             # Get location from the sub_label and everything else from the referenced label
             loc = self.get_location(sub_label)
@@ -250,6 +279,16 @@ class StepReader:
             result.append(sub_shape)
 
         return result
+
+    def load_assembly(self, cache_filename: str) -> None:
+        raise NotImplementedError(
+            "The binary assembly cache was removed, load without cache_name"
+        )
+
+    def save_assembly(self, cache_filename: str) -> None:
+        raise NotImplementedError(
+            "The binary assembly cache was removed, load without cache_name"
+        )
 
     def load(self, filename, cache_name=None, clear_cache=False):
         """
@@ -315,7 +354,10 @@ class StepReader:
         def to_workplane(obj):
             return cq.Workplane(obj=cq.Solid(obj))
 
-        def walk(objs, name=None, loc=None):
+        def to_loc(loc: Union[TopLoc_Location, None]) -> "cq.Location":
+            return cq.Location() if loc is None else cq.Location(loc)
+
+        def walk(objs: "list[AssemblyObject]", name=None, loc=None):
             a = cq.Assembly(name=name, loc=loc)
             names = {}
             for obj in objs:
@@ -336,37 +378,34 @@ class StepReader:
                     ),
                     name=name,
                     color=None if obj["color"] is None else cq.Color(*obj["color"]),
-                    loc=cq.Location(obj.get("loc")),
+                    loc=to_loc(obj.get("loc")),
                 )
 
             return a
 
-        if len(self.assemblies) == 0 or (
-            self.assemblies[0]["shapes"] is not None
-            and len(self.assemblies[0]["shapes"]) == 0
-        ):
+        assemblies = self.assemblies
+        assert assemblies is not None, "load() first"
+
+        first = assemblies[0]["shapes"]
+        if len(assemblies) == 0 or (first is not None and len(first) == 0):
             raise ValueError("Empty assembly list")
 
-        if len(self.assemblies) == 1:
-            assembly = self.assemblies[0]
+        if len(assemblies) == 1:
+            assembly = assemblies[0]
             if assembly["shapes"] is not None:
                 return walk(
-                    assembly["shapes"], assembly["name"], cq.Location(assembly["loc"])
+                    assembly["shapes"], assembly["name"], to_loc(assembly["loc"])
                 )
             elif assembly["shape"] is not None:
-                return walk([assembly], assembly["name"], cq.Location(assembly["loc"]))
+                return walk([assembly], assembly["name"], to_loc(assembly["loc"]))
             else:
                 raise ValueError("No shapes in the first asssembly")
         else:
             result = cq.Assembly(name="Group")
-            for assembly in self.assemblies:
-                result.add(
-                    walk(
-                        assembly["shapes"],
-                        assembly["name"],
-                        cq.Location(assembly["loc"]),
-                    )
-                )
+            for assembly in assemblies:
+                shapes = assembly["shapes"]
+                assert shapes is not None, "top level assembly without shapes"
+                result.add(walk(shapes, assembly["name"], to_loc(assembly["loc"])))
 
         if path is not None:
             result = result.objects[path].obj
@@ -379,7 +418,10 @@ class StepReader:
         :return: buiild123d assembly
         """
 
-        def walk(objs, label=None, loc=None):
+        def to_loc(loc: Union[TopLoc_Location, None]) -> "Location":
+            return Location() if loc is None else Location(loc)
+
+        def walk(objs: "list[AssemblyObject]", label=None, loc=None):
             a = []
             names = {}
             for obj in objs:
@@ -392,42 +434,45 @@ class StepReader:
                     names[label] += 1
                 label = f"{obj['name']}_{names[label]}"
 
+                if obj["shapes"] is None:
+                    shape = obj["shape"]
+                    assert shape is not None, "leaf without shape"
+                    # build123d annotates Compound with TopoDS_Compound only,
+                    # but it accepts any TopoDS_Shape at runtime
+                    child = Compound(shape)  # ty: ignore[invalid-argument-type]
+                else:
+                    child = walk(obj["shapes"])
                 a.append(
                     clone(
-                        (
-                            Compound(obj["shape"])
-                            if obj["shapes"] is None
-                            else walk(obj["shapes"])
-                        ),
+                        child,
                         label=label,
                         color=None if obj["color"] is None else Color(*obj["color"]),
-                        location=Location(obj.get("loc")),
+                        location=to_loc(obj.get("loc")),
                     )
                 )
-            result = Compound(label=label, children=a)
+            result = Compound(label="" if label is None else label, children=a)
             if loc is not None:
                 result.location = loc
             return result
 
-        if len(self.assemblies) == 0 or (
-            self.assemblies[0]["shapes"] is not None
-            and len(self.assemblies[0]["shapes"]) == 0
-        ):
+        assemblies = self.assemblies
+        assert assemblies is not None, "load() first"
+
+        first = assemblies[0]["shapes"]
+        if len(assemblies) == 0 or (first is not None and len(first) == 0):
             raise ValueError("Empty assembly list")
 
-        if len(self.assemblies) == 1:
-            assembly = self.assemblies[0]
-            return walk(assembly["shapes"], assembly["name"], Location(assembly["loc"]))
+        if len(assemblies) == 1:
+            assembly = assemblies[0]
+            shapes = assembly["shapes"]
+            assert shapes is not None, "top level assembly without shapes"
+            return walk(shapes, assembly["name"], to_loc(assembly["loc"]))
         else:
             children = []
-            for assembly in self.assemblies:
-                children.append(
-                    walk(
-                        assembly["shapes"],
-                        assembly["name"],
-                        Location(assembly["loc"]),
-                    )
-                )
+            for assembly in assemblies:
+                shapes = assembly["shapes"]
+                assert shapes is not None, "top level assembly without shapes"
+                children.append(walk(shapes, assembly["name"], to_loc(assembly["loc"])))
             result = Compound(label="Group", children=children)
 
         return result
@@ -436,7 +481,7 @@ class StepReader:
 def import_step_as_single_compound(file_name):
     reader = STEPControl_Reader()
     read_status = reader.ReadFile(file_name)
-    if read_status != OCP.IFSelect.IFSelect_RetDone:
+    if read_status != IFSelect_RetDone:
         raise ValueError(f"STEP File {file_name} could not be loaded")
     for i in range(reader.NbRootsForTransfer()):
         reader.TransferRoot(i + 1)

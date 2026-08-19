@@ -14,7 +14,6 @@
 # limitations under the License.
 #
 
-
 from ._version import __version__ as ot_version
 from ._version import __version_info__ as ot_version_info
 from .cad_objects import (
@@ -38,6 +37,29 @@ from .defaults import (
 )
 from .ocp_utils import is_cadquery, occt_version
 from .utils import Color, warn
+
+__all__ = [
+    "ImageFace",
+    "OCP_Edges",
+    "OCP_Faces",
+    "OCP_Part",
+    "OCP_PartGroup",
+    "OCP_Vertices",
+    "OcpGroup",
+    "OcpObject",
+    "create_args",
+    "get_default",
+    "get_defaults",
+    "reset_defaults",
+    "set_defaults",
+    "is_cadquery",
+    "occt_version",
+    "Color",
+    "warn",
+    "ot_version",
+    "ot_version_info",
+    "versions",
+]
 
 
 def versions():
