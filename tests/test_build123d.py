@@ -6,7 +6,7 @@ import build123d as bd
 import webcolors
 from build123d import *
 
-from ocp_tessellate.convert import OcpConverter
+from ocp_tessellate.convert import OcpConverter, OcpGroup
 from ocp_tessellate.ocp_utils import *
 
 
@@ -1673,3 +1673,84 @@ class TestBuilderColors(MyUnitTest):
             o = g.objects[0]
             self.assertEqual(o.color.web_color, "#0000ff")
             self.assertEqual(o.color.a, 1.0)
+
+
+class TestsBuildPartJoints(MyUnitTest):
+    """Tests for BuildPart with joints across show_locals/render_joints combinations"""
+
+    def _make_part(self):
+        with BuildPart() as p:
+            Box(1, 2, 3)
+        RigidJoint("j1", p.part, Location((0.5, 1.0, 1.5)))
+        return p
+
+    def test_joints_no_locals(self):
+        """show_locals=False, render_joints=True: joints hoisted into a group named after the object"""
+        p = self._make_part()
+        c = OcpConverter(show_locals=False, render_joints=True)
+        g = c.to_ocp(p, names=["p"])
+        self.assertIsInstance(g, OcpGroup)
+        self.assertEqual(g.name, "p")
+        self.assertEqual(g.length, 2)
+        o = g.objects[0]
+        self.assertEqual(o.name, "p")
+        self.assertEqual(o.kind, "solid")
+        self.assertIsNone(o.helpers)
+        joints = g.objects[1]
+        self.assertIsInstance(joints, OcpGroup)
+        self.assertEqual(joints.name, "p.joints")
+        self.assertEqual(joints.length, 1)
+        self.assertEqual(joints.objects[0].name, "j1")
+
+    def test_joints_with_locals(self):
+        """show_locals=True, render_joints=True: joints nested next to the solid inside 'part'"""
+        p = self._make_part()
+        c = OcpConverter(show_locals=True, render_joints=True)
+        g = c.to_ocp(p, names=["p"])
+        self.assertIsInstance(g, OcpGroup)
+        self.assertEqual(g.name, "p")
+        if hasattr(p, "part_local"):
+            self.assertEqual(g.length, 2)
+            part = g.objects[0]
+            self.assertIsInstance(part, OcpGroup)
+            self.assertEqual(part.name, "part")
+            self.assertEqual(part.length, 2)
+            o = part.objects[0]
+            self.assertEqual(o.name, "p")
+            self.assertEqual(o.kind, "solid")
+            self.assertIsNone(o.helpers)
+            joints = part.objects[1]
+            self.assertIsInstance(joints, OcpGroup)
+            self.assertEqual(joints.name, "p.joints")
+            self.assertEqual(joints.objects[0].name, "j1")
+            self.assertEqual(g.objects[1].name, "part_local")
+        else:
+            self.assertEqual(g.length, 2)
+            self.assertEqual(g.objects[0].name, "p")
+            self.assertEqual(g.objects[1].name, "p.joints")
+
+    def test_no_joints_no_locals(self):
+        """show_locals=False, render_joints=False: a single unwrapped solid"""
+        p = self._make_part()
+        c = OcpConverter(show_locals=False, render_joints=False)
+        g = c.to_ocp(p, names=["p"])
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "p")
+        self.assertEqual(o.kind, "solid")
+        self.assertIsNone(o.helpers)
+
+    def test_no_joints_with_locals(self):
+        """show_locals=True, render_joints=False: part and part_local, no joints group"""
+        p = self._make_part()
+        c = OcpConverter(show_locals=True, render_joints=False)
+        g = c.to_ocp(p, names=["p"])
+        if hasattr(p, "part_local"):
+            self.assertEqual(g.name, "p")
+            self.assertEqual(g.length, 2)
+            self.assertEqual(g.objects[0].name, "part")
+            self.assertEqual(g.objects[0].kind, "solid")
+            self.assertEqual(g.objects[1].name, "part_local")
+        else:
+            self.assertEqual(g.length, 1)
+            self.assertEqual(g.objects[0].name, "p")

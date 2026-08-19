@@ -1109,7 +1109,14 @@ class OcpConverter:
                 obj_local.color.a = 0.2
 
             obj = ocp_obj
-            obj.name = prefix
+            if obj.helpers is not None:
+                helpers = obj.helpers
+                obj.helpers = None
+                obj = OcpGroup(name=prefix)
+                obj.add(ocp_obj)
+                obj.add(helpers)
+            else:
+                obj.name = prefix
             ocp_obj = OcpGroup(name=obj_name)
             ocp_obj.add(obj)
             ocp_obj.add(obj_local)
@@ -1147,6 +1154,7 @@ class OcpConverter:
                 materials=[part_material],
                 modes=[mode],
                 level=level + 1,
+                resolve_helpers=False,
             ).cleanup()
 
         elif is_build123d_sketch(cad_obj):
@@ -1206,6 +1214,13 @@ class OcpConverter:
             ocp_obj = add_local(
                 cad_obj.part_local.faces(), "part", "solid", part_color, ocp_obj
             )
+        elif ocp_obj.helpers is not None:
+            helpers = ocp_obj.helpers
+            ocp_obj.helpers = None
+            group = OcpGroup(name=obj_name)
+            group.add(ocp_obj)
+            group.add(helpers)
+            ocp_obj = group
 
         return ocp_obj
 

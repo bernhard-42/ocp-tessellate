@@ -7,6 +7,7 @@
 **Fixes**
 
 - `set_defaults` silently accepted unknown keys, typos included. The check compared a missing key against `float("nan")`, which never equals itself, so the "not a valid argument" warning could never be reached
+- A `BuildPart` with joints converted with `show_locals=False, render_joints=True` produced an unnamed group (`OcpGroup('None')`) instead of a group named after the object.
 
 **Deprecated**
 
