@@ -1,3 +1,9 @@
+## v3.5.1
+
+**Fixes**
+
+- `StepReader.to_build123d` labeled the root Compound with the last child's name instead of the assembly name, because `walk()` rebound its `label` parameter in the loop
+
 ## v3.5.0
 
 **Features**

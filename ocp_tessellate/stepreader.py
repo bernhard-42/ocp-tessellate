@@ -361,14 +361,14 @@ class StepReader:
             a = cq.Assembly(name=name, loc=loc)
             names = {}
             for obj in objs:
-                name = obj["name"]
+                child_name = obj["name"]
 
-                # Create a unique name by postfixing the enumerator index if needed
-                if names.get(name) is None:
-                    names[name] = 0
+                # Create a unique name by postfixing the enumerator index
+                if names.get(child_name) is None:
+                    names[child_name] = 0
                 else:
-                    names[name] += 1
-                name = f"{obj['name']}_{names[name]}"
+                    names[child_name] += 1
+                child_name = f"{obj['name']}_{names[child_name]}"
 
                 a.add(
                     (
@@ -376,7 +376,7 @@ class StepReader:
                         if obj["shapes"] is None
                         else walk(obj["shapes"])
                     ),
-                    name=name,
+                    name=child_name,
                     color=None if obj["color"] is None else cq.Color(*obj["color"]),
                     loc=to_loc(obj.get("loc")),
                 )
@@ -425,14 +425,14 @@ class StepReader:
             a = []
             names = {}
             for obj in objs:
-                label = obj["name"]
+                child_label = obj["name"]
 
-                # Create a unique name by postfixing the enumerator index if needed
-                if names.get(label) is None:
-                    names[label] = 0
+                # Create a unique name by postfixing the enumerator index
+                if names.get(child_label) is None:
+                    names[child_label] = 0
                 else:
-                    names[label] += 1
-                label = f"{obj['name']}_{names[label]}"
+                    names[child_label] += 1
+                child_label = f"{obj['name']}_{names[child_label]}"
 
                 if obj["shapes"] is None:
                     shape = obj["shape"]
@@ -445,7 +445,7 @@ class StepReader:
                 a.append(
                     clone(
                         child,
-                        label=label,
+                        label=child_label,
                         color=None if obj["color"] is None else Color(*obj["color"]),
                         location=to_loc(obj.get("loc")),
                     )
