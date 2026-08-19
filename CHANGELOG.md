@@ -7,13 +7,13 @@
 **Fixes**
 
 - `set_defaults` silently accepted unknown keys, typos included. The check compared a missing key against `float("nan")`, which never equals itself, so the "not a valid argument" warning could never be reached
-- A `BuildPart` with joints converted with `show_locals=False, render_joints=True` produced an unnamed group (`OcpGroup('None')`) instead of a group named after the object.
-- Degenerate OCCT artifacts no longer crash the converter: edges without geometry (zero length) and faces without a surface are detected via O(1) checks and ignored with an info message; zero-area faces with a valid surface are dropped by the mesher as before, avoiding any area computation
+- A `BuildPart` with joints converted with `show_locals=False, render_joints=True` produced an unnamed group (`OcpGroup('None')`) instead of a group named after the object ([#17](https://github.com/bernhard-42/ocp-tessellate/issues/17)).
+- Degenerate OCCT artifacts no longer crash the converter: edges without geometry (zero length) and faces without a surface are detected via O(1) checks and ignored with an info message; zero-area faces with a valid surface are dropped by the mesher as before, avoiding any area computation ([#16](https://github.com/bernhard-42/ocp-tessellate/issues/16))
 - Skipped faces and edges no longer desynchronize the parallel arrays of the wire format: `face_types` and `edge_types` were appended before the "no triangulation/polygon" skip, so they ran out of step with `triangles_per_face` and `segments_per_edge`
 
 **Changes**
 
-- Widen the `cachetools` constraint from `~=5.5.0` to `>=5.5.0,<8` so the pin no longer holds back consumer environments. The API surface used (`LRUCache`, `cached`, `Cache.get`) is unchanged through 7.1.7, and the test suite passes against it
+- Widen the `cachetools` constraint from `~=5.5.0` to `>=5.5.0,<8` so the pin no longer holds back consumer environments. The API surface used (`LRUCache`, `cached`, `Cache.get`) is unchanged through 7.1.7, and the test suite passes against it ([#13](https://github.com/bernhard-42/ocp-tessellate/issues/13))
 
 **Deprecated**
 
