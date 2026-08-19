@@ -26,7 +26,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 
-dependencies = ["webcolors~=24.8.0", "numpy", "cachetools~=5.5.0", "imagesize"]
+dependencies = ["webcolors~=24.8.0", "numpy", "cachetools>=5.5.0,<8", "imagesize"]
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -11,6 +11,10 @@
 - Degenerate OCCT artifacts no longer crash the converter: edges without geometry (zero length) and faces without a surface are detected via O(1) checks and ignored with an info message; zero-area faces with a valid surface are dropped by the mesher as before, avoiding any area computation
 - Skipped faces and edges no longer desynchronize the parallel arrays of the wire format: `face_types` and `edge_types` were appended before the "no triangulation/polygon" skip, so they ran out of step with `triangles_per_face` and `segments_per_edge`
 
+**Changes**
+
+- Widen the `cachetools` constraint from `~=5.5.0` to `>=5.5.0,<8` so the pin no longer holds back consumer environments. The API surface used (`LRUCache`, `cached`, `Cache.get`) is unchanged through 7.1.7, and the test suite passes against it
+
 **Deprecated**
 
 - The module constants `FACE_COLOR`, `THICK_EDGE_COLOR` and `VERTEX_COLOR`, the unused `EDGE_COLOR`, and the root re-exports `is_cadquery` and `occt_version` will be removed in 4.0.0. Use the `default_*color` parameters or `set_defaults` for the first three, and import predicates from `ocp_tessellate.ocp_utils`
