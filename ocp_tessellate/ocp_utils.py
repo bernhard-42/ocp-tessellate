@@ -382,6 +382,27 @@ def is_line(topods_shape):
     return c.GetType() == GeomAbs_CurveType.GeomAbs_Line
 
 
+def is_degenerated_edge(edge: TopoDS_Edge) -> bool:
+    """
+    Detect OCCT artifact edges: flagged degenerated or carrying no 3D curve.
+    Both checks are O(1); constructing a BRepAdaptor_Curve on such an edge
+    would raise "BRepAdaptor_Curve::No geometry".
+    """
+    if BRep_Tool.Degenerated_s(edge):
+        return True
+    loc = TopLoc_Location()
+    return BRep_Tool.Curve_s(edge, loc, 0.0, 0.0) is None
+
+
+def is_degenerated_face(face: TopoDS_Face) -> bool:
+    """
+    Detect OCCT artifact faces carrying no surface (O(1)). Zero-area faces
+    with a valid surface are not caught here on purpose - computing the area
+    is expensive, and the mesher drops them for free (no triangulation).
+    """
+    return BRep_Tool.Surface_s(face) is None
+
+
 def is_toploc_location(obj) -> TypeGuard[TopLoc_Location]:
     return isinstance(obj, TopLoc_Location)
 

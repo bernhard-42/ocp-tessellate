@@ -8,6 +8,8 @@
 
 - `set_defaults` silently accepted unknown keys, typos included. The check compared a missing key against `float("nan")`, which never equals itself, so the "not a valid argument" warning could never be reached
 - A `BuildPart` with joints converted with `show_locals=False, render_joints=True` produced an unnamed group (`OcpGroup('None')`) instead of a group named after the object.
+- Degenerate OCCT artifacts no longer crash the converter: edges without geometry (zero length) and faces without a surface are detected via O(1) checks and ignored with an info message; zero-area faces with a valid surface are dropped by the mesher as before, avoiding any area computation
+- Skipped faces and edges no longer desynchronize the parallel arrays of the wire format: `face_types` and `edge_types` were appended before the "no triangulation/polygon" skip, so they ran out of step with `triangles_per_face` and `segments_per_edge`
 
 **Deprecated**
 

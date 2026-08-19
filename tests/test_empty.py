@@ -1,6 +1,14 @@
 import unittest
 
 from build123d import *
+from OCP.gp import gp_Pnt
+from OCP.BRep import BRep_Builder
+from OCP.BRepBuilderAPI import (
+    BRepBuilderAPI_MakeEdge,
+    BRepBuilderAPI_MakeFace,
+    BRepBuilderAPI_MakePolygon,
+)
+from OCP.TopoDS import TopoDS_Compound
 
 from ocp_tessellate.convert import OcpConverter, tessellate_group
 from ocp_tessellate.ocp_utils import *
@@ -132,3 +140,77 @@ class TestsEmptyMesh(MyUnitTest):
         self.assertEqual(sorted(refs), [0, 1])
         for r in refs:
             self.assertLess(r, len(meshed))
+
+
+class TestsDegenerateArtifacts(MyUnitTest):
+    """OCCT artifact objects (edges without geometry, zero-area faces) must be
+    ignored with an info message instead of raising"""
+
+    def _edge_without_geometry(self):
+        # MakeEdge with two points closer than Precision::Confusion produces an
+        # edge flagged Degenerated and carrying no 3D curve - BRepAdaptor_Curve
+        # on it raises "No geometry"
+        return BRepBuilderAPI_MakeEdge(gp_Pnt(0, 0, 0), gp_Pnt(1e-12, 0, 0)).Edge()
+
+    def _zero_area_face(self):
+        # collinear closed polygon -> valid surface, zero area
+        return BRepBuilderAPI_MakeFace(
+            BRepBuilderAPI_MakePolygon(
+                gp_Pnt(0, 0, 0), gp_Pnt(1, 0, 0), gp_Pnt(2, 0, 0), True
+            ).Wire()
+        ).Face()
+
+    def _compound(self, shapes):
+        builder = BRep_Builder()
+        comp = TopoDS_Compound()
+        builder.MakeCompound(comp)
+        for s in shapes:
+            builder.Add(comp, s)
+        return comp
+
+    def test_predicates(self):
+        self.assertTrue(is_degenerated_edge(self._edge_without_geometry()))
+        self.assertFalse(
+            is_degenerated_edge(Edge.make_line((0, 0, 0), (1, 0, 0)).wrapped)
+        )
+        self.assertFalse(is_degenerated_face(self._zero_area_face()))
+        self.assertFalse(is_degenerated_face(Face.make_rect(1, 1).wrapped))
+
+    def test_degenerated_edge_alone(self):
+        c = OcpConverter()
+        g = c.to_ocp(self._edge_without_geometry(), names=["e"])
+        meshed, shapes, _ = tessellate_group(g, c.instances)
+        # dropped and replaced by the empty placeholder vertex
+        self.assertEqual(len(shapes["parts"]), 1)
+        self.assertEqual(shapes["parts"][0]["type"], "vertices")
+
+    def test_degenerated_edge_in_compound(self):
+        good1 = Edge.make_line((0, 0, 0), (1, 0, 0)).wrapped
+        good2 = Edge.make_line((0, 0, 0), (0, 1, 0)).wrapped
+        comp = self._compound([good1, self._edge_without_geometry(), good2])
+        c = OcpConverter()
+        g = c.to_ocp(comp, names=["edges"])
+        meshed, shapes, _ = tessellate_group(g, c.instances)
+        sh = shapes["parts"][0]["shape"]
+        # only the two healthy edges survive, parallel arrays stay in sync
+        self.assertEqual(len(sh["segments_per_edge"]), 2)
+        self.assertEqual(len(sh["edge_types"]), 2)
+
+    def test_zero_area_face_alone(self):
+        c = OcpConverter()
+        g = c.to_ocp(self._zero_area_face(), names=["f"])
+        meshed, shapes, _ = tessellate_group(g, c.instances)
+        # meshes to nothing and the part is dropped
+        self.assertEqual(len(meshed), 0)
+        self.assertEqual(len(shapes["parts"]), 0)
+
+    def test_zero_area_face_in_compound(self):
+        comp = self._compound([self._zero_area_face(), Face.make_rect(1, 1).wrapped])
+        c = OcpConverter()
+        g = c.to_ocp(comp, names=["faces"])
+        meshed, shapes, _ = tessellate_group(g, c.instances)
+        mesh = meshed[0]
+        # the skipped face contributes to neither array
+        self.assertEqual(len(mesh["face_types"]), len(mesh["triangles_per_face"]))
+        self.assertEqual(len(mesh["face_types"]), 1)
+        self.assertEqual(len(mesh["edge_types"]), len(mesh["segments_per_edge"]))

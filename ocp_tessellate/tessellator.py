@@ -47,6 +47,7 @@ from .ocp_utils import (
     get_faces,
     get_point,
     get_vertices,
+    is_degenerated_edge,
     is_line,
     make_compound,
 )
@@ -274,10 +275,12 @@ class Tessellator:
 
             internal = face.Orientation() == TopAbs_Orientation.TopAbs_INTERNAL
 
-            self.face_types.append(get_face_type(face))
-
             poly = BRep_Tool.Triangulation_s(face, loc_buf)
             if poly is not None:
+                # face_types must only grow for faces that produced a
+                # triangulation, or it desynchronizes from triangles_per_face
+                self.face_types.append(get_face_type(face))
+
                 Trsf = loc_buf.Transformation()
 
                 # add vertices
@@ -418,7 +421,6 @@ class Tessellator:
     def compute_edges(self, trace: Trace):
         for ind, (edge, face) in enumerate(get_edges(self.shape, True)):
             trace.edge(f"{self.shape_id}/edges/edges_{ind}", edge)
-            self.edge_types.append(get_edge_type(edge))
 
             edges: list[tuple[Coords, Coords]] = []
             loc = TopLoc_Location()
@@ -427,6 +429,10 @@ class Tessellator:
 
             if poly is None:
                 continue
+
+            # edge_types must only grow for edges that produced a polygon,
+            # or it desynchronizes from segments_per_edge
+            self.edge_types.append(get_edge_type(edge))
 
             if hasattr(poly, "Node"):  # OCCT > 7.5
                 nrange = range(1, poly.NbNodes() + 1)
@@ -644,7 +650,9 @@ def discretize_edge(
     )
 
     if not discretizer.IsDone():
-        raise AssertionError("Discretizer not done.")
+        # e.g. a degenerate artifact edge that cannot be discretized -
+        # report no segments instead of raising, callers skip empty results
+        return np.empty((0, 2, 3), dtype=np.float32)
 
     points: list[Coords] = [
         curve_adaptator.Value(discretizer.Parameter(i)).Coord()
@@ -671,7 +679,11 @@ def discretize_edges(
 
     for ind, edge in enumerate(edges):
         trace.edge(f"{shape_id}/edges/edges_{ind}", edge)
-        edge_types.append(get_edge_type(edge))
+        if is_degenerated_edge(edge):
+            # get_edge_type and discretize_edge would raise on an edge
+            # without geometry
+            print(f"edge {ind} ignored (degenerated)")
+            continue
 
         d = discretize_edge(edge, deflection)
         if len(d) == 1 and not is_line(edge):
@@ -680,6 +692,11 @@ def discretize_edges(
             # Currently only happens for helix with pitch being a integer multiply of height
             d = discretize_edge(edge, deflection=deflection / 10, quasi=False)
 
+        if len(d) == 0:
+            print(f"edge {ind} ignored (could not be discretized)")
+            continue
+
+        edge_types.append(get_edge_type(edge))
         d_edges.extend(d.flatten())
         segments_per_edge.append(len(d))
 

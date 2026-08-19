@@ -273,19 +273,34 @@ class OcpConverter:
         return ref, loc
 
     def trim_infinite_objs(self, obj, name):
-        if is_topods_face(obj) and area(obj) > 1e90:
-            print(
-                f"Warning: Scaling down infinite face '{name}' to a rectangle of side length "
-                f"10 * helper_scale = {10 * self.helper_scale}"
-            )
-            return trim_infinite_face(obj, 10 * self.helper_scale)
+        # Degenerate OCCT artifacts (edges without geometry, faces without a
+        # surface) are dropped by returning None; they would make the
+        # length/area calls below raise. Zero-area faces with a valid surface
+        # pass through here and are dropped by the mesher instead - detecting
+        # them would need an area computation, which is expensive.
+        if is_topods_face(obj):
+            if is_degenerated_face(obj):
+                print(f"Info: Ignoring degenerated face of '{name}' (no surface)")
+                return None
+            if area(obj) > 1e90:
+                print(
+                    f"Warning: Scaling down infinite face '{name}' to a rectangle of side length "
+                    f"10 * helper_scale = {10 * self.helper_scale}"
+                )
+                return trim_infinite_face(obj, 10 * self.helper_scale)
 
-        elif is_topods_edge(obj) and length(obj) > 1e90:
-            print(
-                f"Warning: Scaling down infinite edge '{name}' to length "
-                f"10 * helper_scale = {10 * self.helper_scale}"
-            )
-            return trim_infinite_edge(obj, 5 * self.helper_scale)
+        elif is_topods_edge(obj):
+            if is_degenerated_edge(obj):
+                print(
+                    f"Info: Ignoring degenerated edge of '{name}' (zero length or no geometry)"
+                )
+                return None
+            if length(obj) > 1e90:
+                print(
+                    f"Warning: Scaling down infinite edge '{name}' to length "
+                    f"10 * helper_scale = {10 * self.helper_scale}"
+                )
+                return trim_infinite_edge(obj, 5 * self.helper_scale)
         return obj
 
     def get_material_for_object(self, obj, material=None):
@@ -328,6 +343,11 @@ class OcpConverter:
 
         @return: The unified OcpObject
         """
+        def trim_all(objs):
+            # trim_infinite_objs returns None for degenerate artifacts - drop them
+            trimmed = [self.trim_infinite_objs(o, name) for o in objs]
+            return [o for o in trimmed if o is not None]
+
         # Try to downcast to one TopoDS_Shape
         if len(objs) == 1:
             ocp_obj = objs[0]
@@ -337,17 +357,23 @@ class OcpConverter:
                 if len(ocp_objs) == 1:
                     ocp_obj = self.trim_infinite_objs(downcast(ocp_objs[0]), name)
                 elif kind in ["edge", "vertex"]:
-                    ocp_obj = [self.trim_infinite_objs(o, name) for o in ocp_objs]
+                    ocp_obj = trim_all(ocp_objs)
             else:
                 ocp_obj = self.trim_infinite_objs(ocp_obj, name)
 
         # else make a TopoDS_Compound
         elif kind in ["solid", "face", "shell"]:
-            ocp_obj = make_compound([self.trim_infinite_objs(o, name) for o in objs])
+            trimmed = trim_all(objs)
+            ocp_obj = make_compound(trimmed) if len(trimmed) > 0 else None
 
         # and for vertices and edges, keep the list
         else:
-            ocp_obj = [self.trim_infinite_objs(o, name) for o in objs]
+            ocp_obj = trim_all(objs)
+
+        if ocp_obj is None or (isinstance(ocp_obj, list) and len(ocp_obj) == 0):
+            # everything was a degenerate artifact - emit the same placeholder
+            # an empty input produces so names/colors stay aligned
+            return self.handle_empty_iterables(name, 0)
 
         color = self.get_color_for_object(
             ocp_obj[0] if isinstance(ocp_obj, list) else ocp_obj,
