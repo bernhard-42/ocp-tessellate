@@ -3,6 +3,7 @@
 **Fixes**
 
 - `StepReader.to_build123d` labeled the root Compound with the last child's name instead of the assembly name, because `walk()` rebound its `label` parameter in the loop
+- The result of build123d's `ShapeList.group_by` (a `GroupBy`) was silently skipped as an unknown object, so `show(b.edges().group_by(Axis.Z))` showed nothing. It is now converted to a group named `GroupBy` with one `ShapeList` group per key
 
 ## v3.5.0
 

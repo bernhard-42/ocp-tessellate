@@ -108,6 +108,7 @@ from .types import (
     Build123dPartBuilder,
     Build123dSketchBuilder,
     Build123dVector,
+    Build123dGroupBy,
     Build123dLocationList,
     Build123dShape,
     Build123dShapeList,
@@ -329,6 +330,14 @@ def is_build123d_shapelist(obj) -> TypeIs[Build123dShapeList]:
         and hasattr(obj, "first")
         and hasattr(obj, "last")
         and hasattr(obj, "filter_by")
+    )
+
+
+def is_build123d_groupby(obj) -> TypeIs[Build123dGroupBy]:
+    return (
+        isinstance(obj, Iterable)
+        and hasattr(obj, "groups")
+        and hasattr(obj, "group_for")
     )
 
 

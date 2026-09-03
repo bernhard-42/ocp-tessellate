@@ -1,11 +1,12 @@
 """Typing-only conformance checks: real classes must satisfy the protocols."""
 
 from build123d import BuildLine, BuildPart, BuildSketch, Compound, Vector
-from build123d import ShapeList, LocationList
+from build123d import ShapeList, LocationList, GroupBy
 from cadquery import Assembly, Sketch, Workplane
 
 from ocp_tessellate.types import (
     Build123dBuilder,
+    Build123dGroupBy,
     Build123dLineBuilder,
     Build123dLocationList,
     Build123dPartBuilder,
@@ -44,6 +45,10 @@ def shapelist_conforms(x: ShapeList) -> Build123dShapeList:
 
 
 def locationlist_conforms(x: LocationList) -> Build123dLocationList:
+    return x
+
+
+def groupby_conforms(x: GroupBy) -> Build123dGroupBy:
     return x
 
 

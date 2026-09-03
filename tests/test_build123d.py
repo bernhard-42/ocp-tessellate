@@ -798,6 +798,36 @@ class TestsConvert2(MyUnitTest):
 class TestsShapeLists(MyUnitTest):
     """Tests for the OcpConverter class with shape lists"""
 
+    def test_groupby_edges(self):
+        """Test that a GroupBy of edges is converted to a group of ShapeList groups"""
+        c = OcpConverter()
+        g = c.to_ocp(b.edges().group_by(Axis.Z))
+        self.assertEqual(g.name, "GroupBy")
+        self.assertEqual(g.kind, "group")
+        self.assertEqual(g.length, 3)
+        self.assertEqual(
+            [o.name for o in g.objects], ["ShapeList", "ShapeList(2)", "ShapeList(3)"]
+        )
+        for group in g.objects:
+            self.assertEqual(group.kind, "group")
+            self.assertEqual(group.length, 4)
+            for o in group.objects:
+                self.assertEqual(o.kind, "edge")
+                self.assertTrue(is_topods_edge(o.obj))
+
+    def test_groupby_faces_named(self):
+        """Test that an explicit name and a face-kind GroupBy work"""
+        c = OcpConverter()
+        g = c.to_ocp(b.faces().group_by(Axis.Z), names=["MyGroups"])
+        i = c.instances
+        self.assertEqual(g.name, "MyGroups")
+        self.assertEqual(g.length, 3)
+        self.assertEqual([o.length for o in g.objects], [1, 4, 1])
+        for group in g.objects:
+            for o in group.objects:
+                self.assertEqual(o.kind, "face")
+                self.assertTrue(is_topods_face(i[o.ref]["obj"]))
+
     def test_shapelist_solids(self):
         """Test that a shapelist of solids is converted correctly"""
         c = OcpConverter()

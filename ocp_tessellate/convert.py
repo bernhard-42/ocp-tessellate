@@ -23,6 +23,7 @@ from ocp_tessellate.tessellator import (
 )
 from ocp_tessellate.types import (
     Build123dBuilder,
+    Build123dGroupBy,
     Build123dLocationList,
     Build123dShape,
     Build123dShapeList,
@@ -553,7 +554,7 @@ class OcpConverter:
     def handle_list_tuple(
         self,
         # elements are dispatched individually via to_ocp
-        cad_obj: Union[Sequence[object], Build123dShapeList],
+        cad_obj: Union[Sequence[object], Build123dShapeList, Build123dGroupBy],
         obj_name: Union[str, None],
         color: Union[ColorLike, None],
         alpha: float,
@@ -1752,6 +1753,19 @@ class OcpConverter:
             # OcpWrapper (ImageFace, CoordSystem, CoordAxis, etc.)
             elif isinstance(cad_obj, OcpWrapper):
                 ocp_obj = self.handle_ocp_wrapper(cad_obj, obj_name)
+
+            # build123d GroupBy (result of ShapeList.group_by): a list of ShapeLists
+            elif is_build123d_groupby(cad_obj):
+                ocp_obj = self.handle_list_tuple(
+                    cad_obj,
+                    obj_name,
+                    color,
+                    alpha,
+                    level,
+                    material,
+                    default_name="GroupBy",
+                    mode=mode,
+                )
 
             # build123d ShapeList
             elif is_build123d_shapelist(cad_obj):

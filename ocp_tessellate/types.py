@@ -116,6 +116,19 @@ class Build123dShapeList(Protocol):
     def __len__(self) -> int: ...
 
 
+class Build123dGroupBy(Protocol):
+    """The result of build123d's ShapeList.group_by: an iterable of ShapeLists.
+    groups/group_for are only duck-test markers, ocp_tessellate never calls them -
+    iterating yields the ShapeLists, which go back into the to_ocp dispatcher."""
+
+    @property
+    def groups(self) -> Sequence[Build123dShapeList]: ...
+    @property
+    def group_for(self) -> object: ...
+    def __iter__(self) -> Iterator[Build123dShapeList]: ...
+    def __len__(self) -> int: ...
+
+
 class Build123dLocationList(Protocol):
     """A build123d LocationList context manager."""
 
