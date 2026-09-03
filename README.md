@@ -72,7 +72,7 @@ Inputs are walked recursively. The resulting tree mirrors the input structure:
 | `ShapeList`                               | a `ShapeList` group exposing each item individually                                                      |
 | `Compound(children=[...])` (assembly)     | a group preserving the assembly hierarchy                                                                |
 | `Compound(...)` (standard, no children)   | unwrapped to its inner shape                                                                             |
-| `BuildPart` / `BuildSketch` / `BuildLine` | a single `OcpObject` for the builder result; `BuildSketch` adds a `sketch_local` sibling unless disabled |
+| `BuildPart` / `BuildSheet` / `BuildSketch` / `BuildLine` | a single `OcpObject` for the builder result, plus a `part_local` / `sheet_local` / `sketch_local` / `line_local` sibling unless disabled |
 
 ## Compatibility
 

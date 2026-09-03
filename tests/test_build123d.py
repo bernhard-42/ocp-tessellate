@@ -36,6 +36,10 @@ r2 = Rectangle(1, 2) - Rectangle(2, 0.2)
 with BuildSketch(Plane.YZ) as bs:
     Rectangle(1, 1)
 
+with BuildSheet(Plane.YZ, thickness=0.1) as bsh:
+    with BuildSketch():
+        Rectangle(1, 1)
+
 with BuildSketch(Plane.YZ) as bs2:
     Rectangle(1, 1)
     Rectangle(2, 0.2, mode=Mode.SUBTRACT)
@@ -288,6 +292,85 @@ class TestsConvert(MyUnitTest):
             o = g.objects[0]
             self.assertEqual(g.length, 1)
             self.assertEqual(o.name, "bp")
+
+    def test_buildsheet(self):
+        """Test that a sheet is converted correctly"""
+        c = OcpConverter(show_locals=False)
+        g = c.to_ocp(bsh)
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Shell")
+        self.assertEqual(o.kind, "face")
+        self.assertIsNotNone(o.ref)
+        self.assertIsNone(o.obj)
+        self.assertTrue(is_topods_face(i[o.ref]["obj"]))
+
+    def test_buildsheet_in_context(self):
+        """Test that a sheet is converted the same way from inside its context"""
+        c = OcpConverter()
+        with BuildSheet(Plane.YZ, thickness=0.1) as inner:
+            with BuildSketch():
+                Rectangle(1, 1)
+            g = c.to_ocp(inner)
+        self.assertEqual(g.name, "Shell")
+        self.assertEqual([o.name for o in g.objects], ["sheet", "sheet_local"])
+        for o in g.objects:
+            self.assertEqual(o.kind, "face")
+
+    def test_buildsheet_two_placements(self):
+        """Test that a sheet with several placements is one face object"""
+        c = OcpConverter(show_locals=False)
+        with BuildSheet(Plane.XY, Plane.YZ, thickness=0.1) as multi:
+            with BuildSketch():
+                Rectangle(1, 1)
+        g = c.to_ocp(multi)
+        i = c.instances
+        self.assertEqual(g.length, 1)
+        o = g.objects[0]
+        self.assertEqual(o.name, "Shell")
+        self.assertEqual(o.kind, "face")
+        self.assertEqual(len(list(get_faces(i[o.ref]["obj"]))), 2)
+
+    def test_buildsheet_local_name(self):
+        """Test that the name and locations are set correctly for a sheet_local"""
+        c = OcpConverter()
+        g = c.to_ocp(bsh, names=["bsh"])
+        i = c.instances
+        self.assertEqual(g.length, 2)
+        self.assertEqual(g.name, "bsh")
+        for o, n in zip(g.objects, ["sheet", "sheet_local"]):
+            self.assertEqual(o.name, n)
+            self.assertEqual(o.kind, "face")
+            self.assertIsNotNone(o.ref)
+            self.assertIsNone(o.obj)
+            self.assertTrue(is_topods_face(i[o.ref]["obj"]))
+            loc = loc_to_tq(o.loc)
+            self._assertTupleAlmostEquals(loc[0], (0, 0, 0), 6)
+            if n == "sheet":
+                self._assertTupleAlmostEquals(loc[1], (0.5, 0.5, 0.5, 0.5), 6)
+            else:
+                self._assertTupleAlmostEquals(loc[1], (0, 0, 0, 1), 6)
+
+    def test_builders_empty_in_context(self):
+        """Test that a builder without geometry yet gives an empty placeholder"""
+        c = OcpConverter()
+        with BuildPart() as ebp:
+            g = c.to_ocp(ebp)
+            self.assertEqual(g.objects[0].name, "Solid (empty)")
+        with BuildSheet(thickness=0.1) as ebsh:
+            g = c.to_ocp(ebsh)
+            self.assertEqual(g.objects[0].name, "Shell (empty)")
+        with BuildSketch() as ebs:
+            g = c.to_ocp(ebs)
+            self.assertEqual(g.objects[0].name, "Face (empty)")
+        with BuildLine() as ebl:
+            g = c.to_ocp(ebl, names=["ebl"])
+            self.assertEqual(g.objects[0].name, "ebl (empty)")
+        for e in (ebp, ebsh, ebs, ebl):
+            o = c.to_ocp(e).objects[0]
+            self.assertEqual(o.kind, "vertex")
+            self.assertTrue(is_topods_vertex(o.obj))
 
     def test_buildsketch_name(self):
         """Test that the name is set correctly for a sketch"""
