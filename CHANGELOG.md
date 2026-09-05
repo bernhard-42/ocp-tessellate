@@ -1,3 +1,14 @@
+## v3.4.2
+
+**Features**
+
+- Support OCP 8.0 alongside OCP 7.x. Three OCCT 8 API changes are gated on `OCP.__version__`:
+  - the shape maps moved out of `OCP.TopTools` into `OCP.collections`, where the template arguments are part of the name: `TopTools_IndexedMapOfShape` is now `IndexedMap_TopoDS_Shape_TopTools_ShapeMapHasher` and `TopTools_IndexedDataMapOfShapeListOfShape` is now `IndexedDataMap_TopoDS_Shape_List_TopoDS_Shape_TopTools_ShapeMapHasher`
+  - `TDF_LabelSequence` moved the same way, to `OCP.collections.Sequence_TDF_Label`
+  - `Bnd_Box.Get()` now resolves to the overload returning the `Bnd_Box::Limits` struct, which is not bound and always raises `TypeError`, so the six bounds are read individually via `GetXMin()` … `GetZMax()`. Those accessors do not exist on OCP 7, so the branch is needed in both directions
+
+  The test suite passes unchanged under OCP 7.9.3.1 and OCP 8.0.1.0
+
 ## v3.3.1
 
 **Fixes**
