@@ -28,14 +28,14 @@ try:
 except ImportError:
     pass
 
-import OCP  # noqa: F401
+import OCP
 from OCP.IFSelect import IFSelect_RetDone
 from OCP.Quantity import Quantity_ColorRGBA
 from OCP.STEPCAFControl import STEPCAFControl_Reader
 from OCP.STEPControl import STEPControl_Reader
 from OCP.TCollection import TCollection_AsciiString, TCollection_ExtendedString
 from OCP.TDataStd import TDataStd_Name
-from OCP.TDF import TDF_ChildIterator, TDF_Label, TDF_LabelSequence
+from OCP.TDF import TDF_ChildIterator, TDF_Label
 from OCP.TDocStd import TDocStd_Document
 from OCP.TopAbs import TopAbs_COMPOUND, TopAbs_COMPSOLID, TopAbs_FACE, TopAbs_SOLID
 from OCP.TopExp import TopExp_Explorer
@@ -49,6 +49,11 @@ from OCP.XCAFDoc import (
     XCAFDoc_DocumentTool,
     XCAFDoc_ShapeTool,
 )
+
+if OCP.__version__.startswith("7"):
+    from OCP.TDF import TDF_LabelSequence
+else:
+    from OCP.collections import Sequence_TDF_Label as TDF_LabelSequence
 
 # from ocp_tessellate.ocp_utils import deserialize, loc_to_tq, serialize, tq_to_loc
 from ocp_tessellate.utils import warn

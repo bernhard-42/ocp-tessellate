@@ -96,10 +96,18 @@ from OCP.TopoDS import (
     TopoDS_Vertex,
     TopoDS_Wire,
 )
-from OCP.TopTools import (
-    TopTools_IndexedDataMapOfShapeListOfShape,
-    TopTools_IndexedMapOfShape,
-)
+
+if OCP.__version__.startswith("7"):
+    from OCP.TopTools import (
+        TopTools_IndexedDataMapOfShapeListOfShape,
+        TopTools_IndexedMapOfShape,
+    )
+else:
+    from OCP.collections import (
+        IndexedDataMap_TopoDS_Shape_List_TopoDS_Shape_TopTools_ShapeMapHasher as TopTools_IndexedDataMapOfShapeListOfShape,
+        IndexedMap_TopoDS_Shape_TopTools_ShapeMapHasher as TopTools_IndexedMapOfShape,
+    )
+
 from numpy.typing import ArrayLike
 
 from .types import (
@@ -1248,7 +1256,20 @@ class BoundingBox(object):
         else:
             BRepBndLib.Add_s(obj, bbox)
         if not bbox.IsVoid():
-            values = bbox.Get()
+            if OCP.__version__.startswith("7"):
+                values = bbox.Get()
+            else:
+                # On OCP 8 Bnd_Box.Get() resolves to the overload returning the
+                # Bnd_Box::Limits struct, which is not bound and always raises, so read
+                # the six bounds individually.
+                values = (
+                    bbox.GetXMin(),
+                    bbox.GetYMin(),
+                    bbox.GetZMin(),
+                    bbox.GetXMax(),
+                    bbox.GetYMax(),
+                    bbox.GetZMax(),
+                )
             return (values[0], values[3], values[1], values[4], values[2], values[5])
         else:
             c = self._center_of_mass(obj)
