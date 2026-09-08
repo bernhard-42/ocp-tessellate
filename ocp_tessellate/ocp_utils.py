@@ -114,6 +114,7 @@ from .types import (
     Build123dBuilder,
     Build123dLineBuilder,
     Build123dPartBuilder,
+    Build123dSheetBuilder,
     Build123dSketchBuilder,
     Build123dVector,
     Build123dGroupBy,
@@ -297,6 +298,10 @@ def is_build123d(obj) -> TypeIs[Build123dBuilder]:
 
 def is_build123d_part(obj) -> TypeGuard[Build123dPartBuilder]:
     return is_build123d(obj) and obj._obj_name == "part"
+
+
+def is_build123d_sheet(obj) -> TypeGuard[Build123dSheetBuilder]:
+    return is_build123d(obj) and obj._obj_name == "sheet"
 
 
 def is_build123d_sketch(obj) -> TypeGuard[Build123dSketchBuilder]:
@@ -995,7 +1000,9 @@ def _call_if_callable(value: object) -> object:
 
 
 @overload
-def get_location(obj: object, as_none: Literal[True] = ...) -> TopLoc_Location | None: ...
+def get_location(
+    obj: object, as_none: Literal[True] = ...
+) -> TopLoc_Location | None: ...
 @overload
 def get_location(obj: object, as_none: Literal[False]) -> TopLoc_Location: ...
 def get_location(obj: object, as_none: bool = True) -> TopLoc_Location | None:
@@ -1211,7 +1218,9 @@ def make_key(
 def get_size(obj: object) -> int:
     size = sys.getsizeof(obj)
     if isinstance(obj, dict):
-        size += sum([get_size(v) + (len(k) if isinstance(k, str) else 0) for k, v in obj.items()])
+        size += sum([
+            get_size(v) + (len(k) if isinstance(k, str) else 0) for k, v in obj.items()
+        ])
     elif isinstance(obj, (tuple, list)):
         size += sum([get_size(i) for i in obj])
     return size

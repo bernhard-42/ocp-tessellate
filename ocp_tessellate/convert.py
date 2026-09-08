@@ -370,6 +370,7 @@ class OcpConverter:
 
         @return: The unified OcpObject
         """
+
         def trim_all(objs: Iterable[TopoDS_Shape]) -> List[TopoDS_Shape]:
             # trim_infinite_objs returns None for degenerate artifacts - drop them
             trimmed = [self.trim_infinite_objs(o, name) for o in objs]
@@ -738,9 +739,7 @@ class OcpConverter:
             else:
                 ocp_obj.add(sub_obj)
 
-        cad_joints = (
-            getattr(cad_obj, "joints", None) if self.render_joints else None
-        )
+        cad_joints = getattr(cad_obj, "joints", None) if self.render_joints else None
         if isinstance(cad_joints, dict) and len(cad_joints) > 0:
             joints = self.to_ocp(
                 *[j.symbol for j in cad_joints.values()],
@@ -986,9 +985,7 @@ class OcpConverter:
             elif is_cadquery_sketch(vals[0]):
                 return self.to_ocp(vals).cleanup()
 
-        ocp_obj = self._handle_list(
-            vals, name, obj_name, color, alpha, material, mode
-        )
+        ocp_obj = self._handle_list(vals, name, obj_name, color, alpha, material, mode)
 
         if self.show_parent and level == 0:  # show just one level in CadQuery
             parents = self.handle_parent(parent_obj, level)
@@ -1095,9 +1092,7 @@ class OcpConverter:
             mode=mode,
         )
 
-        cad_joints = (
-            getattr(cad_obj, "joints", None) if self.render_joints else None
-        )
+        cad_joints = getattr(cad_obj, "joints", None) if self.render_joints else None
         if isinstance(cad_joints, dict) and len(cad_joints) > 0:
             joints = self.to_ocp(
                 *[j.symbol for j in cad_joints.values()],
@@ -1202,13 +1197,16 @@ class OcpConverter:
         m = getattr(cad_obj, "material", None)
         builder_material = m if isinstance(m, str) else material
 
-        # Builder objects are homogeneous compounds (a sketch is all faces, a line
-        # is all edges) - the user's "one thing", not the N inner shapes that compose
-        # it. Bypass ShapeList unrolling and unify directly into a single OcpObject.
+        # Builder objects are homogeneous compounds (a sketch or sheet is all faces,
+        # a line is all edges) - the user's "one thing", not the N inner shapes that
+        # compose it. Bypass ShapeList unrolling and unify directly into a single
+        # OcpObject.
         if is_build123d_part(cad_obj):
             part = cad_obj.part
-            assert part is not None, "BuildPart has no part"
             obj_name = get_name(cad_obj, obj_name, "Solid")
+            if part is None:
+                # nothing built yet (e.g. shown from inside the context)
+                return self.handle_empty_iterables(obj_name, level)
             part_color = get_color(part.color)
             part_color = builder_color if part_color is None else part_color
             part_alpha = (
@@ -1233,10 +1231,43 @@ class OcpConverter:
             local_shape = getattr(cad_obj, "part_local", None)
             local_args = ("part", "solid", part_color)
 
+        elif is_build123d_sheet(cad_obj):
+            obj_name = get_name(cad_obj, obj_name, "Shell")
+            # BuildSheet.sheet asserts before anything has been built (e.g. shown
+            # from inside the context), so test emptiness on the local shell first
+            if len(list(cad_obj.sheet_local.faces())) == 0:
+                return self.handle_empty_iterables(obj_name, level)
+            sheet = cad_obj.sheet
+            if sheet is None:
+                return self.handle_empty_iterables(obj_name, level)
+            sheet_color = get_color(sheet.color)
+            sheet_color = builder_color if sheet_color is None else sheet_color
+            sheet_alpha = (
+                sheet_color.a
+                if (sheet_color is not None and isinstance(sheet_color.a, (int, float)))
+                else 1.0
+            )
+            sheet_material = getattr(sheet, "material", None)
+            if not isinstance(sheet_material, str):
+                sheet_material = None
+            ocp_obj = self.unify(
+                [f.wrapped for f in sheet.faces()],
+                kind="face",
+                name=obj_name,
+                color=sheet_color,
+                alpha=sheet_alpha,
+                material=builder_material if sheet_material is None else sheet_material,
+                mode=mode,
+            )
+            local_shape = getattr(cad_obj, "sheet_local", None)
+            local_args = ("sheet", "face", sheet_color)
+
         elif is_build123d_sketch(cad_obj):
             sketch = cad_obj.sketch
-            assert sketch is not None, "BuildSketch has no sketch"
             obj_name = get_name(cad_obj, obj_name, "Face")
+            if sketch is None:
+                # nothing built yet (e.g. shown from inside the context)
+                return self.handle_empty_iterables(obj_name, level)
             sketch_color = get_color(sketch.color)
             sketch_color = builder_color if sketch_color is None else sketch_color
             sketch_alpha = (
@@ -1266,8 +1297,10 @@ class OcpConverter:
 
         elif is_build123d_line(cad_obj):
             b3d_line = cad_obj.line
-            assert b3d_line is not None, "BuildLine has no line"
             obj_name = get_name(cad_obj, obj_name, "Edge")
+            if b3d_line is None:
+                # nothing built yet (e.g. shown from inside the context)
+                return self.handle_empty_iterables(obj_name, level)
             line_color = get_color(b3d_line.color)
             line_color = builder_color if line_color is None else line_color
             line_alpha = (
@@ -1792,7 +1825,7 @@ class OcpConverter:
             elif is_build123d_locationlist(cad_obj):
                 ocp_obj = self.handle_location_list(cad_obj, obj_name, level)
 
-            # build123d BuildPart, BuildSketch, BuildLine
+            # build123d BuildPart, BuildSheet, BuildSketch, BuildLine
             elif is_build123d(cad_obj):
                 ocp_obj = self.handle_build123d_builder(
                     cad_obj, obj_name, color, alpha, level, material, mode=mode
@@ -1907,7 +1940,7 @@ def to_ocpgroup(
     @param default_thickedgecolor: Color of an edge or wire shown on its own
     @param default_vertexcolor: Color of a vertex shown on its own
     @param show_parent: The flag to show the parent
-    @param show_locals: The flag to render the part/sketch/line based on XY plane
+    @param show_locals: The flag to render the part/sheet/sketch/line based on XY plane
     @param loc: The location of the objects
     @param progress: The progress bar
 

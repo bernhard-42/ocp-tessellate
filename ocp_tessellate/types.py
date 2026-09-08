@@ -61,7 +61,7 @@ class Build123dShape(Wrapped[TopoDS_Shape], Protocol):
 
 
 class Build123dBuilder(Protocol):
-    """A build123d Builder (BuildPart, BuildSketch or BuildLine)."""
+    """A build123d Builder (BuildPart, BuildSheet, BuildSketch or BuildLine)."""
 
     @property
     def _obj(self) -> object: ...
@@ -79,6 +79,18 @@ class Build123dPartBuilder(Build123dBuilder, Protocol):
     def part(self) -> "Build123dShape | None": ...
     @property
     def part_local(self) -> "Build123dShape | None": ...
+
+
+class Build123dSheetBuilder(Build123dBuilder, Protocol):
+    """A build123d BuildSheet. sheet is the placed reference Shell (a Compound
+    of Shells for several placements), sheet_local the Shell in construction
+    coordinates. sheet asserts before anything has been built; sheet_local is
+    always readable, so test emptiness on it first."""
+
+    @property
+    def sheet(self) -> "Build123dShape | None": ...
+    @property
+    def sheet_local(self) -> "Build123dShape": ...
 
 
 class Build123dSketchBuilder(Build123dBuilder, Protocol):

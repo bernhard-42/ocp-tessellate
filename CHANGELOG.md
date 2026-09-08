@@ -1,8 +1,13 @@
 ## v3.5.1
 
+**Features**
+
+- build123d's `BuildSheet` (build123d PR #1434) is converted like the other builders: the reference `Shell` becomes a single face object named `Shell`, with a `sheet_local` sibling unless `show_locals=False`
+
 **Fixes**
 
 - `StepReader.to_build123d` labeled the root Compound with the last child's name instead of the assembly name, because `walk()` rebound its `label` parameter in the loop
+- A build123d builder with no geometry yet, e.g. a `BuildPart`, `BuildSheet`, `BuildSketch` or `BuildLine` shown from inside its own context, raised an `AssertionError`. It is now converted to the same `(empty)` placeholder as an empty list
 - The result of build123d's `ShapeList.group_by` (a `GroupBy`) was silently skipped as an unknown object, so `show(b.edges().group_by(Axis.Z))` showed nothing. It is now converted to a group named `GroupBy` with one `ShapeList` group per key
 
 ## v3.5.0
