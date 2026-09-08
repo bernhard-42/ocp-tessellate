@@ -38,6 +38,7 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 where = ["."]
+include = ["ocp_tessellate*"]
 
 [project.optional-dependencies]
 dev = ["questionary~=1.10.0", "bump-my-version", "black", "twine", "pytest"]

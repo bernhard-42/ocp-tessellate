@@ -10,7 +10,7 @@ It accepts geometry from [CadQuery](https://github.com/CadQuery/cadquery), [buil
 pip install ocp-tessellate
 ```
 
-Requires Python 3.10+ and OCP 7.8 or 7.9.
+Requires Python 3.10+ and OCP 7.8, 7.9 or 8.0.
 
 ## Quick start
 
@@ -77,7 +77,7 @@ Inputs are walked recursively. The resulting tree mirrors the input structure:
 ## Compatibility
 
 - Python 3.10+
-- OCP 7.8 and 7.9
+- OCP 7.8, 7.9 and 8.0
 - build123d (current)
 - CadQuery 2.x
 

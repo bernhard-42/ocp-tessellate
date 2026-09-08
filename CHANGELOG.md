@@ -4,6 +4,11 @@
 
 - build123d's `BuildSheet` (build123d PR #1434) is converted like the other builders: the reference `Shell` becomes a single face object named `Shell`, with a `sheet_local` sibling unless `show_locals=False`
 
+**Changes**
+
+- OCP 8 compatibility: on OCP 8 the `TopTools` map classes and `TDF_LabelSequence` are imported from `OCP.collections`, and bounding boxes are read through the individual `Bnd_Box` getters because `Get()` is not bound there
+- The wheel no longer installs `tests` and `examples` as top-level packages
+
 **Fixes**
 
 - `StepReader.to_build123d` labeled the root Compound with the last child's name instead of the assembly name, because `walk()` rebound its `label` parameter in the loop
