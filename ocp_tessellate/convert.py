@@ -1411,6 +1411,31 @@ class OcpConverter:
                 if calc_bb:
                     bb.update(BoundingBox(compound))
 
+        if not cad_objs:
+            # A sketch can be all construction: `rect(..., mode="c")` files its
+            # rectangle under `_tags` and adds nothing to `_faces`, so the three
+            # sources above find nothing and the group comes back empty - a
+            # model with no parts, which is neither drawable nor a tree entry.
+            # The tagged shapes are the geometry the user asked for, so they are
+            # what gets drawn. Only when nothing else was collected: a tag on
+            # ordinary geometry is a second view of what is already there, and
+            # drawing both would show it twice.
+            construction = [
+                obj
+                for shapes in cad_obj._tags.values()
+                for obj in shapes
+                if is_shape(obj)
+            ]
+            if len(construction) > 0:
+                shapes = []
+                for obj in construction:
+                    for loc in cad_obj.locs:
+                        shapes.append(downcast(obj.wrapped.Moved(loc.wrapped)))
+                compound = make_compound(shapes)
+                cad_objs.append(compound)
+                names.append("Construction")
+                bb.update(BoundingBox(compound))
+
         name = get_name(cad_obj, obj_name, "Sketch")
         result = self.to_ocp(
             *cad_objs,
