@@ -43,13 +43,23 @@ release:
 	git diff-index --quiet HEAD || git commit -m "Latest release: $(CURRENT_VERSION)"
 	git tag -a v$(CURRENT_VERSION) -m "Latest release: $(CURRENT_VERSION)"
 	
+# Push, then a GitHub release under the tag `release` made. The push comes
+# first because `gh release create` makes its own tag on GitHub's main when
+# the tag is not there yet - and without the push that was the previous
+# release's main, so nine releases pointed at source without their changes.
+# No `--target`: the tag exists and names the commit.
 create-release:
+	@for f in dist/ocp_tessellate-$(CURRENT_VERSION).tar.gz \
+	         dist/ocp_tessellate-$(CURRENT_VERSION)-py3-none-any.whl; do \
+	    test -f $$f || { echo "missing $$f - run make dist first"; exit 1; }; \
+	done
+	@git push
+	@git push --tags
 	@gh release create v$(CURRENT_VERSION) \
 		dist/ocp_tessellate-$(CURRENT_VERSION).tar.gz \
 		dist/ocp_tessellate-$(CURRENT_VERSION)-py3-none-any.whl \
 		--title "ocp_tessellate-$(CURRENT_VERSION)" \
-		--notes "v$(CURRENT_VERSION)" \
-		--target main
+		--notes "v$(CURRENT_VERSION)"
 
 install: dist
 	@echo "=> Installing ocp-tessellate"
