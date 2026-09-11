@@ -1,3 +1,13 @@
+## v3.5.2
+
+**Changes**
+
+- numpy 2 is required (`numpy>=2.0`)
+
+**Fixes**
+
+- A cadquery sketch that is all construction geometry, e.g. `rect(..., mode="c")`, showed nothing: cadquery files construction under `_tags` and leaves the faces compound empty, so the converter found none of its three sources and produced a group with no objects. The tagged shapes are drawn now, as a `Construction` object, when nothing else was collected
+
 ## v3.5.1
 
 **Features**
