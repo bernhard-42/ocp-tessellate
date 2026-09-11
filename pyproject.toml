@@ -28,7 +28,7 @@ classifiers = [
 
 dependencies = [
     "webcolors>=24.8.0",
-    "numpy",
+    "numpy>=2.0",
     "cachetools>=5.5.0,<8",
     "imagesize",
     # drop typing_extensions once requires-python is >=3.11
