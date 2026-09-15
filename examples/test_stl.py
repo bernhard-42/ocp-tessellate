@@ -2,7 +2,7 @@
 import os
 
 from build123d import *
-from ocp_vscode import *
+from ocp_viewer_core.viewer import *
 
 # enable_native_tessellator()
 

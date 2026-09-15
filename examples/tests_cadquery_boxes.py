@@ -5,8 +5,7 @@ import numpy as np
 
 import cadquery as cq
 from cadquery_massembly import MAssembly
-from ocp_vscode import show
-from ocp_vscode.animation import Animation
+from ocp_viewer_core.viewer import show, Animation
 
 
 # %%

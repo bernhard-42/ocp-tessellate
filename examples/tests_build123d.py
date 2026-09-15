@@ -1,6 +1,6 @@
 # %%
 from build123d import *
-from ocp_vscode import show
+from ocp_viewer_core.viewer import show
 
 # %%
 with BuildPart() as box:

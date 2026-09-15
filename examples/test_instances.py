@@ -2,7 +2,7 @@
 import copy
 
 from build123d import *
-from ocp_vscode import *
+from ocp_viewer_core.viewer import *
 
 from ocp_tessellate.tessellator import cache
 

@@ -2,7 +2,7 @@ from collections import OrderedDict as odict
 
 import cadquery as cq
 from cadquery_massembly import MAssembly, Mate
-from ocp_vscode import *
+from ocp_viewer_core.viewer import *
 
 from ocp_tessellate.utils import Color
 
@@ -14,7 +14,8 @@ set_defaults(axes=False, axes0=True, edge_accuracy=0.01, helper_scale=1)
 
 def ring(inner_radius, outer_radius, width):
     ring = (
-        cq.Workplane(origin=(0, 0, -width / 2))
+        cq
+        .Workplane(origin=(0, 0, -width / 2))
         .circle(outer_radius)
         .circle(inner_radius)
         .extrude(width)

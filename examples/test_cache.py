@@ -3,7 +3,7 @@ import gc
 import random
 
 from build123d import *
-from ocp_vscode import *
+from ocp_viewer_core.viewer import *
 
 from ocp_tessellate.convert import combined_bb, tessellate_group, to_assembly
 from ocp_tessellate.tessellator import cache

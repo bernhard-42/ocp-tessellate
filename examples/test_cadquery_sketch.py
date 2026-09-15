@@ -1,6 +1,6 @@
 # %%
 import cadquery as cq
-from ocp_vscode import show, set_defaults
+from ocp_viewer_core.viewer import show, set_defaults
 from pathlib import Path
 
 c = Path.cwd()
@@ -14,7 +14,8 @@ show(result)
 # %%
 
 result = (
-    cq.Sketch()
+    cq
+    .Sketch()
     .segment((0.0, 0), (2.0, 0.0))
     .segment((0.0, 2))
     .close()
@@ -30,7 +31,8 @@ show(result)
 # %%
 
 result = (
-    cq.Sketch()
+    cq
+    .Sketch()
     .trapezoid(4, 3, 90)
     .vertices()
     .circle(0.5, mode="s")
@@ -47,7 +49,8 @@ show(result)
 # %%
 
 result = (
-    cq.Workplane()
+    cq
+    .Workplane()
     .transformed((0, 90, 90), (2, 0, 0))
     .sketch()
     .trapezoid(4, 3, 90)

@@ -4,8 +4,7 @@ from collections import OrderedDict as odict
 
 import cadquery as cq
 from cadquery_massembly import MAssembly
-from ocp_vscode import *
-from ocp_vscode.animation import Animation
+from ocp_viewer_core.viewer import *
 
 from ocp_tessellate.utils import Color
 
@@ -36,7 +35,8 @@ disk = disk.cut(nipple).union(nipple.translate((r_disk, 0, thickness)))
 
 pivot_base = cq.Workplane().circle(2 * nr).extrude(thickness)
 base = (
-    cq.Workplane()
+    cq
+    .Workplane()
     .rect(6 * nr + dist_pivot, 6 * nr)
     .extrude(thickness)
     .translate((dist_pivot / 2, 0, 0))
@@ -51,7 +51,8 @@ base.faces(">Z[-2]").wires(cq.NearestToPointSelector((dist_pivot + r_disk, 0))).
 )
 
 slot = (
-    cq.Workplane()
+    cq
+    .Workplane()
     .rect(2 * r_disk, 2 * nr)
     .extrude(thickness)
     .union(nipple.translate((-r_disk, 0, 0)))
@@ -60,7 +61,8 @@ slot = (
 )
 
 arm = (
-    cq.Workplane()
+    cq
+    .Workplane()
     .rect(4 * nr + (r_disk + dist_pivot), 4 * nr)
     .extrude(thickness)
     .edges("|Z")

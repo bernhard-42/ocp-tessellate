@@ -1,8 +1,7 @@
 # %%
 import numpy as np
 from build123d import *
-from ocp_vscode import *
-from ocp_vscode.animation import Animation
+from ocp_viewer_core.viewer import *
 
 from bd_animation import AnimationGroup, clone, normalize_track
 

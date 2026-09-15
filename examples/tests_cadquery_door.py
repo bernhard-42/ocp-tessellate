@@ -2,7 +2,7 @@
 from os.path import expanduser
 
 import cadquery as cq
-from ocp_vscode import show
+from ocp_viewer_core.viewer import show
 
 from ocp_tessellate.ocp_utils import loc_to_tq
 
@@ -43,7 +43,8 @@ def make_vslot(length):
 
 def make_connector():
     rv = (
-        cq.Workplane()
+        cq
+        .Workplane()
         .box(20, 20, 20)
         .faces("<X")
         .workplane()
@@ -62,7 +63,8 @@ def make_connector():
 
 def make_panel(w, h, t, cutout):
     rv = (
-        cq.Workplane("XZ")
+        cq
+        .Workplane("XZ")
         .rect(w, h)
         .extrude(t)
         .faces(">Y")
@@ -88,7 +90,8 @@ def make_handle(w, h, r):
     path = cq.Workplane().polyline(pts)
 
     rv = (
-        cq.Workplane("YZ")
+        cq
+        .Workplane("YZ")
         .rect(r, r)
         .sweep(path, transition="round")
         .tag("solid")
@@ -107,7 +110,8 @@ def make_handle(w, h, r):
 
 # define the elements
 door = (
-    cq.Assembly()
+    cq
+    .Assembly()
     .add(make_vslot(H), name="left")
     .add(make_vslot(H), name="right")
     .add(make_vslot(W), name="top")

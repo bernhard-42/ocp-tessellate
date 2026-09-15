@@ -1,7 +1,7 @@
 # %%
 import build123d as bd
 import cadquery as cq
-from ocp_vscode import show
+from ocp_viewer_core.viewer import show
 
 from ocp_tessellate.ocp_utils import get_rgba
 from ocp_tessellate.utils import Color

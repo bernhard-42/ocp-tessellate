@@ -4,7 +4,7 @@ from collections import OrderedDict as odict
 import cadquery as cq
 import numpy as np
 from cadquery_massembly import MAssembly
-from ocp_vscode import Animation, set_defaults, show
+from ocp_viewer_core.viewer import Animation, set_defaults, show
 
 from ocp_tessellate.ocp_utils import loc_to_tq
 from ocp_tessellate import Color
@@ -51,7 +51,8 @@ def create_base(rotate=False):
         workplane = workplane.transformed(rotate=(30, 45, 60))
 
     base = (
-        workplane.ellipseArc(length, width, 25, -25, startAtCurrent=False)
+        workplane
+        .ellipseArc(length, width, 25, -25, startAtCurrent=False)
         .close()
         .pushPoints(list(base_holes.values()))
         .circle(diam / 2 + tol)
@@ -106,14 +107,16 @@ def create_stand():
     stand = cq.Workplane().box(height, width / 2 + 10, thickness)
     inset = cq.Workplane().box(thickness, width / 2, thickness)
     backing = (
-        cq.Workplane("ZX")
+        cq
+        .Workplane("ZX")
         .polyline([(10, 0), (0, 0), (0, 10)])
         .close()
         .extrude(thickness)
     )
 
     stand = (
-        stand.union(inset.translate(((height + thickness) / 2, 0, 0)))
+        stand
+        .union(inset.translate(((height + thickness) / 2, 0, 0)))
         .union(inset.translate((-(height + thickness) / 2, 0, 0)))
         .union(backing.translate((-height / 2, -thickness / 2, thickness / 2)))
         .union(
@@ -136,7 +139,8 @@ def create_upper_leg():
     upper_leg_hole = (l2 - 10, 0)
 
     upper_leg = (
-        cq.Workplane()
+        cq
+        .Workplane()
         .polyline(pts)
         .mirrorX()
         .pushPoints([upper_leg_hole])
@@ -147,7 +151,8 @@ def create_upper_leg():
     )
 
     axle = (
-        cq.Workplane("XZ", origin=(0, height / 2 + thickness + tol, thickness / 2))
+        cq
+        .Workplane("XZ", origin=(0, height / 2 + thickness + tol, thickness / 2))
         .circle(diam / 2)
         .extrude(2 * (height / 2 + thickness + tol))
     )
@@ -167,7 +172,8 @@ def create_lower_leg():
     lower_leg_hole = (l1 - 10, 0)
 
     lower_leg = (
-        cq.Workplane()
+        cq
+        .Workplane()
         .polyline(pts)
         .mirrorX()
         .pushPoints([lower_leg_hole])

@@ -4,8 +4,7 @@ import numpy as np
 
 import cadquery as cq
 from cadquery_massembly import MAssembly
-from ocp_vscode import *
-from ocp_vscode.animation import Animation
+from ocp_viewer_core.viewer import *
 
 from ocp_tessellate.utils import Color
 
@@ -85,7 +84,8 @@ link_list = list(links.keys())
 
 def make_link(length, width=2, height=1):
     link = (
-        cq.Workplane("YZ")
+        cq
+        .Workplane("YZ")
         .rect(length + 4, width + 2)
         .pushPoints(((-length / 2, 0), (length / 2, 0)))
         .circle(1)

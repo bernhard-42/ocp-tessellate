@@ -1,6 +1,6 @@
 # %%
 from build123d import *
-from ocp_vscode import set_defaults, show
+from ocp_viewer_core.viewer import set_defaults, show
 
 from ocp_tessellate.cad_objects import CoordAxis, CoordSystem
 
@@ -25,12 +25,12 @@ show(ax, ay, az)
 set_defaults(helper_scale=5)
 loc = Location((1, 2, 3), (10, 20, 30))
 
-ox = loc.x_axis.position.to_tuple()
-dx = loc.x_axis.direction.to_tuple()
-oy = loc.y_axis.position.to_tuple()
-dy = loc.y_axis.direction.to_tuple()
-oz = loc.z_axis.position.to_tuple()
-dz = loc.z_axis.direction.to_tuple()
+ox = list(loc.x_axis.position)
+dx = list(loc.x_axis.direction)
+oy = list(loc.y_axis.position)
+dy = list(loc.y_axis.direction)
+oz = list(loc.z_axis.position)
+dz = list(loc.z_axis.direction)
 
 c = CoordSystem("xyz", ox, x_dir=dx, z_dir=dz, size=2)
 ax = CoordAxis("ax", ox, z_dir=dx)
