@@ -435,11 +435,17 @@ def is_degenerated_edge(edge: TopoDS_Edge) -> bool:
 
 def is_degenerated_face(face: TopoDS_Face) -> bool:
     """
-    Detect OCCT artifact faces carrying no surface (O(1)). Zero-area faces
-    with a valid surface are not caught here on purpose - computing the area
-    is expensive, and the mesher drops them for free (no triangulation).
+    Detect OCCT artifact faces carrying no geometry at all (O(1)): neither a
+    surface nor a triangulation. A mesh-only face, e.g. from `import_stl`, has
+    no surface by construction and carries its geometry as a triangulation, so
+    the surface alone does not decide. Zero-area faces with a valid surface are
+    not caught here on purpose - computing the area is expensive, and the
+    mesher drops them for free (no triangulation).
     """
-    return BRep_Tool.Surface_s(face) is None
+    return (
+        BRep_Tool.Surface_s(face) is None
+        and BRep_Tool.Triangulation_s(face, TopLoc_Location()) is None
+    )
 
 
 def is_toploc_location(obj) -> TypeIs[TopLoc_Location]:

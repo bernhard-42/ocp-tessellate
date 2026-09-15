@@ -1,3 +1,9 @@
+## v3.5.3
+
+**Fixes**
+
+- STL imports showed as the empty placeholder vertex with `Info: Ignoring degenerated face of 'Face' (no surface)`. Since 3.5.0 a face without a surface was taken for an OCCT artifact, but a mesh-only face - `import_stl` produces one - has no surface by construction and carries its geometry as a triangulation. A face is degenerate only when it has neither
+
 ## v3.5.2
 
 **Changes**

@@ -1,3 +1,5 @@
+import os
+import tempfile
 import unittest
 
 from build123d import *
@@ -8,7 +10,7 @@ from OCP.BRepBuilderAPI import (
     BRepBuilderAPI_MakeFace,
     BRepBuilderAPI_MakePolygon,
 )
-from OCP.TopoDS import TopoDS_Compound
+from OCP.TopoDS import TopoDS_Compound, TopoDS_Face
 
 from ocp_tessellate.convert import OcpConverter, tessellate_group
 from ocp_tessellate.ocp_utils import *
@@ -160,6 +162,17 @@ class TestsDegenerateArtifacts(MyUnitTest):
             ).Wire()
         ).Face()
 
+    def _face_without_geometry(self):
+        face = TopoDS_Face()
+        BRep_Builder().MakeFace(face)
+        return face
+
+    def _mesh_only_face(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "box.stl")
+            export_stl(Box(1, 1, 1), path)
+            return import_stl(path).wrapped
+
     def _compound(self, shapes):
         builder = BRep_Builder()
         comp = TopoDS_Compound()
@@ -175,6 +188,20 @@ class TestsDegenerateArtifacts(MyUnitTest):
         )
         self.assertFalse(is_degenerated_face(self._zero_area_face()))
         self.assertFalse(is_degenerated_face(Face.make_rect(1, 1).wrapped))
+        # an OCCT artifact: a face with neither surface nor triangulation
+        self.assertTrue(is_degenerated_face(self._face_without_geometry()))
+        # a mesh-only face has no surface either, but it is geometry
+        self.assertFalse(is_degenerated_face(self._mesh_only_face()))
+
+    def test_mesh_only_face_is_tessellated(self):
+        """An STL import is a face without a surface; it must be shown, not
+        replaced by the empty placeholder vertex."""
+        c = OcpConverter()
+        g = c.to_ocp(self._mesh_only_face(), names=["stl"])
+        meshed, shapes, _ = tessellate_group(g, c.instances)
+        self.assertEqual(shapes["parts"][0]["type"], "shapes")
+        self.assertEqual(len(meshed), 1)
+        self.assertGreater(len(meshed[0]["triangles"]), 0)
 
     def test_degenerated_edge_alone(self):
         c = OcpConverter()
