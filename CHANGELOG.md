@@ -1,3 +1,9 @@
+## v3.6.0 (unreleased)
+
+**Breaking changes**
+
+- The native tessellator is removed: `NativeTessellator`, `NATIVE`, `enable_native_tessellator()`, `disable_native_tessellator()`, `is_native_tessellator_enabled()` and the `NATIVE_TESSELLATOR` environment variable are gone, and `ocp_addons` is no longer used. `tessellate()` always uses `Tessellator`. `TesselatorProtocol` is removed with it, since it only existed so that the two tessellator classes could share an interface
+
 ## v3.5.3
 
 **Fixes**

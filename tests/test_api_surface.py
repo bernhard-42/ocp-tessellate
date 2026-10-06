@@ -1,0 +1,250 @@
+"""Guard the public API surface of ocp_tessellate.
+
+The snapshot `api_surface.json` records, per public module, every public name
+with its kind and, for functions, classes and their methods, the parameters
+(name, kind, default; annotations are left out on purpose, so that widening a
+type from OCP to OCP | nanocct does not count as an API change).
+
+What counts as the surface of a module:
+- functions and classes defined in ocp_tessellate, with their parameters
+- OCCT objects (OCP or nanocct classes, enums, functions) re-exported by name
+- other module-level values (constants, caches, type aliases), by type name
+Not part of it: imported modules, third-party functions and classes (numpy,
+cachetools, typing, ...), typing constructs, and the names `stepreader` gets
+from `from build123d import *`.
+
+Allowed differences to the snapshot:
+- the names in DELIBERATE_REMOVALS are gone
+- a keyword-only parameter `use_nanocct` with default False is appended
+- names in OPTIONAL may be missing when the optional package is not installed
+
+Regenerate the snapshot (only when the API is meant to change):
+    python tests/test_api_surface.py --update
+"""
+
+import importlib
+import inspect
+import json
+import sys
+from pathlib import Path
+
+SNAPSHOT = Path(__file__).with_name("api_surface.json")
+
+MODULES = [
+    "ocp_tessellate",
+    "ocp_tessellate.cad_objects",
+    "ocp_tessellate.convert",
+    "ocp_tessellate.defaults",
+    "ocp_tessellate.ocp_utils",
+    "ocp_tessellate.stepreader",
+    "ocp_tessellate.tessellator",
+    "ocp_tessellate.trace",
+    "ocp_tessellate.types",
+    "ocp_tessellate.utils",
+]
+
+OWN_PREFIX = "ocp_tessellate"
+OCCT_PREFIXES = ("OCP", "nanocct")
+TYPING_MODULES = ("typing", "typing_extensions")
+
+# third-party modules whose re-exported objects are not part of the surface even
+# when they are plain values (numpy.typing.NDArray is a types.GenericAlias in
+# numpy 2.4 and a typing.TypeAliasType in numpy 2.5)
+FOREIGN_VALUE_MODULES = ("numpy.typing",)
+
+# names removed on purpose since the snapshot was taken, see docs/nanocct-concept.md
+DELIBERATE_REMOVALS: dict[str, set[str]] = {
+    # the native tessellator (ocp_addons) is gone
+    "ocp_tessellate.tessellator": {"NATIVE", "NativeTessellator", "TesselatorProtocol"},
+    "ocp_tessellate.types": {"TesselatorProtocol"},
+}
+
+# names that only exist when an optional package is installed
+OPTIONAL = {
+    "ocp_tessellate.stepreader": {"clone"},  # needs build123d
+}
+
+# modules whose star import of a third-party package is not part of the surface
+FOREIGN_STAR_IMPORTS = {
+    "ocp_tessellate.stepreader": "build123d",
+}
+
+NEW_PARAMETER = ["use_nanocct", "KEYWORD_ONLY", "False"]
+
+
+def _top_package(module_name):
+    if module_name is None:
+        return ""
+    return module_name.split(".")[0]
+
+
+def _default_repr(value):
+    if value is inspect.Parameter.empty:
+        return None
+    text = repr(value)
+    if " at 0x" in text:
+        return f"<{type(value).__name__}>"
+    return text
+
+
+def _params(obj):
+    try:
+        signature = inspect.signature(obj)
+    except (TypeError, ValueError):
+        return None
+    return [
+        [p.name, p.kind.name, _default_repr(p.default)]
+        for p in signature.parameters.values()
+    ]
+
+
+def _members(cls):
+    members = {}
+    for name, value in vars(cls).items():
+        if name.startswith("_") and name != "__init__":
+            continue
+        if isinstance(value, (staticmethod, classmethod)):
+            members[name] = {"kind": type(value).__name__, "params": _params(value.__func__)}
+        elif isinstance(value, property):
+            members[name] = {"kind": "property"}
+        elif inspect.isfunction(value):
+            members[name] = {"kind": "method", "params": _params(value)}
+        else:
+            members[name] = {"kind": "attribute"}
+    return members
+
+
+def _foreign_value_ids():
+    ids = set()
+    for module_name in FOREIGN_VALUE_MODULES:
+        module = importlib.import_module(module_name)
+        for name in dir(module):
+            if not name.startswith("_"):
+                ids.add(id(getattr(module, name)))
+    return ids
+
+
+def _describe(obj, foreign_ids):
+    """Return the description of a module attribute, or None if not part of the surface."""
+    if inspect.ismodule(obj) or id(obj) in foreign_ids:
+        return None
+
+    if inspect.isclass(obj) or inspect.isroutine(obj):
+        package = _top_package(getattr(obj, "__module__", None))
+        if package == OWN_PREFIX:
+            if inspect.isclass(obj):
+                return {
+                    "kind": "class",
+                    "bases": [b.__qualname__ for b in obj.__bases__],
+                    "params": _params(obj),
+                    "members": _members(obj),
+                }
+            return {"kind": "function", "params": _params(obj)}
+        if package in OCCT_PREFIXES:
+            return {"kind": "occt"}
+        return None
+
+    type_module = type(obj).__module__
+    if _top_package(type_module) in OCCT_PREFIXES:
+        return {"kind": "occt"}
+    if type_module in TYPING_MODULES:
+        return None
+    return {"kind": "value", "type": type(obj).__name__}
+
+
+def _foreign_star_names(module_name):
+    package = FOREIGN_STAR_IMPORTS.get(module_name)
+    if package is None:
+        return set()
+    try:
+        foreign = importlib.import_module(package)
+    except ImportError:
+        return set()
+    # a star import binds the names in __all__, or all public names without it
+    names = getattr(foreign, "__all__", None)
+    if names is None:
+        return {name for name in dir(foreign) if not name.startswith("_")}
+    return set(names)
+
+
+def collect_surface():
+    surface = {}
+    foreign_ids = _foreign_value_ids()
+    for module_name in MODULES:
+        module = importlib.import_module(module_name)
+        excluded = _foreign_star_names(module_name)
+        entries = {}
+        for name in sorted(dir(module)):
+            if name.startswith("_") or name in excluded:
+                continue
+            description = _describe(getattr(module, name), foreign_ids)
+            if description is not None:
+                entries[name] = description
+        surface[module_name] = entries
+    return surface
+
+
+def _compare_params(where, expected, actual, problems):
+    if expected == actual:
+        return
+    if expected is not None and actual is not None:
+        if actual[: len(expected)] == expected and actual[len(expected) :] == [NEW_PARAMETER]:
+            return
+    problems.append(f"{where}: parameters changed\n    was {expected}\n    now {actual}")
+
+
+def _compare_entry(where, expected, actual, problems):
+    if expected["kind"] != actual["kind"]:
+        problems.append(f"{where}: kind changed from {expected['kind']} to {actual['kind']}")
+        return
+    if "type" in expected and expected["type"] != actual.get("type"):
+        problems.append(f"{where}: type changed from {expected['type']} to {actual.get('type')}")
+    if "bases" in expected and expected["bases"] != actual.get("bases"):
+        problems.append(f"{where}: bases changed from {expected['bases']} to {actual.get('bases')}")
+    if "params" in expected:
+        _compare_params(where, expected["params"], actual.get("params"), problems)
+    if "members" in expected:
+        actual_members = actual.get("members", {})
+        for name, member in expected["members"].items():
+            if name not in actual_members:
+                problems.append(f"{where}.{name}: removed")
+            else:
+                _compare_entry(f"{where}.{name}", member, actual_members[name], problems)
+        for name in sorted(set(actual_members) - set(expected["members"])):
+            problems.append(f"{where}.{name}: added")
+
+
+def compare(expected_surface, actual_surface):
+    problems = []
+    for module_name in MODULES:
+        expected = expected_surface.get(module_name, {})
+        actual = actual_surface.get(module_name, {})
+        removals = DELIBERATE_REMOVALS.get(module_name, set())
+        optional = OPTIONAL.get(module_name, set())
+        for name, entry in expected.items():
+            if name in removals:
+                if name in actual:
+                    problems.append(f"{module_name}.{name}: should be removed")
+                continue
+            if name not in actual:
+                if name not in optional:
+                    problems.append(f"{module_name}.{name}: removed")
+                continue
+            _compare_entry(f"{module_name}.{name}", entry, actual[name], problems)
+        for name in sorted(set(actual) - set(expected)):
+            problems.append(f"{module_name}.{name}: added")
+    return problems
+
+
+def test_api_surface():
+    expected = json.loads(SNAPSHOT.read_text())
+    problems = compare(expected, collect_surface())
+    assert problems == [], "API surface changed:\n" + "\n".join(problems)
+
+
+if __name__ == "__main__":
+    if sys.argv[1:] == ["--update"]:
+        SNAPSHOT.write_text(json.dumps(collect_surface(), indent=1, sort_keys=True) + "\n")
+        print(f"wrote {SNAPSHOT}")
+    else:
+        print(__doc__)

@@ -50,7 +50,7 @@ dev = ["questionary~=1.10.0", "bump-my-version", "black", "twine", "pytest"]
 # ty settings
 
 [tool.ty.rules]
-# suppressions for optional imports (cadquery, ocp_addons) are unused in the
+# suppressions for optional imports (cadquery) are unused in the
 # dev environment where everything is installed - do not fail on them
 unused-ignore-comment = "ignore"
 

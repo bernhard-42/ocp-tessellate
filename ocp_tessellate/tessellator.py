@@ -58,33 +58,11 @@ from .types import (
     EdgeMapper,
     FaceMapper,
     Coords,
-    TesselatorProtocol,
     Tessellation,
     TriangleIndices,
     VertexMapper,
 )
 from .utils import Timer, round_sig
-
-try:
-    # optional dependency, ImportError is handled below
-    from ocp_addons.tessellator import tessellate as tessellate_c  # pyright: ignore[reportMissingImports] # ty: ignore[unresolved-import]
-
-    def enable_native_tessellator():
-        os.environ["NATIVE_TESSELLATOR"] = "1"
-
-    def disable_native_tessellator():
-        os.environ["NATIVE_TESSELLATOR"] = "0"
-
-    def is_native_tessellator_enabled():
-        return os.environ.get("NATIVE_TESSELLATOR") == "1"
-
-    if os.environ.get("NATIVE_TESSELLATOR") is None:
-        enable_native_tessellator()
-
-    NATIVE = True
-
-except ImportError:
-    NATIVE = False
 
 LOG_FILE = "ocp_tessellate.log"
 
@@ -515,7 +493,7 @@ class Tessellator:
         # compute_edges collects single points and _compute_missing_edges point
         # pairs, so np.asarray yields (N, 3) for the one and (N, 2, 3) for the
         # other. Ravel to the flat array every other producer of edge segments
-        # returns - NativeTessellator, discretize_edges and bbox_edges
+        # returns - discretize_edges and bbox_edges
         return np.asarray(self.edges, dtype=np.float32).ravel()
 
     def get_segments_per_edge(self) -> NDArray[np.int32]:
@@ -523,70 +501,6 @@ class Tessellator:
 
     def get_obj_vertices(self) -> NDArray[np.float32]:
         return np.asarray(self.obj_vertices, dtype=np.float32)
-
-
-class NativeTessellator:
-    def __init__(self, shape_id):
-        self.shape_id = shape_id
-        self.mesh = None
-
-    def compute(
-        self,
-        shape,
-        quality,
-        angular_tolerance,
-        compute_faces=True,
-        compute_edges=True,
-        debug=False,
-        deviation=0.1,
-        compute_uvs=False,
-        normalize_uvs=True,  # accepted for interface parity, the native tessellator has no UV support
-    ):
-        self.mesh = tessellate_c(
-            shape,
-            quality,
-            angular_tolerance,
-            compute_faces,
-            compute_edges,
-            True,
-            2 if debug else 0,
-            debug,
-        )
-
-    @property
-    def _computed_mesh(self):
-        assert self.mesh is not None, "compute() not called"
-        return self.mesh
-
-    def get_vertices(self) -> NDArray[np.float32]:
-        return self._computed_mesh.vertices
-
-    def get_triangles(self) -> NDArray[np.int32]:
-        return self._computed_mesh.triangles
-
-    def get_triangles_per_face(self) -> NDArray[np.int32]:
-        return self._computed_mesh.triangles_per_face
-
-    def get_face_types(self) -> NDArray[np.int32]:
-        return self._computed_mesh.face_types
-
-    def get_edge_types(self) -> NDArray[np.int32]:
-        return self._computed_mesh.edge_types
-
-    def get_normals(self) -> NDArray[np.float32]:
-        return self._computed_mesh.normals
-
-    def get_edges(self) -> NDArray[np.float32]:
-        return self._computed_mesh.segments
-
-    def get_segments_per_edge(self) -> NDArray[np.int32]:
-        return self._computed_mesh.segments_per_edge
-
-    def get_uvs(self) -> NDArray[np.float32]:
-        return np.array([], dtype=np.float32)
-
-    def get_obj_vertices(self):
-        return self._computed_mesh.obj_vertices
 
 
 def compute_quality(bb, deviation: float = 0.1) -> float:
@@ -598,18 +512,6 @@ def compute_quality(bb, deviation: float = 0.1) -> float:
         3,
     )
     return quality
-
-
-def _get_tesselator(progress, shape_id: str) -> TesselatorProtocol:
-    if NATIVE and is_native_tessellator_enabled():
-        if progress is not None:
-            progress.update("*")
-        tess = NativeTessellator(shape_id)
-    else:
-        if progress is not None:
-            progress.update("+")
-        tess = Tessellator(shape_id)
-    return tess
 
 
 # cache key: (cache_key, deviation, angular_tolerance, compute_edges, compute_faces, compute_uvs)
@@ -635,7 +537,9 @@ def tessellate(
         else:
             raise RuntimeError("Only single shapes are supported")
 
-    tess = _get_tesselator(progress, shape_id)
+    if progress is not None:
+        progress.update("+")
+    tess = Tessellator(shape_id)
     tess.compute(
         shape,
         quality,
