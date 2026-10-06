@@ -6,6 +6,12 @@ import build123d as bd
 import webcolors
 from build123d import *
 
+# BuildSheet is not part of every build123d release (e.g. missing in 0.13.0 on PyPI)
+HAS_BUILDSHEET = hasattr(bd, "BuildSheet")
+SKIP_NO_BUILDSHEET = unittest.skipUnless(
+    HAS_BUILDSHEET, "BuildSheet is not available in this build123d version"
+)
+
 from ocp_tessellate.convert import OcpConverter, OcpGroup
 from ocp_tessellate.ocp_utils import *
 
@@ -36,9 +42,12 @@ r2 = Rectangle(1, 2) - Rectangle(2, 0.2)
 with BuildSketch(Plane.YZ) as bs:
     Rectangle(1, 1)
 
-with BuildSheet(Plane.YZ, thickness=0.1) as bsh:
-    with BuildSketch():
-        Rectangle(1, 1)
+if HAS_BUILDSHEET:
+    with BuildSheet(Plane.YZ, thickness=0.1) as bsh:
+        with BuildSketch():
+            Rectangle(1, 1)
+else:
+    bsh = None
 
 with BuildSketch(Plane.YZ) as bs2:
     Rectangle(1, 1)
@@ -293,6 +302,7 @@ class TestsConvert(MyUnitTest):
             self.assertEqual(g.length, 1)
             self.assertEqual(o.name, "bp")
 
+    @SKIP_NO_BUILDSHEET
     def test_buildsheet(self):
         """Test that a sheet is converted correctly"""
         c = OcpConverter(show_locals=False)
@@ -306,6 +316,7 @@ class TestsConvert(MyUnitTest):
         self.assertIsNone(o.obj)
         self.assertTrue(is_topods_face(i[o.ref]["obj"]))
 
+    @SKIP_NO_BUILDSHEET
     def test_buildsheet_in_context(self):
         """Test that a sheet is converted the same way from inside its context"""
         c = OcpConverter()
@@ -318,6 +329,7 @@ class TestsConvert(MyUnitTest):
         for o in g.objects:
             self.assertEqual(o.kind, "face")
 
+    @SKIP_NO_BUILDSHEET
     def test_buildsheet_two_placements(self):
         """Test that a sheet with several placements is one face object"""
         c = OcpConverter(show_locals=False)
@@ -332,6 +344,7 @@ class TestsConvert(MyUnitTest):
         self.assertEqual(o.kind, "face")
         self.assertEqual(len(list(get_faces(i[o.ref]["obj"]))), 2)
 
+    @SKIP_NO_BUILDSHEET
     def test_buildsheet_local_name(self):
         """Test that the name and locations are set correctly for a sheet_local"""
         c = OcpConverter()
@@ -358,19 +371,27 @@ class TestsConvert(MyUnitTest):
         with BuildPart() as ebp:
             g = c.to_ocp(ebp)
             self.assertEqual(g.objects[0].name, "Solid (empty)")
-        with BuildSheet(thickness=0.1) as ebsh:
-            g = c.to_ocp(ebsh)
-            self.assertEqual(g.objects[0].name, "Shell (empty)")
         with BuildSketch() as ebs:
             g = c.to_ocp(ebs)
             self.assertEqual(g.objects[0].name, "Face (empty)")
         with BuildLine() as ebl:
             g = c.to_ocp(ebl, names=["ebl"])
             self.assertEqual(g.objects[0].name, "ebl (empty)")
-        for e in (ebp, ebsh, ebs, ebl):
+        for e in (ebp, ebs, ebl):
             o = c.to_ocp(e).objects[0]
             self.assertEqual(o.kind, "vertex")
             self.assertTrue(is_topods_vertex(o.obj))
+
+    @SKIP_NO_BUILDSHEET
+    def test_buildsheet_empty_in_context(self):
+        """Test that a sheet builder without geometry yet gives an empty placeholder"""
+        c = OcpConverter()
+        with BuildSheet(thickness=0.1) as ebsh:
+            g = c.to_ocp(ebsh)
+            self.assertEqual(g.objects[0].name, "Shell (empty)")
+        o = c.to_ocp(ebsh).objects[0]
+        self.assertEqual(o.kind, "vertex")
+        self.assertTrue(is_topods_vertex(o.obj))
 
     def test_buildsketch_name(self):
         """Test that the name is set correctly for a sketch"""
