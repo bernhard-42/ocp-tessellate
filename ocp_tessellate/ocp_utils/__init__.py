@@ -1,0 +1,258 @@
+#
+# Copyright 2023 Bernhard Walter
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+
+"""OCP helpers, grouped by topic in the submodules and re-exported here.
+
+Every name `ocp_tessellate.ocp_utils` had as a single module is available
+from the package, so `from ocp_tessellate.ocp_utils import ...` and the star
+import keep working. The OCP classes are re-exported for the same reason."""
+
+# ruff: noqa: F401
+
+from OCP.BRepAdaptor import (
+    BRepAdaptor_CompCurve,
+    BRepAdaptor_Curve,
+    BRepAdaptor_Surface,
+)
+from OCP.BRepBndLib import BRepBndLib
+from OCP.BRepBuilderAPI import (
+    BRepBuilderAPI_Copy,
+    BRepBuilderAPI_FindPlane,
+    BRepBuilderAPI_MakeEdge,
+    BRepBuilderAPI_MakeFace,
+    BRepBuilderAPI_MakeVertex,
+)
+from OCP.BRepExtrema import BRepExtrema_DistShapeShape
+from OCP.BRepGProp import BRepGProp, BRepGProp_Face
+from OCP.BRepTools import BRepTools
+from OCP.BRep import BRep_Tool
+from OCP.BinTools import BinTools, BinTools_FormatVersion_CURRENT
+from OCP.Bnd import Bnd_Box
+from OCP.GCPnts import GCPnts_AbscissaPoint
+from OCP.GProp import GProp_GProps
+from OCP.GeomAbs import GeomAbs_CurveType
+from OCP.GeomLib import GeomLib_IsPlanarSurface
+from OCP.Geom import Geom_Plane
+from OCP.Quantity import Quantity_ColorRGBA, Quantity_TypeOfColor
+from OCP.TopAbs import (
+    TopAbs_COMPOUND,
+    TopAbs_COMPSOLID,
+    TopAbs_EDGE,
+    TopAbs_FACE,
+    TopAbs_Orientation,
+    TopAbs_SHELL,
+    TopAbs_SOLID,
+    TopAbs_VERTEX,
+    TopAbs_WIRE,
+)
+from OCP.TopExp import TopExp
+from OCP.TopLoc import TopLoc_Location
+from OCP.TopoDS import (
+    TopoDS_Builder,
+    TopoDS_CompSolid,
+    TopoDS_Compound,
+    TopoDS_Edge,
+    TopoDS_Face,
+    TopoDS_Iterator,
+    TopoDS_Shape,
+    TopoDS_Shell,
+    TopoDS_Solid,
+    TopoDS_Vertex,
+    TopoDS_Wire,
+)
+from OCP.gp import (
+    gp_Ax1,
+    gp_Ax2,
+    gp_Ax3,
+    gp_Circ,
+    gp_Dir,
+    gp_Lin,
+    gp_Pln,
+    gp_Pnt,
+    gp_Quaternion,
+    gp_Trsf,
+    gp_Vec,
+)
+
+from ..types import (
+    Build123dBuilder,
+    Build123dGroupBy,
+    Build123dLineBuilder,
+    Build123dLocationList,
+    Build123dPartBuilder,
+    Build123dShape,
+    Build123dShapeList,
+    Build123dSheetBuilder,
+    Build123dSketchBuilder,
+    Build123dVector,
+    CadqueryAssembly,
+    CadquerySketch,
+    CadqueryWorkplane,
+    Wrapped,
+)
+from ..utils import Color, distance, type_name
+from .compat import (
+    TopTools_IndexedDataMapOfShapeListOfShape,
+    TopTools_IndexedMapOfShape,
+    occt_version,
+)
+from .predicates import (
+    is_closed,
+    is_compound,
+    is_compsolid,
+    is_degenerated_edge,
+    is_degenerated_face,
+    is_edge,
+    is_empty_compound,
+    is_face,
+    is_forward,
+    is_gp_axis,
+    is_gp_plane,
+    is_gp_vec,
+    is_line,
+    is_location,
+    is_shape,
+    is_shell,
+    is_solid,
+    is_toploc_location,
+    is_topods_compound,
+    is_topods_compsolid,
+    is_topods_edge,
+    is_topods_face,
+    is_topods_shape,
+    is_topods_shell,
+    is_topods_solid,
+    is_topods_vertex,
+    is_topods_wire,
+    is_vertex,
+    is_wire,
+    is_wrapped,
+)
+from .detect import (
+    is_build123d,
+    is_build123d_assembly,
+    is_build123d_axis,
+    is_build123d_compound,
+    is_build123d_groupby,
+    is_build123d_line,
+    is_build123d_location,
+    is_build123d_locationlist,
+    is_build123d_part,
+    is_build123d_plane,
+    is_build123d_shape,
+    is_build123d_shapelist,
+    is_build123d_sheet,
+    is_build123d_shell,
+    is_build123d_sketch,
+    is_cadquery,
+    is_cadquery_assembly,
+    is_cadquery_empty_workplane,
+    is_cadquery_massembly,
+    is_cadquery_shape,
+    is_cadquery_sketch,
+    is_massembly,
+    is_vector,
+)
+from .topology import (
+    copy_shape,
+    copy_topods_shape,
+    downcast,
+    downcast_LUT,
+    extent_or_size,
+    get_compound_type,
+    get_compounds,
+    get_curve,
+    get_downcasted_shape,
+    get_edge_type,
+    get_edges,
+    get_face_type,
+    get_faces,
+    get_solids,
+    get_surface,
+    get_tshape,
+    get_vertices,
+    get_wires,
+    is_mixed_compound,
+    list_topods_compound,
+    make_compound,
+    make_compsolid,
+    unroll_compound,
+    unroll_topods_compound,
+)
+from .measure import (
+    area,
+    center_of_geometry,
+    center_of_mass,
+    dist_shapes,
+    end_points,
+    length,
+    position_at,
+    tangent_at,
+    volume,
+)
+from .geometry import (
+    axis,
+    axis_to_line,
+    circle,
+    cross,
+    face_center_location,
+    get_plane,
+    get_point,
+    get_tuple,
+    is_plane_xy,
+    is_same_plane,
+    line,
+    normalized,
+    point,
+    rect,
+    tangent_edge_at,
+    trim_infinite_edge,
+    trim_infinite_face,
+    vector,
+    vertex,
+)
+from .location import (
+    AxisCoord,
+    LocationCoord,
+    VectorLike,
+    axis_to_vecs,
+    copy_location,
+    get_axis_coord,
+    get_location,
+    get_location_coord,
+    identity_location,
+    is_identity,
+    loc_from_gp_pln,
+    loc_to_tq,
+    loc_to_vecs,
+    mul_locations,
+    relocate,
+    rotate,
+    tq_to_loc,
+)
+from .bbox import (
+    BoundingBox,
+    NumpyBBox,
+    bounding_box,
+    cache,
+    get_size,
+    make_key,
+    nested_bounding_box,
+    np_bbox,
+)
+from .serialize import deserialize, ocp_hash, serialize
+from .color import get_rgba, is_ocp_color, ocp_color

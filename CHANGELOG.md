@@ -4,6 +4,10 @@
 
 - The native tessellator is removed: `NativeTessellator`, `NATIVE`, `enable_native_tessellator()`, `disable_native_tessellator()`, `is_native_tessellator_enabled()` and the `NATIVE_TESSELLATOR` environment variable are gone, and `ocp_addons` is no longer used. `tessellate()` always uses `Tessellator`. `TesselatorProtocol` is removed with it, since it only existed so that the two tessellator classes could share an interface
 
+**Changes**
+
+- `ocp_tessellate.ocp_utils` is a package now, grouped by topic (`compat`, `predicates`, `detect`, `topology`, `measure`, `geometry`, `location`, `bbox`, `serialize`, `color`). Every name of the former module, including the re-exported OCP classes, is still importable from `ocp_tessellate.ocp_utils`, and the star import gives the same names; only imported modules (`np`, `OCP`, ...) and third-party helpers are no longer re-exported
+
 ## v3.5.3
 
 **Fixes**
