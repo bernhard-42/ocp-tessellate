@@ -189,13 +189,17 @@ class Tessellator:
         self.normals: list[float] = []  # flat normal coordinates
         self.uvs: list[float] = []
         # point pairs, flattened by compute_edges and paired by
-        # _compute_missing_edges - np.asarray handles both
+        # _compute_missing_edges - get_edges ravels both to the same flat array
         self.edges: list[Coords | tuple[NDArray[np.float32], NDArray[np.float32]]] = []
         self.segments_per_edge: list[int] = []
 
         self.obj_vertices: list[float] = []  # flat object vertex coordinates
         self.face_types: list[int] = []
         self.edge_types: list[int] = []
+        # (vertex offset, vertex count, triangle offset, triangle count) of every
+        # face whose triangulation has no UV nodes, so its normals cannot be read
+        # off the surface and have to be interpolated from its triangles
+        self.faces_without_normals: list[tuple[int, int, int, int]] = []
 
         self.shape: TopoDS_Shape | None = None
 
@@ -391,31 +395,53 @@ class Tessellator:
                             )
 
                     self.normals.extend(normals_flat)
+                else:
+                    # No UV nodes (e.g. an STL import): pad so that normals stay
+                    # aligned with vertices, and interpolate the block later
+                    self.faces_without_normals.append((
+                        offset + 1,
+                        poly.NbNodes(),
+                        len(self.triangles) // 3 - poly.NbTriangles(),
+                        poly.NbTriangles(),
+                    ))
+                    self.normals.extend([0.0] * (3 * poly.NbNodes()))
 
                 offset += poly.NbNodes()
             else:
                 print(f"face {ind} ignored")
 
     def _compute_missing_normals(self) -> NDArray[np.float32]:
+        """
+        Interpolate the normals of every face that has no UV nodes from its own
+        triangles, leaving the faces that do have them untouched. A face owns a
+        contiguous block of vertices and no triangle spans two faces, so doing
+        this per face gives the same result as doing it for the whole shape when
+        no face has UV nodes - and the right one when only some do.
+        """
         vertices = np.asarray(self.vertices).reshape(-1, 3)
         triangles = np.asarray(self.triangles).reshape(-1, 3)
-        normals = np.zeros(len(self.vertices), dtype=np.float32).reshape(-1, 3)
-        for triangle in triangles:
-            c = vertices[triangle]
-            v1 = c[2] - c[1]
-            v2 = c[0] - c[1]
-            n = np.cross(v1, v2)
+        normals = np.asarray(self.normals, dtype=np.float32).reshape(-1, 3)
 
-            # extrpolate vertex normal by blending all face normals of a vertex
-            for i in triangle:
-                normals[i] += n
+        for v_offset, v_count, t_offset, t_count in self.faces_without_normals:
+            block = slice(v_offset, v_offset + v_count)
+            normals[block] = 0.0
 
-        # and normalize later
-        for i in range(len(normals)):
-            norm = np.linalg.norm(normals[i])
-            normals[i] /= norm
-        normals = normals.ravel()
-        return normals
+            for triangle in triangles[t_offset : t_offset + t_count]:
+                c = vertices[triangle]
+                v1 = c[2] - c[1]
+                v2 = c[0] - c[1]
+                n = np.cross(v1, v2)
+
+                # extrpolate vertex normal by blending all face normals of a vertex
+                for i in triangle:
+                    normals[i] += n
+
+            # and normalize later
+            for i in range(v_offset, v_offset + v_count):
+                norm = np.linalg.norm(normals[i])
+                normals[i] /= norm
+
+        return normals.ravel()
 
     def _compute_missing_edges(self):
         vertices = np.asarray(self.vertices).reshape(-1, 3)
@@ -481,12 +507,16 @@ class Tessellator:
         return np.asarray(self.uvs, dtype=np.float32)
 
     def get_normals(self) -> NDArray[np.float32]:
-        if len(self.normals) == 0:
+        if len(self.faces_without_normals) > 0:
             return self._compute_missing_normals()
         return np.asarray(self.normals, dtype=np.float32)
 
     def get_edges(self) -> NDArray[np.float32]:
-        return np.asarray(self.edges, dtype=np.float32)
+        # compute_edges collects single points and _compute_missing_edges point
+        # pairs, so np.asarray yields (N, 3) for the one and (N, 2, 3) for the
+        # other. Ravel to the flat array every other producer of edge segments
+        # returns - NativeTessellator, discretize_edges and bbox_edges
+        return np.asarray(self.edges, dtype=np.float32).ravel()
 
     def get_segments_per_edge(self) -> NDArray[np.int32]:
         return np.asarray(self.segments_per_edge, dtype=np.int32)

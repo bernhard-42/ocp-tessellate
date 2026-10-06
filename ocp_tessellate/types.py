@@ -237,17 +237,24 @@ class Tessellation(TypedDict):
     """
     Represents mesh tessellation data with vertices, triangles, and metadata.
 
+    Every array is flat: the wire format transports them as typed buffers, so
+    the components of a vertex, a triangle or a segment follow each other
+    instead of forming a second dimension. V is the vertex count, T the
+    triangle count, F the face count, E the edge count, S the segment count
+    and O the object vertex count.
+
     Attributes:
-        vertices: Array of vertex positions. Shape (V, 3)
-        triangles: Array of triangle indices. Shape (T, 3)
-        normals: Array of normal vectors. Shape (N, 3)
-        edges: List of pair of points representing the discretized edge. Shape (E, 2, 3)
-        obj_vertices: Original object-space vertices. Shape (O, 3)
+        vertices: Vertex positions, x, y, z per vertex. Shape (V * 3,)
+        triangles: Triangle indices, three per triangle. Shape (T * 3,)
+        normals: Normal vectors, x, y, z per vertex. Shape (V * 3,)
+        edges: Discretized edges, start and end point per segment. Shape (S * 6,)
+        obj_vertices: Original object-space vertices, x, y, z each. Shape (O * 3,)
         face_types: Type identifier for each face. Shape (F,) See GeomAbs_Shape enum
         edge_types: Type identifier for each edge. Shape (E,) See GeomAbs_Shape enum
         triangles_per_face: Triangle count per face. Shape (F,)
-        segments_per_edge: Segment count per edge. Shape (M,)
-        uvs: Parametric UV coordinates per vertex (only present when materials are used). Shape (V, 2)
+        segments_per_edge: Segment count per edge. Shape (E,)
+        uvs: Parametric UV coordinates, u and v per vertex, only present when
+            materials are used. Shape (V * 2,)
     """
 
     vertices: NDArray[np.float32]
@@ -263,6 +270,12 @@ class Tessellation(TypedDict):
 
 
 class DiscretizedEdges(TypedDict):
+    """
+    Discretized edges, flat like Tessellation. `edges` holds the start and end
+    point of every segment, shape (S * 6,); `obj_vertices` holds x, y, z per
+    vertex, shape (O * 3,).
+    """
+
     edges: NDArray[np.float32]
     segments_per_edge: NDArray[np.int32]
     edge_types: NDArray[np.int32]
