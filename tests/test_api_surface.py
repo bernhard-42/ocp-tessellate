@@ -10,8 +10,9 @@ What counts as the surface of a module:
 - OCCT objects (OCP or nanocct classes, enums, functions) re-exported by name
 - other module-level values (constants, caches, type aliases), by type name
 Not part of it: imported modules, third-party functions and classes (numpy,
-cachetools, typing, ...), typing constructs, and the names `stepreader` gets
-from `from build123d import *`.
+cachetools, typing, ...), typing constructs, the names `stepreader` gets from
+`from build123d import *`, and helpers of the private package
+ocp_tessellate._kernel (kernel_of, kernel, ANY) that modules import.
 
 Allowed differences to the snapshot:
 - the names in DELIBERATE_REMOVALS are gone
@@ -44,6 +45,9 @@ MODULES = [
 ]
 
 OWN_PREFIX = "ocp_tessellate"
+# the private kernel package: what it defines is internal, even when a module
+# imports it (ocp_tessellate._version is private too, but ot_version_info is API)
+PRIVATE_PREFIX = "ocp_tessellate._kernel"
 OCCT_PREFIXES = ("OCP", "nanocct")
 TYPING_MODULES = ("typing", "typing_extensions")
 
@@ -124,9 +128,20 @@ def _foreign_value_ids():
     return ids
 
 
+def _is_private(module_name):
+    if module_name is None:
+        return False
+    return module_name == PRIVATE_PREFIX or module_name.startswith(PRIVATE_PREFIX + ".")
+
+
 def _describe(obj, foreign_ids):
     """Return the description of a module attribute, or None if not part of the surface."""
     if inspect.ismodule(obj) or id(obj) in foreign_ids:
+        return None
+    if inspect.isclass(obj) or inspect.isroutine(obj):
+        if _is_private(getattr(obj, "__module__", None)):
+            return None
+    elif _is_private(type(obj).__module__):
         return None
 
     if inspect.isclass(obj) or inspect.isroutine(obj):

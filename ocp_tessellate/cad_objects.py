@@ -2,8 +2,8 @@ import base64
 from typing import Callable
 
 import imagesize
-from OCP.TopLoc import TopLoc_Location
-from OCP.TopoDS import TopoDS_Shape
+from ._kernel import ANY
+from ._kernel.default import TopLoc_Location, TopoDS_Shape
 
 from ocp_tessellate.defaults import get_default
 from ocp_tessellate.ocp_utils import (
@@ -192,7 +192,7 @@ class OcpObject:
             assert self.color is not None, f"'{self.name}' has no color"
             convert = convert_vertices if self.kind == "vertex" else discretize_edges
             assert convert is not None, f"no converter for kind {self.kind}"
-            objs = [self.obj] if isinstance(self.obj, TopoDS_Shape) else self.obj
+            objs = [self.obj] if isinstance(self.obj, ANY.TopoDS_Shape) else self.obj
             self.obj = objs
             values, bb = convert(objs, self.name, self.id)
 

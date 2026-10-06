@@ -28,20 +28,25 @@ try:
 except ImportError:
     pass
 
-import OCP
-from OCP.IFSelect import IFSelect_RetDone
-from OCP.Quantity import Quantity_ColorRGBA
-from OCP.STEPCAFControl import STEPCAFControl_Reader
-from OCP.STEPControl import STEPControl_Reader
-from OCP.TCollection import TCollection_AsciiString, TCollection_ExtendedString
-from OCP.TDataStd import TDataStd_Name
-from OCP.TDF import TDF_ChildIterator, TDF_Label
-from OCP.TDocStd import TDocStd_Document
-from OCP.TopAbs import TopAbs_COMPOUND, TopAbs_COMPSOLID, TopAbs_FACE, TopAbs_SOLID
-from OCP.TopExp import TopExp_Explorer
-from OCP.TopLoc import TopLoc_Location
-from OCP.TopoDS import TopoDS_Shape
-from OCP.XCAFDoc import (
+from ._kernel import kernel, kernel_of
+from ._kernel.default import (
+    IFSelect_RetDone,
+    Quantity_ColorRGBA,
+    STEPCAFControl_Reader,
+    STEPControl_Reader,
+    TCollection_AsciiString,
+    TCollection_ExtendedString,
+    TDataStd_Name,
+    TDF_ChildIterator,
+    TDF_Label,
+    TDocStd_Document,
+    TopAbs_COMPOUND,
+    TopAbs_COMPSOLID,
+    TopAbs_FACE,
+    TopAbs_SOLID,
+    TopExp_Explorer,
+    TopLoc_Location,
+    TopoDS_Shape,
     XCAFDoc_ColorCurv,
     XCAFDoc_ColorGen,
     XCAFDoc_ColorSurf,
@@ -50,10 +55,7 @@ from OCP.XCAFDoc import (
     XCAFDoc_ShapeTool,
 )
 
-if OCP.__version__.startswith("7"):
-    from OCP.TDF import TDF_LabelSequence
-else:
-    from OCP.collections import Sequence_TDF_Label as TDF_LabelSequence
+from ._kernel.default import TDF_LabelSequence
 
 # from ocp_tessellate.ocp_utils import deserialize, loc_to_tq, serialize, tq_to_loc
 from ocp_tessellate.utils import warn
@@ -88,6 +90,7 @@ class StepReader:
         self.analyse_faces = analyse_faces
         self.split_compounds = split_compounds
         self.use_colors = use_colors
+        self._kernel = kernel()
         self.shape_tool: Union[XCAFDoc_ShapeTool, None] = None
         self.color_tool: Union[XCAFDoc_ColorTool, None] = None
         self.assemblies: Union[list[AssemblyObject], None] = None
@@ -123,9 +126,10 @@ class StepReader:
         :param label: TDF_label of a STEP file
         :return: str
         """
-        t = TDataStd_Name()
-        if label.FindAttribute(TDataStd_Name.GetID_s(), t):
-            name = TCollection_AsciiString(t.Get()).ToCString()
+        k = kernel_of(label)
+        t = k.TDataStd_Name()
+        if label.FindAttribute(k.TDataStd_Name.GetID_s(), t):
+            name = k.TCollection_AsciiString(t.Get()).ToCString()
             return clean_string(name)
         else:
             return "Component"
@@ -141,17 +145,18 @@ class StepReader:
         :return: str
         """
 
+        k = kernel_of(shape)
         def to_list(c: Quantity_ColorRGBA) -> RGBA:
             return (c.GetRGB().Red(), c.GetRGB().Green(), c.GetRGB().Blue(), c.Alpha())
 
         def get_col(obj) -> Union[RGBA, None]:
             color_tool = self.color_tool
             assert color_tool is not None, "load() first"
-            col = Quantity_ColorRGBA()
+            col = k.Quantity_ColorRGBA()
             if (
-                color_tool.GetColor(obj, XCAFDoc_ColorGen, col)
-                or color_tool.GetColor(obj, XCAFDoc_ColorSurf, col)
-                or color_tool.GetColor(obj, XCAFDoc_ColorCurv, col)
+                color_tool.GetColor(obj, k.XCAFDoc_ColorGen, col)
+                or color_tool.GetColor(obj, k.XCAFDoc_ColorSurf, col)
+                or color_tool.GetColor(obj, k.XCAFDoc_ColorCurv, col)
             ):
                 return to_list(col)
             return None
@@ -164,7 +169,7 @@ class StepReader:
         colors = []
         if self.analyse_faces:
             # Find all face colors
-            exp = TopExp_Explorer(shape, TopAbs_FACE)
+            exp = k.TopExp_Explorer(shape, k.TopAbs_FACE)
             while exp.More():
                 color = get_col(exp.Current())
                 if color is not None:
@@ -205,20 +210,21 @@ class StepReader:
         :param loc: object location (TopLoc_Location)
         :return: list of TopAbs_SOLID
         """
-        it = TDF_ChildIterator()
+        k = kernel_of(label)
+        it = k.TDF_ChildIterator()
         it.Initialize(label)
         i = 0
         shapes = []
         while it.More():
             shape = self.get_shape(it.Value())
-            if shape.ShapeType() == TopAbs_SOLID:
+            if shape.ShapeType() == k.TopAbs_SOLID:
                 s_name = f"{name}_{i + 1}"
                 color = self.get_color(shape)
                 sub_shape = self._create_assembly_object(s_name, loc, color, shape)
                 shapes.append(sub_shape)
                 i += 1
 
-            elif shape.ShapeType() == TopAbs_COMPSOLID:
+            elif shape.ShapeType() == k.TopAbs_COMPSOLID:
                 warn(f"Nested compsolids not supported yet: {name}")
 
             it.Next()
@@ -232,9 +238,10 @@ class StepReader:
         :param loc: object location (TopLoc_Location)
         :return: list of AssemblyObjects
         """
+        k = kernel_of(label)
         shape_tool = self.shape_tool
         assert shape_tool is not None, "load() first"
-        labels = TDF_LabelSequence()
+        labels = k.TDF_LabelSequence()
         if label is None:
             # Get all non referenced top level labels
             shape_tool.GetFreeShapes(labels)
@@ -248,7 +255,7 @@ class StepReader:
             sub_label = labels.Value(i + 1)
 
             if shape_tool.IsReference_s(sub_label):
-                ref_label = TDF_Label()
+                ref_label = k.TDF_Label()
                 shape_tool.GetReferredShape_s(sub_label, ref_label)
             else:
                 ref_label = sub_label
@@ -267,10 +274,10 @@ class StepReader:
 
             elif (
                 self.split_compounds
-                and shape.ShapeType() in [TopAbs_COMPOUND, TopAbs_COMPSOLID]
+                and shape.ShapeType() in [k.TopAbs_COMPOUND, k.TopAbs_COMPSOLID]
                 and ref_label.HasChild()
             ):
-                sub_shapes = self.get_shape_details(ref_label, name, TopLoc_Location())
+                sub_shapes = self.get_shape_details(ref_label, name, k.TopLoc_Location())
                 if len(sub_shapes) == 0:
                     sub_shape["shape"] = shape
                     sub_shape["color"] = self.get_color(shape)
@@ -304,6 +311,7 @@ class StepReader:
         :param cache_name: name of the binary cache object
         :param clear_cache: clear cache before loading to force analysis of STEP file
         """
+        k = self._kernel
         start = time.time()
         if cache_name is not None:
             cache_filename = f"{cache_name}.jq"
@@ -324,13 +332,13 @@ class StepReader:
         print("Reading STEP file ... ", flush=True, end="")
         time.sleep(0.01)  # ensure output is shown
 
-        fmt = TCollection_ExtendedString("CadQuery-XCAF")
-        doc = TDocStd_Document(fmt)
+        fmt = k.TCollection_ExtendedString("CadQuery-XCAF")
+        doc = k.TDocStd_Document(fmt)
 
-        self.shape_tool = XCAFDoc_DocumentTool.ShapeTool_s(doc.Main())
-        self.color_tool = XCAFDoc_DocumentTool.ColorTool_s(doc.Main())
+        self.shape_tool = k.XCAFDoc_DocumentTool.ShapeTool_s(doc.Main())
+        self.color_tool = k.XCAFDoc_DocumentTool.ColorTool_s(doc.Main())
 
-        reader = STEPCAFControl_Reader()
+        reader = k.STEPCAFControl_Reader()
         reader.SetNameMode(True)
         reader.SetColorMode(True)
         reader.SetLayerMode(True)
@@ -422,7 +430,6 @@ class StepReader:
         Convert internal AssemblyObjects format to build123d Assemblies
         :return: buiild123d assembly
         """
-
         def to_loc(loc: Union[TopLoc_Location, None]) -> "Location":
             return Location() if loc is None else Location(loc)
 
@@ -484,9 +491,10 @@ class StepReader:
 
 
 def import_step_as_single_compound(file_name):
-    reader = STEPControl_Reader()
+    k = kernel()
+    reader = k.STEPControl_Reader()
     read_status = reader.ReadFile(file_name)
-    if read_status != IFSelect_RetDone:
+    if read_status != k.IFSelect_RetDone:
         raise ValueError(f"STEP File {file_name} could not be loaded")
     for i in range(reader.NbRootsForTransfer()):
         reader.TransferRoot(i + 1)

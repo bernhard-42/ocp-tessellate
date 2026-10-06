@@ -23,18 +23,8 @@ from typing import Literal, Protocol, TypedDict, overload
 import numpy as np
 from numpy.typing import ArrayLike
 
-from OCP.gp import (
-    gp_Ax1,
-    gp_Ax3,
-    gp_Dir,
-    gp_Pln,
-    gp_Pnt,
-    gp_Quaternion,
-    gp_Trsf,
-    gp_Vec,
-)
-from OCP.TopLoc import TopLoc_Location
-from OCP.TopoDS import TopoDS_Shape
+from .._kernel import ANY, kernel, kernel_of
+from .._kernel.default import gp_Ax1, gp_Pln, gp_Vec, TopLoc_Location, TopoDS_Shape
 
 from .predicates import is_topods_shape, is_wrapped
 from .topology import copy_topods_shape, get_tshape
@@ -47,11 +37,12 @@ class VectorLike(Protocol):
 def tq_to_loc(
     t: tuple[float, float, float], q: tuple[float, float, float, float]
 ) -> TopLoc_Location:
-    T = gp_Trsf()
-    Q = gp_Quaternion(*q)
-    V = gp_Vec(*t)
+    k = kernel()
+    T = k.gp_Trsf()
+    Q = k.gp_Quaternion(*q)
+    V = k.gp_Vec(*t)
     T.SetTransformation(Q, V)
-    return TopLoc_Location(T)
+    return k.TopLoc_Location(T)
 
 
 def loc_to_tq(
@@ -70,8 +61,9 @@ def loc_to_tq(
 
 
 def identity_location() -> TopLoc_Location:
-    loc = TopLoc_Location()
-    TopLoc_Location.Identity(loc)
+    k = kernel()
+    loc = k.TopLoc_Location()
+    k.TopLoc_Location.Identity(loc)
     return loc
 
 
@@ -128,7 +120,7 @@ def get_location(obj: object, as_none: bool = True) -> TopLoc_Location | None:
     elif is_wrapped(obj) and hasattr(obj.wrapped, "Location"):
         loc = _call_if_callable(getattr(obj.wrapped, "Location"))
 
-    elif isinstance(obj, TopLoc_Location):
+    elif isinstance(obj, ANY.TopLoc_Location):
         return obj
 
     elif is_topods_shape(obj):
@@ -139,7 +131,7 @@ def get_location(obj: object, as_none: bool = True) -> TopLoc_Location | None:
 
     if is_wrapped(loc):
         loc = loc.wrapped
-    if isinstance(loc, TopLoc_Location):
+    if isinstance(loc, ANY.TopLoc_Location):
         return loc
     raise TypeError(f"Unknown location typ {type(loc)}")
 
@@ -155,9 +147,10 @@ def mul_locations(
 
 
 def copy_location(loc: TopLoc_Location | None) -> TopLoc_Location | None:
+    k = kernel_of(loc)
     if loc is None:
         return None
-    return TopLoc_Location(loc.Transformation())
+    return k.TopLoc_Location(loc.Transformation())
 
 
 class AxisCoord(TypedDict):
@@ -166,9 +159,10 @@ class AxisCoord(TypedDict):
 
 
 def get_axis_coord(axis: gp_Ax1) -> AxisCoord:
+    k = kernel_of(axis)
     return {
-        "origin": axis.Location().Coord(),
-        "z_dir": axis.Direction().Coord(),
+        "origin": k.coord(axis.Location()),
+        "z_dir": k.coord(axis.Direction()),
     }
 
 
@@ -180,54 +174,58 @@ class LocationCoord(TypedDict):
 
 
 def get_location_coord(loc: TopLoc_Location) -> LocationCoord:
+    k = kernel_of(loc)
     trsf = loc.Transformation()
 
     origin = trsf.TranslationPart()
     q = trsf.GetRotation()
 
-    x_dir = q * gp_Vec(1, 0, 0)
-    y_dir = q * gp_Vec(0, 1, 0)
-    z_dir = q * gp_Vec(0, 0, 1)
+    x_dir = q * k.gp_Vec(1, 0, 0)
+    y_dir = q * k.gp_Vec(0, 1, 0)
+    z_dir = q * k.gp_Vec(0, 0, 1)
 
     return {
-        "origin": origin.Coord(),
-        "x_dir": x_dir.Coord(),
-        "y_dir": y_dir.Coord(),
-        "z_dir": z_dir.Coord(),
+        "origin": k.coord(origin),
+        "x_dir": k.coord(x_dir),
+        "y_dir": k.coord(y_dir),
+        "z_dir": k.coord(z_dir),
     }
 
 
 def loc_to_vecs(
     origin: VectorLike, x_dir: VectorLike, z_dir: VectorLike
 ) -> tuple[gp_Vec, gp_Vec, gp_Vec, gp_Vec]:
-    ax3 = gp_Ax3(gp_Pnt(*origin), gp_Dir(*z_dir), gp_Dir(*x_dir))
-    o = gp_Vec(ax3.Location().XYZ())
-    x = gp_Vec(ax3.XDirection().XYZ())
-    y = gp_Vec(ax3.YDirection().XYZ())
-    z = gp_Vec(ax3.Direction().XYZ())
+    k = kernel()
+    ax3 = k.gp_Ax3(k.gp_Pnt(*origin), k.gp_Dir(*z_dir), k.gp_Dir(*x_dir))
+    o = k.gp_Vec(ax3.Location().XYZ())
+    x = k.gp_Vec(ax3.XDirection().XYZ())
+    y = k.gp_Vec(ax3.YDirection().XYZ())
+    z = k.gp_Vec(ax3.Direction().XYZ())
     return (o, x, y, z)
 
 
 def loc_from_gp_pln(pln: gp_Pln) -> TopLoc_Location:
+    k = kernel_of(pln)
     o = pln.Location()
     x = pln.XAxis().Direction()
     z = pln.Axis().Direction()
 
-    ax3 = gp_Ax3(o, z, x)
-    trsf = gp_Trsf()
+    ax3 = k.gp_Ax3(o, z, x)
+    trsf = k.gp_Trsf()
     trsf.SetTransformation(ax3)
     trsf.Invert()
-    return TopLoc_Location(trsf)
+    return k.TopLoc_Location(trsf)
 
 
 def axis_to_vecs(
     origin: VectorLike, z_dir: VectorLike
 ) -> tuple[gp_Vec, gp_Vec, gp_Vec, gp_Vec]:
-    ax3 = gp_Ax3(gp_Pnt(*origin), gp_Dir(*z_dir))
-    o = gp_Vec(ax3.Location().XYZ())
-    x = gp_Vec(ax3.XDirection().XYZ())
-    y = gp_Vec(ax3.YDirection().XYZ())
-    z = gp_Vec(ax3.Direction().XYZ())
+    k = kernel()
+    ax3 = k.gp_Ax3(k.gp_Pnt(*origin), k.gp_Dir(*z_dir))
+    o = k.gp_Vec(ax3.Location().XYZ())
+    x = k.gp_Vec(ax3.XDirection().XYZ())
+    y = k.gp_Vec(ax3.YDirection().XYZ())
+    z = k.gp_Vec(ax3.Direction().XYZ())
     return (o, x, y, z)
 
 

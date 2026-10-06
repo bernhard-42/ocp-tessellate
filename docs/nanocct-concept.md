@@ -1,6 +1,6 @@
 # Dual backend: OCP and nanocct
 
-Status: agreed concept (2026-10-06). Steps 1–5 of section 9 are implemented on branch `nanocct` in ocp-tessellate, ocp-viewer-core, ocp_viewer and vscode-ocp-cad-viewer, not committed yet.
+Status: agreed concept (2026-10-06). Steps 1–6 of section 9 are implemented on branch `nanocct` (steps 1–5 committed; the native-tessellator removal also in ocp-viewer-core, ocp_viewer, vscode-ocp-cad-viewer, jupyter-cadquery and build123d-studio).
 
 ## 1. Requirements
 
@@ -28,6 +28,7 @@ All measured on macOS arm64.
 | Call sites that can be unified instead of shimmed | `(p.X(), p.Y(), p.Z())` works in OCP 7.9, OCP 8.0 and nanocct (nanocct's `Coord()` returns a `gp_XYZ`); `Bnd_Box.CornerMin()`/`CornerMax()` exist in all three (`GetXMin` is missing in OCP 7.9). | probe script in all three |
 | Call sites that need a shim | `BRep_Tool.Curve_s(edge, loc)`: OCP needs 4 arguments, nanocct takes 2 and returns a tuple. | same probe script |
 | Tessellator speed (torus, `Tessellator.compute` incl. meshing, best of 3) | quality 0.01: OCP 145 ms, nanocct 107 ms; quality 0.002: OCP 453 ms, nanocct 390 ms; identical vertex and triangle counts. The extraction part alone was not measured separately. The native tessellator was not measured (`ocp_addons` is not installed). | OCP: working copy in `ocp80-vtk`; nanocct: patched 3.5.3 in `nanocct-tests/.venv` |
+| How does ty treat a kernel chosen at runtime? | A value typed `ModuleType` gives `Unknown` for every attribute and no error, not even for a missing name. ty checks a module against a `Protocol`, but rejects plain members ("does not accept writes"), and `@property` members collide with the class names in their own annotations. | probe package checked with ty 0.0.81 |
 | What does downstream import? | ocp-viewer-core and jupyter-cadquery import ~60 names from `ocp_utils`, `convert`, `tessellator` (incl. `tessellator.get_faces`, `tessellator.NATIVE`), so module-level names are public API. | AST scan of ocp-viewer-core, vscode-ocp-cad-viewer, build123d, cadquery, bd_warehouse, jupyter-cadquery |
 
 Not verified: whether OCP and nanocct coexist in one process on Linux and Windows.
@@ -42,22 +43,26 @@ A private package `ocp_tessellate/_kernel/`:
 - `nanocct.py`: the same names from nanocct, and the same helpers implemented for nanocct.
 - `__init__.py`: the `HAS_*` flags, the dispatch, the `ANY` isinstance tuples.
 
-Both kernel modules expose exactly the same set of names. A test asserts that. A `Kernel` Protocol describes the contract for ty (unverified whether ty accepts a module as an implementation of a Protocol; mypy does; fallback is a small class instance per kernel).
+Every kernel module lists its names in `__all__`; `tests/test_kernel.py` checks that `__all__` covers every public name of `ocp.py`, and in step 7 that both kernels list the same names. The kernel is typed `ModuleType`, so ty does not check `k.Name` (section 2: a `Protocol` over ~100 names that need union types for two bindings costs more than it gives); the contract test replaces that check.
 
-Helpers each kernel provides (initial list, from the 3.5.3 patch):
+Implemented in step 6: `_kernel/__init__.py`, `_kernel/ocp.py` and `_kernel/default.py` (the default kernel's names, which modules re-export and use in annotations).
+
+Helpers each kernel provides:
 
 | Helper | OCP | nanocct |
 |---|---|---|
 | `curve_of(edge, loc)` | `BRep_Tool.Curve_s(edge, loc, 0.0, 0.0)` | `BRep_Tool.Curve_s(edge, loc)[0]` |
 | `bin_write(shape, triangles, normals)` | `BinTools.Write_s` into `io.BytesIO` | `BinTools.Write_s(...)` returns `bytes` |
 | `downcast_vertex` … `downcast_compound` | `TopoDS.X` or `TopoDS.X_s` (OCP 7 vs 8) | `nanocct.TopoDS.X` |
-| `IndexedMapOfShape`, `IndexedDataMapOfShapeListOfShape` | `TopTools_*` (OCP 7) or `OCP.collections.*` (OCP 8) | `NCollection_IndexedMap[...]`, `NCollection_IndexedDataMap[...]` with `TopTools_ShapeMapHasher` |
-| `LabelSequence` | `TDF_LabelSequence` (OCP 7) or `Sequence_TDF_Label` (OCP 8) | `NCollection_Sequence[TDF_Label]` |
+| `downcast_LUT` | `TopAbs_*` → downcast, keyed by the kernel's own enums | the same |
+| `TopTools_IndexedMapOfShape`, `TopTools_IndexedDataMapOfShapeListOfShape` | `TopTools_*` (OCP 7) or `OCP.collections.*` (OCP 8) | `NCollection_IndexedMap[...]`, `NCollection_IndexedDataMap[...]` with `TopTools_ShapeMapHasher` |
+| `TDF_LabelSequence` | `TDF_LabelSequence` (OCP 7) or `Sequence_TDF_Label` (OCP 8) | `NCollection_Sequence[TDF_Label]` |
+| `coord(obj)` | `obj.Coord()` | a tuple from `X()`, `Y()`, `Z()` (nanocct's `Coord()` returns a `gp_XYZ`) |
 | `version()` | `OCP.__version__` | `"8.0.1"` (nanocct has no version attribute) |
 | `hash_compat` | `HashCode(MAX)` on 7.7, `hash` otherwise | `hash` |
-| `tessellate_faces(...)`, `edge_segments(...)` | see section 4 | see section 4 |
+| `tessellate_faces(...)`, `compute_edges(...)` | see section 4 | see section 4 |
 
-Unified in the shared code instead of a helper: `(p.X(), p.Y(), p.Z())` replaces `p.Coord()` (19 call sites), `gp_Pnt(p.XYZ())` replaces `gp_Pnt(*p.Coord())`, and `CornerMin()`/`CornerMax()` replace the `Bnd_Box.Get()` / `GetXMin()` branches.
+The 10 `.Coord()` calls in shared code go through `k.coord(...)`; the other 9 sat in the tessellation loops, which moved into the OCP kernel unchanged. `CornerMin()`/`CornerMax()` replace the `Bnd_Box.Get()` (OCP 7) / `GetXMin()` (OCP 8) branches in the shared code: they exist in OCP 7.9, OCP 8.0 and nanocct and returned identical values in all 16 cases checked (box, torus, sphere, unbounded plane; normal and optimal; OCP 7.9 and 8.0).
 
 ### 3.2 Imports and the three installation cases
 
@@ -106,8 +111,8 @@ def kernel_of(obj, use_nanocct: bool = False) -> Kernel: ...
 def kernel(use_nanocct: bool = False) -> Kernel: ...
 ```
 
-- `kernel_of` unwraps `.wrapped` (build123d, CadQuery), looks at the first OCCT element of a list or tuple, and decides by `type.__module__` prefix (`"OCP."` / `"nanocct."`). The result is cached per type.
-- An argument from a binding always wins; `use_nanocct` is consulted only when no OCCT object is found.
+- `kernel_of` decides by the top-level package of `type(obj).__module__` (`OCP` / `nanocct`), cached per type; it unwraps `.wrapped` (build123d, CadQuery) and takes the first element of a list or tuple that resolves. Other iterables are not looked into, because a generator would be consumed. Without an OCCT object it returns the default kernel.
+- An argument from a binding always wins; `use_nanocct` (step 7) is consulted only when no OCCT object is found. In step 6, functions that never receive an OCCT object (`ocp_color`, `tq_to_loc`, `vector`, `axis`, `loc_to_vecs`, `axis_to_vecs`, `deserialize`, `identity_location`, `import_step_as_single_compound`) call `kernel()`, and `StepReader` picks its kernel once in `__init__`; these are where `use_nanocct` goes.
 - Mixed iterables are not checked beyond the first element; the binding itself raises `TypeError` on the first foreign object.
 - `convert` dispatches per object. Tessellation results are numpy arrays, so OCP and nanocct objects can even be shown side by side; only operations that combine shapes (e.g. `make_compound`) fail on a mix.
 
@@ -126,7 +131,7 @@ def identity_location(*, use_nanocct: bool = False):
 
 ### 3.4 isinstance checks
 
-`_kernel.ANY` holds tuples of the classes of all installed bindings, e.g. `ANY.TopoDS_Face`. `is_topods_face(x)` becomes `isinstance(x, ANY.TopoDS_Face)`. The ~30 `isinstance` checks in `convert`, `cad_objects`, `tessellator` and `ocp_utils` switch to `ANY`.
+`_kernel.ANY` holds tuples of the classes of all installed bindings, e.g. `ANY.TopoDS_Face`. `is_topods_face(x)` becomes `isinstance(x, ANY.TopoDS_Face)`. The ~30 `isinstance` checks in `convert`, `cad_objects`, `tessellator` and `ocp_utils` switched to `ANY`. For the type checker, `ANY` is the default kernel module (`if TYPE_CHECKING: from . import default as ANY`), so `isinstance(x, ANY.TopoDS_Face)` narrows `x` as before; with a plain tuple ty lost the narrowing and reported ~40 new errors.
 
 ### 3.5 Types
 
@@ -144,12 +149,12 @@ def identity_location(*, use_nanocct: bool = False):
 
 ### 4.2 One class, two backends
 
-`Tessellator` keeps everything that is binding-neutral: meshing via `k.BRepMesh_IncrementalMesh`, the object vertices, filling in missing normals and edges, the getters and their dtypes. The kernel is resolved once per `compute()` with `k = kernel_of(shape)`. Each kernel provides:
+`Tessellator` keeps everything that is binding-neutral: meshing via `k.BRepMesh_IncrementalMesh`, the object vertices, filling in missing normals and edges, the getters and their dtypes. `Tessellator.tessellate` and `Tessellator.compute_edges` keep their signatures and call the kernel of the shape:
 
-- `tessellate_faces(shape, compute_uvs, normalize_uvs, bbox_max_dim, trace)`
-- `edge_segments(shape, trace)`
+- `tessellate_faces(tess, faces, face_type, trace)`
+- `compute_edges(tess, edges_with_faces, edge_type, trace)`
 
-Both return the flat arrays plus the `faces_without_normals` ranges.
+They fill the `Tessellator` they are given, exactly as the methods did. The faces, edges and type functions are passed in, so the kernel does not import `ocp_utils` (which imports the kernel). In the OCP kernel they are the former method bodies, moved verbatim; the outputs are bit-identical to before (section 8).
 
 | | OCP kernel | nanocct kernel |
 |---|---|---|
@@ -254,15 +259,16 @@ The existing pins keep every published combination working until the next packag
 ## 8. Testing
 
 - Existing suite, OCP only: `~/.uv-global/ocp79-vtk/.venv` (OCP 7.9.3.1) and `~/.uv-global/ocp80-vtk/.venv` (OCP 8.0.1.0). Run with `<venv>/bin/python -m pytest tests/ -q`; never a bare `pytest` at the repository root (it collects `examples/` and hangs).
-- nanocct only: `nanocct-tests/.venv` with the patched build123d.
-- Both: a new environment with OCP and the nanocct wheel from the GitHub release (needs approval, section 10).
-- Kernel contract test: both kernel modules expose the same names.
+- nanocct only: `~/.uv-global/nanocct8/.venv` (nanocct 8.0.1.1, no OCP).
+- Both: `~/.uv-global/nanocct8-ocp8/.venv` (nanocct 8.0.1.1 and OCP 8.0.1.0 with VTK). In both nanocct venvs build123d, cadquery, ocpsvg, ocp_gordon and bd_materials are the nanocct ports from `nanocct-tests/sources`, and the five viewer-side packages are editable installs of the working copies.
+- Kernel tests (`tests/test_kernel.py`, step 6): only `_kernel/` imports OCP; outside the kernel no OCCT name is used in a function body (annotations and re-exports only); `__all__` of `ocp.py` lists every public name; `kernel_of`, `kernel` and `ANY` behave as in section 3.3. Step 7 adds: both kernel modules expose the same names.
 - Installation-case test: one subprocess per case with `sys.modules["OCP"] = None` and/or `sys.modules["nanocct"] = None`, checking the `HAS_*` flags, the default binding, the `use_nanocct=True` error and the import error when neither is installed.
 - Equivalence test: the same shapes (box, torus, a face with a parametric singularity, a located face, a reversed face) tessellated with OCP and with nanocct in one process; all getters compared (vertices, triangles, normals, UVs, edges, per-face and per-edge counts).
 - ty: `<venv>/bin/ty check --python <venv> ocp_tessellate tests/typing_conformance.py`.
 - ocp79-vtk pins build123d 0.12.0 and cadquery 2.8.0, because build123d `dev` is OCP-8-only. Expected: ocp79-vtk 200 passed, 5 skipped (BuildSheet); ocp80-vtk 205 passed.
 - ocp-viewer-core, ocp_vscode, ocp_viewer: their own suites. In both venvs all four packages are editable installs of the working copies. Host suites run with `OCP_VSCODE_PYTEST=1 OCP_VIEWER_PYTEST=1` (ocp_vscode) or `OCP_VIEWER_PYTEST=1` (ocp_viewer); ocp-viewer-core's own suite runs without them, because `OCP_VIEWER_PYTEST=1` switches the core into its pytest mode and fails 8 of its tests. ocp_vscode's `tests/test_viewer_config.py` drives the viewer running on port 3939: never run two of these suites in parallel (two parallel runs produced 16 bogus failures; sequential runs pass).
-- ocp79-vtk must have the VTK build of OCP active: build123d 0.12.0 pulls `cadquery-ocp-novtk`, which overwrites `OCP/` and breaks cadquery 2.8.0 (`IVtkOCC_Shape` missing).
+- ocp79-vtk must have the VTK build of OCP active: build123d 0.12.0 pulls `cadquery-ocp-novtk`, which overwrites `OCP/` and breaks cadquery 2.8.0 (`IVtkOCC_Shape` missing). It happened again on 2026-10-06 after jupyter-cadquery was installed editable; check the size of `OCP/OCP.cpython-313-darwin.so` (VTK build 147,968,960 bytes, novtk 147,173,440).
+- The API test ignores what the private package `ocp_tessellate._kernel` defines (`kernel_of`, `kernel`, `ANY`), even where a public module imports it.
 
 Results after steps 1–4 (2026-10-06, all suites sequential, both venvs with editable installs and the VTK build of OCP):
 
@@ -273,6 +279,19 @@ Results after steps 1–4 (2026-10-06, all suites sequential, both venvs with ed
 | ocp_vscode | 132 passed | 132 passed |
 | ocp_viewer | 78 passed | 78 passed |
 
+Results after step 6 (2026-10-06, all suites sequential, both venvs with editable installs and the VTK build of OCP):
+
+| Suite | ocp79-vtk | ocp80-vtk |
+|---|---|---|
+| ocp-tessellate | 214 passed, 5 skipped (200 + 14 kernel tests; BuildSheet skipped) | 219 passed (205 + 14 kernel tests) |
+| ocp-viewer-core | 85 passed | 83 passed, 2 failed (emissive, known) |
+| ocp_vscode | 132 passed | 132 passed |
+| ocp_viewer | 78 passed | 78 passed |
+
+- ty on both venvs: only the known diagnostics (`CadquerySketch._tags`, and `BuildSheet` on ocp79-vtk).
+- Bit-identical outputs: box, torus, sphere, cylinder, filleted box, moved and rotated torus, reversed box; `tessellate()` without UVs, with normalized and with raw UVs; `bounding_box`; `discretize_edge`: 35 results, 217 arrays, 456,720 values, identical in dtype, shape and value to commit 506e2fe, on OCP 7.9 and 8.0.
+- Speed (ocp80-vtk, medians of 5, two rounds): a 400-part build123d assembly through `to_ocpgroup` + `tessellate_group` 734–747 ms before, 743–751 ms after; a torus at quality 0.002 460–461 ms before, 440–442 ms after.
+
 ## 9. Order of work
 
 Each step is its own commit; each commit waits for an explicit go.
@@ -282,14 +301,11 @@ Each step is its own commit; each commit waits for an explicit go.
 3. Remove it from ocp-viewer-core (section 7.1).
 4. Remove it from ocp_vscode and ocp_viewer (sections 7.2, 7.3); run their tests against the local ocp-viewer-core and ocp-tessellate.
 5. Split `ocp_utils` into the package (section 5); a pure move, checked by the snapshot.
-6. Add `_kernel/__init__.py` with the `HAS_*` flags and `_kernel/ocp.py`; route all code through the kernel, including the OCP `tessellate_faces` / `edge_segments`. OCP-only tests green on 7.9 and 8.0.
-7. Add `_kernel/nanocct.py`, the dispatch, `use_nanocct`, the nanocct `tessellate_faces` / `edge_segments` (hand-ported, section 4.2), and the installation-case test.
+6. Add `_kernel/__init__.py` with the `HAS_*` flags and `_kernel/ocp.py`; route all code through the kernel, including the OCP `tessellate_faces` / `compute_edges`. OCP-only tests green on 7.9 and 8.0. (Done.)
+7. Add `_kernel/nanocct.py`, nanocct in the dispatch, `use_nanocct`, the nanocct `tessellate_faces` / `compute_edges` (hand-ported, section 4.2), and the installation-case test.
 8. Run all tests against both kernels, plus the equivalence test.
-
-The uncommitted changes in `ocp_tessellate/tessellator.py` and `ocp_tessellate/types.py` are committed before step 2, so that step's diff stays separate.
 
 ## 10. Open points
 
 - Release versions and pins of ocp-viewer-core, ocp_vscode and ocp_viewer (constraints in 7.5).
-- A test environment with both bindings: needs approval, because the nanocct wheel comes from the GitHub release, not from PyPI.
 - Linux and Windows: coexistence of OCP and nanocct in one process is only verified on macOS; CI on Linux would settle it.

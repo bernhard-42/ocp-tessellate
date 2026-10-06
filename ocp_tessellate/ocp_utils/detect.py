@@ -22,9 +22,15 @@ from typing import TypeGuard
 
 from typing_extensions import TypeIs
 
-from OCP.gp import gp_Ax1, gp_Pln, gp_Vec
-from OCP.TopLoc import TopLoc_Location
-from OCP.TopoDS import TopoDS_Compound, TopoDS_Shape, TopoDS_Shell
+from .._kernel import ANY
+from .._kernel.default import (
+    gp_Ax1,
+    gp_Pln,
+    TopLoc_Location,
+    TopoDS_Compound,
+    TopoDS_Shape,
+    TopoDS_Shell,
+)
 
 from ..types import (
     Build123dBuilder,
@@ -85,7 +91,7 @@ def is_cadquery_empty_workplane(obj) -> TypeGuard[CadqueryWorkplane]:
 
     # (len(obj.objects) == 0 or (len(obj.objects) == 1 and is_vector(obj.objects[0])))
 def is_vector(obj) -> TypeIs[Build123dVector]:
-    return hasattr(obj, "wrapped") and isinstance(obj.wrapped, gp_Vec)
+    return hasattr(obj, "wrapped") and isinstance(obj.wrapped, ANY.gp_Vec)
 
 
 def is_massembly(obj) -> TypeGuard[CadqueryAssembly]:

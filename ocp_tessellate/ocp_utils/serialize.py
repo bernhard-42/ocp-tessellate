@@ -21,16 +21,15 @@ import io
 import os
 import tempfile
 
-from OCP.BinTools import BinTools, BinTools_FormatVersion_CURRENT
-from OCP.TopoDS import TopoDS_Shape
+from .._kernel import kernel, kernel_of
+from .._kernel.default import TopoDS_Shape
 
-from .compat import hash_compat
 from .predicates import is_topods_face, is_topods_shell, is_topods_solid
 
 
 def ocp_hash(obj):
     if is_topods_solid(obj) or is_topods_face(obj) or is_topods_shell(obj):
-        return hash_compat(obj)
+        return kernel_of(obj).hash_compat(obj)
     else:
         return ()
 
@@ -39,18 +38,17 @@ def ocp_hash(obj):
 def serialize(
     shape: TopoDS_Shape | None, triangles: bool = False, normals: bool = False
 ) -> bytes | None:
+    k = kernel_of(shape)
     if shape is None:
         return None
 
     try:
-        bio = io.BytesIO()
-        BinTools.Write_s(shape, bio, triangles, normals, BinTools_FormatVersion_CURRENT)
-        buffer = bio.getvalue()
+        buffer = k.bin_write(shape, triangles, normals)
     except Exception:
         with tempfile.TemporaryDirectory() as tmpdirname:
             filename = os.path.join(tmpdirname, "shape.brep")
-            BinTools.Write_s(
-                shape, filename, False, False, BinTools_FormatVersion_CURRENT
+            k.BinTools.Write_s(
+                shape, filename, False, False, k.BinTools_FormatVersion_CURRENT
             )
             with open(filename, "rb") as fd:
                 buffer = fd.read()
@@ -58,17 +56,18 @@ def serialize(
 
 
 def deserialize(buffer: bytes | None) -> TopoDS_Shape | None:
+    k = kernel()
     if buffer is None:
         return None
 
-    shape = TopoDS_Shape()
+    shape = k.TopoDS_Shape()
     try:
         bio = io.BytesIO(buffer)
-        BinTools.Read_s(shape, bio)
+        k.BinTools.Read_s(shape, bio)
     except Exception:
         with tempfile.TemporaryDirectory() as tmpdirname:
             filename = os.path.join(tmpdirname, "shape.brep")
             with open(filename, "wb") as fd:
                 fd.write(buffer)
-            BinTools.Read_s(shape, filename)
+            k.BinTools.Read_s(shape, filename)
     return shape

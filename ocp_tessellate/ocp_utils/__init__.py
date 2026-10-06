@@ -23,32 +23,31 @@ import keep working. The OCP classes are re-exported for the same reason."""
 
 # ruff: noqa: F401
 
-from OCP.BRepAdaptor import (
+from .._kernel.default import (
     BRepAdaptor_CompCurve,
     BRepAdaptor_Curve,
     BRepAdaptor_Surface,
-)
-from OCP.BRepBndLib import BRepBndLib
-from OCP.BRepBuilderAPI import (
+    BRepBndLib,
     BRepBuilderAPI_Copy,
     BRepBuilderAPI_FindPlane,
     BRepBuilderAPI_MakeEdge,
     BRepBuilderAPI_MakeFace,
     BRepBuilderAPI_MakeVertex,
-)
-from OCP.BRepExtrema import BRepExtrema_DistShapeShape
-from OCP.BRepGProp import BRepGProp, BRepGProp_Face
-from OCP.BRepTools import BRepTools
-from OCP.BRep import BRep_Tool
-from OCP.BinTools import BinTools, BinTools_FormatVersion_CURRENT
-from OCP.Bnd import Bnd_Box
-from OCP.GCPnts import GCPnts_AbscissaPoint
-from OCP.GProp import GProp_GProps
-from OCP.GeomAbs import GeomAbs_CurveType
-from OCP.GeomLib import GeomLib_IsPlanarSurface
-from OCP.Geom import Geom_Plane
-from OCP.Quantity import Quantity_ColorRGBA, Quantity_TypeOfColor
-from OCP.TopAbs import (
+    BRepExtrema_DistShapeShape,
+    BRepGProp,
+    BRepGProp_Face,
+    BRepTools,
+    BRep_Tool,
+    BinTools,
+    BinTools_FormatVersion_CURRENT,
+    Bnd_Box,
+    GCPnts_AbscissaPoint,
+    GProp_GProps,
+    GeomAbs_CurveType,
+    GeomLib_IsPlanarSurface,
+    Geom_Plane,
+    Quantity_ColorRGBA,
+    Quantity_TypeOfColor,
     TopAbs_COMPOUND,
     TopAbs_COMPSOLID,
     TopAbs_EDGE,
@@ -58,10 +57,8 @@ from OCP.TopAbs import (
     TopAbs_SOLID,
     TopAbs_VERTEX,
     TopAbs_WIRE,
-)
-from OCP.TopExp import TopExp
-from OCP.TopLoc import TopLoc_Location
-from OCP.TopoDS import (
+    TopExp,
+    TopLoc_Location,
     TopoDS_Builder,
     TopoDS_CompSolid,
     TopoDS_Compound,
@@ -73,8 +70,6 @@ from OCP.TopoDS import (
     TopoDS_Solid,
     TopoDS_Vertex,
     TopoDS_Wire,
-)
-from OCP.gp import (
     gp_Ax1,
     gp_Ax2,
     gp_Ax3,

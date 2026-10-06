@@ -25,15 +25,10 @@ from typing import TypedDict
 import numpy as np
 from cachetools import LRUCache, cached
 
-import OCP
-from OCP.Bnd import Bnd_Box
-from OCP.BRepBndLib import BRepBndLib
-from OCP.BRepTools import BRepTools
-from OCP.TopLoc import TopLoc_Location
-from OCP.TopoDS import TopoDS_Shape
+from .._kernel import ANY, kernel_of
+from .._kernel.default import TopLoc_Location, TopoDS_Shape
 
 from ..utils import distance
-from .compat import hash_compat
 from .topology import make_compound
 from .measure import center_of_mass
 from .location import loc_to_tq, rotate
@@ -50,10 +45,10 @@ def make_key(
     | tuple[None, None],
 ]:  # pylint: disable=unused-argument
     # optimal is not used and as such ignored
-    if isinstance(objs, TopoDS_Shape):
+    if isinstance(objs, ANY.TopoDS_Shape):
         objs = [objs]
 
-    key = (tuple(((hash_compat(s), id(s)) for s in objs)), loc_to_tq(loc))
+    key = (tuple(((kernel_of(s).hash_compat(s), id(s)) for s in objs)), loc_to_tq(loc))
     return key
 
 
@@ -100,28 +95,20 @@ class BoundingBox(object):
         return center_of_mass(obj)
 
     def _bounding_box(self, obj, tol=1e-6):
-        bbox = Bnd_Box()
+        k = kernel_of(obj)
+        bbox = k.Bnd_Box()
         if self.optimal:
-            BRepTools.Clean_s(obj)
-            BRepBndLib.AddOptimal_s(obj, bbox)
+            k.BRepTools.Clean_s(obj)
+            k.BRepBndLib.AddOptimal_s(obj, bbox)
         else:
-            BRepBndLib.Add_s(obj, bbox)
+            k.BRepBndLib.Add_s(obj, bbox)
         if not bbox.IsVoid():
-            if OCP.__version__.startswith("7"):
-                values = bbox.Get()
-            else:
-                # On OCP 8 Bnd_Box.Get() resolves to the overload returning the
-                # Bnd_Box::Limits struct, which is not bound and always raises, so read
-                # the six bounds individually.
-                values = (
-                    bbox.GetXMin(),
-                    bbox.GetYMin(),
-                    bbox.GetZMin(),
-                    bbox.GetXMax(),
-                    bbox.GetYMax(),
-                    bbox.GetZMax(),
-                )
-            return (values[0], values[3], values[1], values[4], values[2], values[5])
+            # The corners, not Get(): on OCP 8 Get() resolves to the overload returning
+            # the Bnd_Box::Limits struct, which is not bound and always raises, and
+            # OCP 7.9 has no GetXMin() and friends. CornerMin/CornerMax exist in all
+            # bindings and return the same values.
+            p_min, p_max = bbox.CornerMin(), bbox.CornerMax()
+            return (p_min.X(), p_max.X(), p_min.Y(), p_max.Y(), p_min.Z(), p_max.Z())
         else:
             c = self._center_of_mass(obj)
             bb = (

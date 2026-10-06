@@ -5,6 +5,7 @@ from typing import Dict, Iterable, List, Sequence, Tuple, Union
 import json
 import numpy as np
 
+from ocp_tessellate._kernel import ANY
 from ocp_tessellate.cad_objects import (
     CoordAxis,
     CoordSystem,
@@ -162,14 +163,14 @@ def unwrap(
 
     @return: The unwrapped object or list of objects
     """
-    if isinstance(obj, TopoDS_Shape):
+    if isinstance(obj, ANY.TopoDS_Shape):
         return obj
     if not isinstance(obj, (list, tuple)):
         return obj.wrapped
 
     result: List[TopoDS_Shape] = []
     for x in list(obj):
-        if isinstance(x, TopoDS_Shape):
+        if isinstance(x, ANY.TopoDS_Shape):
             result.append(x)
         elif is_vector(x):
             result.append(vertex((x.X, x.Y, x.Z)))
@@ -184,11 +185,11 @@ def unwrap(
 
 
 def _to_topods(o: object) -> TopoDS_Shape:
-    if isinstance(o, TopoDS_Shape):
+    if isinstance(o, ANY.TopoDS_Shape):
         return o
     assert is_wrapped(o), f"expected a shape, got {o}"
     w = o.wrapped
-    assert isinstance(w, TopoDS_Shape), f"expected a wrapped shape, got {w}"
+    assert isinstance(w, ANY.TopoDS_Shape), f"expected a wrapped shape, got {w}"
     return w
 
 
@@ -403,7 +404,7 @@ class OcpConverter:
             # an empty input produces so names/colors stay aligned
             return self.handle_empty_iterables(name, 0)
 
-        if isinstance(ocp_obj, TopoDS_Shape):
+        if isinstance(ocp_obj, ANY.TopoDS_Shape):
             first = ocp_obj
         else:
             first = ocp_obj[0]
@@ -413,7 +414,7 @@ class OcpConverter:
 
         if kind in ("solid", "face", "shell"):
             # solid/face/shell kinds always unify into a single shape
-            assert isinstance(ocp_obj, TopoDS_Shape), f"not unified: {ocp_obj}"
+            assert isinstance(ocp_obj, ANY.TopoDS_Shape), f"not unified: {ocp_obj}"
             cache_id = create_cache_id(ocp_obj)
             ref, loc = self.get_instance(ocp_obj, cache_id, name)
             ocp_object = OcpObject(
@@ -924,7 +925,7 @@ class OcpConverter:
         # unwrap everything else
         else:
             unwrapped = unwrap(cad_obj)
-            assert not isinstance(unwrapped, TopoDS_Shape), (
+            assert not isinstance(unwrapped, ANY.TopoDS_Shape), (
                 "a list input unwraps to a list"
             )
             objs = unwrapped
@@ -1534,7 +1535,7 @@ class OcpConverter:
         """
         self._debug(level, "build123d Axis", obj_name)
 
-        if isinstance(cad_obj, gp_Ax1):
+        if isinstance(cad_obj, ANY.gp_Ax1):
             axis = cad_obj
         else:
             axis = cad_obj.wrapped

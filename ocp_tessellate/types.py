@@ -6,9 +6,14 @@ from typing_extensions import NotRequired, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
-from OCP.gp import gp_Vec
-from OCP.TopLoc import TopLoc_Location
-from OCP.TopoDS import TopoDS_Edge, TopoDS_Face, TopoDS_Shape, TopoDS_Vertex
+from ._kernel.default import (
+    gp_Vec,
+    TopLoc_Location,
+    TopoDS_Edge,
+    TopoDS_Face,
+    TopoDS_Shape,
+    TopoDS_Vertex,
+)
 
 from ocp_tessellate.utils import Color
 

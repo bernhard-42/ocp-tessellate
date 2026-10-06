@@ -19,13 +19,12 @@
 
 from typing_extensions import TypeIs
 
-from OCP.BRep import BRep_Tool
-from OCP.BRepAdaptor import BRepAdaptor_Curve
-from OCP.GeomAbs import GeomAbs_CurveType
-from OCP.gp import gp_Ax1, gp_Pln, gp_Vec
-from OCP.TopAbs import TopAbs_Orientation
-from OCP.TopLoc import TopLoc_Location
-from OCP.TopoDS import (
+from .._kernel import ANY, kernel_of
+from .._kernel.default import (
+    gp_Ax1,
+    gp_Pln,
+    gp_Vec,
+    TopLoc_Location,
     TopoDS_Compound,
     TopoDS_CompSolid,
     TopoDS_Edge,
@@ -45,44 +44,45 @@ def is_wrapped(obj) -> TypeIs[Wrapped[object]]:
 
 
 def is_topods_shape(topods_shape) -> TypeIs[TopoDS_Shape]:
-    return isinstance(topods_shape, TopoDS_Shape)
+    return isinstance(topods_shape, ANY.TopoDS_Shape)
 
 
 def is_topods_compound(topods_shape) -> TypeIs[TopoDS_Compound]:
-    return isinstance(topods_shape, TopoDS_Compound)
+    return isinstance(topods_shape, ANY.TopoDS_Compound)
 
 
 def is_topods_compsolid(topods_shape) -> TypeIs[TopoDS_CompSolid]:
-    return isinstance(topods_shape, TopoDS_CompSolid)
+    return isinstance(topods_shape, ANY.TopoDS_CompSolid)
 
 
 def is_topods_solid(topods_shape) -> TypeIs[TopoDS_Solid]:
-    return isinstance(topods_shape, TopoDS_Solid)
+    return isinstance(topods_shape, ANY.TopoDS_Solid)
 
 
 def is_topods_shell(topods_shape) -> TypeIs[TopoDS_Shell]:
-    return isinstance(topods_shape, TopoDS_Shell)
+    return isinstance(topods_shape, ANY.TopoDS_Shell)
 
 
 def is_topods_face(topods_shape) -> TypeIs[TopoDS_Face]:
-    return isinstance(topods_shape, TopoDS_Face)
+    return isinstance(topods_shape, ANY.TopoDS_Face)
 
 
 def is_topods_wire(topods_shape) -> TypeIs[TopoDS_Wire]:
-    return isinstance(topods_shape, TopoDS_Wire)
+    return isinstance(topods_shape, ANY.TopoDS_Wire)
 
 
 def is_topods_edge(topods_shape) -> TypeIs[TopoDS_Edge]:
-    return isinstance(topods_shape, TopoDS_Edge)
+    return isinstance(topods_shape, ANY.TopoDS_Edge)
 
 
 def is_topods_vertex(topods_shape) -> TypeIs[TopoDS_Vertex]:
-    return isinstance(topods_shape, TopoDS_Vertex)
+    return isinstance(topods_shape, ANY.TopoDS_Vertex)
 
 
 def is_line(topods_shape):
-    c = BRepAdaptor_Curve(topods_shape)
-    return c.GetType() == GeomAbs_CurveType.GeomAbs_Line
+    k = kernel_of(topods_shape)
+    c = k.BRepAdaptor_Curve(topods_shape)
+    return c.GetType() == k.GeomAbs_CurveType.GeomAbs_Line
 
 
 def is_degenerated_edge(edge: TopoDS_Edge) -> bool:
@@ -91,10 +91,11 @@ def is_degenerated_edge(edge: TopoDS_Edge) -> bool:
     Both checks are O(1); constructing a BRepAdaptor_Curve on such an edge
     would raise "BRepAdaptor_Curve::No geometry".
     """
-    if BRep_Tool.Degenerated_s(edge):
+    k = kernel_of(edge)
+    if k.BRep_Tool.Degenerated_s(edge):
         return True
-    loc = TopLoc_Location()
-    return BRep_Tool.Curve_s(edge, loc, 0.0, 0.0) is None
+    loc = k.TopLoc_Location()
+    return k.curve_of(edge, loc) is None
 
 
 def is_degenerated_face(face: TopoDS_Face) -> bool:
@@ -106,26 +107,27 @@ def is_degenerated_face(face: TopoDS_Face) -> bool:
     not caught here on purpose - computing the area is expensive, and the
     mesher drops them for free (no triangulation).
     """
+    k = kernel_of(face)
     return (
-        BRep_Tool.Surface_s(face) is None
-        and BRep_Tool.Triangulation_s(face, TopLoc_Location()) is None
+        k.BRep_Tool.Surface_s(face) is None
+        and k.BRep_Tool.Triangulation_s(face, k.TopLoc_Location()) is None
     )
 
 
 def is_toploc_location(obj) -> TypeIs[TopLoc_Location]:
-    return isinstance(obj, TopLoc_Location)
+    return isinstance(obj, ANY.TopLoc_Location)
 
 
 def is_gp_plane(obj) -> TypeIs[gp_Pln]:
-    return isinstance(obj, gp_Pln)
+    return isinstance(obj, ANY.gp_Pln)
 
 
 def is_gp_axis(obj) -> TypeIs[gp_Ax1]:
-    return isinstance(obj, gp_Ax1)
+    return isinstance(obj, ANY.gp_Ax1)
 
 
 def is_gp_vec(obj) -> TypeIs[gp_Vec]:
-    return isinstance(obj, gp_Vec)
+    return isinstance(obj, ANY.gp_Vec)
 
 
 def is_shape(obj) -> TypeIs[Wrapped[TopoDS_Shape]]:
@@ -183,8 +185,10 @@ def is_empty_compound(obj) -> bool:
 
 
 def is_closed(obj: TopoDS_Shape) -> bool:
-    return BRep_Tool.IsClosed_s(obj)
+    k = kernel_of(obj)
+    return k.BRep_Tool.IsClosed_s(obj)
 
 
 def is_forward(obj: TopoDS_Edge | TopoDS_Wire) -> bool:
-    return obj.Orientation() == TopAbs_Orientation.TopAbs_FORWARD
+    k = kernel_of(obj)
+    return obj.Orientation() == k.TopAbs_Orientation.TopAbs_FORWARD

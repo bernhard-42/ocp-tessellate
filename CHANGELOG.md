@@ -7,6 +7,7 @@
 **Changes**
 
 - `ocp_tessellate.ocp_utils` is a package now, grouped by topic (`compat`, `predicates`, `detect`, `topology`, `measure`, `geometry`, `location`, `bbox`, `serialize`, `color`). Every name of the former module, including the re-exported OCP classes, is still importable from `ocp_tessellate.ocp_utils`, and the star import gives the same names; only imported modules (`np`, `OCP`, ...) and third-party helpers are no longer re-exported
+- ocp_tessellate reaches OCCT through an internal kernel (`ocp_tessellate._kernel`), the one place that imports OCP; the preparation for nanocct support. Tessellation, bounding boxes and all other results are unchanged (compared bit for bit). Bounding boxes are read with `Bnd_Box.CornerMin()`/`CornerMax()` on every OCP version, which return the same values as the former `Get()` / `GetXMin()` branches
 
 ## v3.5.3
 
