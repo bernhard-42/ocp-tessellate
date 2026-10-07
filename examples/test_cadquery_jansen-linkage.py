@@ -1,8 +1,7 @@
 import math
 
-import numpy as np
-
 import cadquery as cq
+import numpy as np
 from cadquery_massembly import MAssembly
 from ocp_viewer_core.viewer import *
 

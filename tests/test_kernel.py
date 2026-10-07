@@ -12,14 +12,12 @@ import sys
 from pathlib import Path
 
 import pytest
+from occt_binding import INSTALLED, occt, root
 
 import ocp_tessellate._kernel as kernels
-import ocp_tessellate.ocp_utils as ocp_utils
-from ocp_tessellate.convert import tessellate_group, to_ocpgroup
-from ocp_tessellate import ImageFace, prefer_nanocct
+from ocp_tessellate import ImageFace, ocp_utils, prefer_nanocct
 from ocp_tessellate._kernel import adapter, binding_of, kernel, kernel_of, kernel_of_all
-
-from occt_binding import INSTALLED, occt, root
+from ocp_tessellate.convert import tessellate_group, to_ocpgroup
 
 PACKAGE = Path(kernels.__file__).parent.parent
 KERNEL_DIR = PACKAGE / "_kernel"
@@ -148,9 +146,12 @@ def _occt_paths():
     paths = set()
     for path in _shared_modules():
         for node in ast.walk(ast.parse(path.read_text())):
-            if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Attribute):
-                if _is_binding_expr(node.value.value):
-                    paths.add((node.value.attr, node.attr))
+            if (
+                isinstance(node, ast.Attribute)
+                and isinstance(node.value, ast.Attribute)
+                and _is_binding_expr(node.value.value)
+            ):
+                paths.add((node.value.attr, node.attr))
     return paths
 
 

@@ -1,15 +1,14 @@
 # %%
 from collections import OrderedDict as odict
 
+import cadquery
 import cadquery as cq
 import numpy as np
 from cadquery_massembly import MAssembly
 from ocp_viewer_core.viewer import Animation, set_defaults, show
 
-from ocp_tessellate.ocp_utils import loc_to_tq
 from ocp_tessellate import Color
-
-import cadquery
+from ocp_tessellate.ocp_utils import loc_to_tq
 
 
 def lrepl(self):

@@ -49,12 +49,12 @@ class TestColor(unittest.TestCase):
         self.assertEqual(c.web_color, "#a04010")
         self.assertEqual(c.a, 0.5)
 
-    def test_color(self):
+    def test_color_from_color(self):
         c = Color(Color("red"))
         self.assertEqual(c.web_color, "#ff0000")
         self.assertEqual(c.a, 1.0)
 
-    def test_color(self):
+    def test_color_with_alpha(self):
         c = Color(Color("red", 0.2))
         self.assertEqual(c.web_color, "#ff0000")
         self.assertAlmostEqual(c.a, 0.2, 6)
@@ -67,7 +67,7 @@ class TestColor(unittest.TestCase):
 
     def test_color_fail(self):
         with pytest.raises(ValueError):
-            c = Color(Color("redxgreenxblue", 1.2))
+            Color(Color("redxgreenxblue", 1.2))
 
 
 class TestGetRgba(unittest.TestCase):
@@ -111,12 +111,12 @@ class TestGetRgba(unittest.TestCase):
         self.assertEqual(c.web_color, "#a04010")
         self.assertEqual(c.a, 0.5)
 
-    def test_color(self):
+    def test_color_from_color(self):
         c = get_rgba(Color("red"))
         self.assertEqual(c.web_color, "#ff0000")
         self.assertEqual(c.a, 1.0)
 
-    def test_color(self):
+    def test_color_with_alpha(self):
         c = get_rgba(Color("red", 0.2))
         self.assertEqual(c.web_color, "#ff0000")
         self.assertAlmostEqual(c.a, 0.2, 6)
@@ -129,7 +129,7 @@ class TestGetRgba(unittest.TestCase):
 
     def test_color_fail(self):
         with pytest.raises(ValueError):
-            c = get_rgba(Color("redxgreenxblue", 1.2))
+            get_rgba(Color("redxgreenxblue", 1.2))
 
     def test_bd_color(self):
         c = get_rgba(bd.Color("Orange"))

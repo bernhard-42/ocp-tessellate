@@ -14,8 +14,8 @@
 # limitations under the License.
 #
 
-from collections import namedtuple
 import re
+from collections import namedtuple
 
 VersionInfo = namedtuple("VersionInfo", ["major", "minor", "patch", "release", "build"])
 

@@ -16,7 +16,10 @@ import tempfile
 
 import numpy as np
 import pytest
+from occt_binding import INSTALLED, occt, root
 
+from ocp_tessellate import prefer_nanocct
+from ocp_tessellate._kernel import binding_of, kernel_of
 from ocp_tessellate.ocp_utils import (
     deserialize,
     downcast,
@@ -25,11 +28,7 @@ from ocp_tessellate.ocp_utils import (
     make_compound,
     serialize,
 )
-from ocp_tessellate import prefer_nanocct
-from ocp_tessellate._kernel import binding_of, kernel_of
 from ocp_tessellate.tessellator import discretize_edge, tessellate
-
-from occt_binding import INSTALLED, occt, root
 
 pytestmark = pytest.mark.skipif(
     INSTALLED != ["OCP", "nanocct"], reason="needs OCP and nanocct"

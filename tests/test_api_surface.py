@@ -28,6 +28,7 @@ Regenerate the snapshot (only when the API is meant to change):
 """
 
 import __future__
+
 import importlib
 import inspect
 import json

@@ -23,6 +23,7 @@ from collections.abc import Iterable, Iterator
 from typing import TYPE_CHECKING, Literal, overload
 
 from .._kernel import adapter, kernel_of, kernel_of_all
+
 if TYPE_CHECKING:
     from ..types import (
         BRepAdaptor_Curve,

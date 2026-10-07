@@ -19,13 +19,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import io
 import os
 import tempfile
+from typing import TYPE_CHECKING
 
 from .._kernel import adapter, kernel, kernel_of
+
 if TYPE_CHECKING:
     from ..types import (
         TopoDS_Shape,
@@ -51,7 +51,8 @@ def serialize(
     k = kernel_of(shape)
     try:
         buffer = adapter(k).bin_write(shape, triangles, normals)
-    except Exception:
+    # any failure of the in-memory path falls back to a file
+    except Exception:  # noqa: BLE001
         with tempfile.TemporaryDirectory() as tmpdirname:
             filename = os.path.join(tmpdirname, "shape.brep")
             k.BinTools.BinTools.Write_s(
@@ -71,7 +72,8 @@ def deserialize(buffer: bytes | None) -> TopoDS_Shape | None:
     try:
         bio = io.BytesIO(buffer)
         k.BinTools.BinTools.Read_s(shape, bio)
-    except Exception:
+    # any failure of the in-memory path falls back to a file
+    except Exception:  # noqa: BLE001
         with tempfile.TemporaryDirectory() as tmpdirname:
             filename = os.path.join(tmpdirname, "shape.brep")
             with open(filename, "wb") as fd:

@@ -26,15 +26,16 @@ import numpy as np
 from numpy.typing import ArrayLike
 
 from .._kernel import adapter, kernel, kernel_of
+
 if TYPE_CHECKING:
     from types import ModuleType
 
     from ..types import (
+        TopLoc_Location,
+        TopoDS_Shape,
         gp_Ax1,
         gp_Pln,
         gp_Vec,
-        TopLoc_Location,
-        TopoDS_Shape,
     )
 
 from .predicates import (
@@ -128,27 +129,25 @@ def get_location(obj: object, as_none: bool = True) -> TopLoc_Location | None:
     if obj is None:
         return None if as_none else identity_location()
 
-    loc: object
-    if getattr(obj, "loc", None) is not None:
-        loc = getattr(obj, "loc")
+    loc: object = getattr(obj, "loc", None)
+    if loc is None:
+        if hasattr(obj, "location"):
+            loc = _call_if_callable(obj.location)
 
-    elif hasattr(obj, "location"):
-        loc = _call_if_callable(getattr(obj, "location"))
+        elif hasattr(obj, "to_location"):
+            loc = _call_if_callable(obj.to_location)
 
-    elif hasattr(obj, "to_location"):
-        loc = _call_if_callable(getattr(obj, "to_location"))
+        elif is_wrapped(obj) and hasattr(obj.wrapped, "Location"):
+            loc = _call_if_callable(obj.wrapped.Location)
 
-    elif is_wrapped(obj) and hasattr(obj.wrapped, "Location"):
-        loc = _call_if_callable(getattr(obj.wrapped, "Location"))
+        elif is_toploc_location(obj):
+            return obj
 
-    elif is_toploc_location(obj):
-        return obj
+        elif is_topods_shape(obj):
+            loc = obj.Location()
 
-    elif is_topods_shape(obj):
-        loc = obj.Location()
-
-    else:
-        return None if as_none else identity_location()
+        else:
+            return None if as_none else identity_location()
 
     if is_wrapped(loc):
         loc = loc.wrapped

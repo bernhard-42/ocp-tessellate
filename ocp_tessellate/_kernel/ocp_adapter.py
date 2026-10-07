@@ -50,6 +50,8 @@ from OCP.TopAbs import (
 from OCP.TopLoc import TopLoc_Location
 from OCP.TopoDS import TopoDS, TopoDS_Edge, TopoDS_Face, TopoDS_Shape
 
+# The collection classes, used as adapter(k).TopTools_IndexedMapOfShape and so on
+# (ruff cannot see that, hence the noqa)
 if OCP.__version__.startswith("7"):
     from OCP.TDF import TDF_LabelSequence
     from OCP.TopTools import (
@@ -57,7 +59,7 @@ if OCP.__version__.startswith("7"):
         TopTools_IndexedMapOfShape,
     )
 else:
-    from OCP.collections import (
+    from OCP.collections import (  # noqa: F401
         IndexedDataMap_TopoDS_Shape_List_TopoDS_Shape_TopTools_ShapeMapHasher as TopTools_IndexedDataMapOfShapeListOfShape,
         IndexedMap_TopoDS_Shape_TopTools_ShapeMapHasher as TopTools_IndexedMapOfShape,
         Sequence_TDF_Label as TDF_LabelSequence,

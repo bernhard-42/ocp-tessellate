@@ -30,6 +30,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, TypedDict
 
 from .._kernel import adapter, kernel, kernel_of
+
 if TYPE_CHECKING:
     from types import ModuleType
 

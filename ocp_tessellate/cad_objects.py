@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import base64
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import imagesize
+
 from ._kernel import kernel_of, kernel_of_all
 from .ocp_utils.location import _tq_to_loc
+
 if TYPE_CHECKING:
     from .types import (
         TopLoc_Location,
@@ -21,6 +24,7 @@ from ocp_tessellate.ocp_utils import (
     copy_topods_shape,
     identity_location,  # noqa: F401 - public via cad_objects (tests/api_surface.json)
     is_identity,
+    is_topods_shape as _is_topods_shape,
     line,
     loc_to_tq,
     loc_to_vecs,
@@ -29,7 +33,6 @@ from ocp_tessellate.ocp_utils import (
     rect,
     tq_to_loc,  # noqa: F401 - public via cad_objects (tests/api_surface.json)
 )
-from ocp_tessellate.ocp_utils import is_topods_shape as _is_topods_shape
 from ocp_tessellate.types import ConvertedVertices, DiscretizedEdges, Instance
 from ocp_tessellate.utils import Color, make_unique
 
@@ -113,7 +116,7 @@ class OcpObject:
     def __repr__(self):
         return self.dump()
 
-    def copy(self) -> "OcpObject":
+    def copy(self) -> OcpObject:
         if self.obj is None:
             obj = None
         elif isinstance(self.obj, list):
@@ -177,7 +180,7 @@ class OcpObject:
             assert isinstance(self.color, Color), (
                 f"'{self.name}' has no resolved color"
             )
-            return dict(id=self.id, shape=instances[self.ref], loc=combined_loc), {
+            return {"id": self.id, "shape": instances[self.ref], "loc": combined_loc}, {
                 "id": self.id,
                 "type": "shapes",
                 "subtype": self.kind,
@@ -211,7 +214,7 @@ class OcpObject:
                 color = [c.web_color for c in self.color]
 
             result = (
-                dict(id=self.id, shape=self.obj, loc=None),
+                {"id": self.id, "shape": self.obj, "loc": None},
                 {
                     "id": self.id,
                     "type": "edges" if self.kind == "edge" else "vertices",
@@ -237,7 +240,7 @@ class OcpObject:
 class OcpGroup:
     def __init__(
         self,
-        objs: "list[OcpObject | OcpGroup] | None" = None,
+        objs: list[OcpObject | OcpGroup] | None = None,
         name: str | None = "Group",
         loc: TopLoc_Location | None = None,
     ):
@@ -265,11 +268,11 @@ class OcpGroup:
     def length(self) -> int:
         return len(self.objects)
 
-    def add(self, *objs: "OcpObject | OcpGroup") -> None:
+    def add(self, *objs: OcpObject | OcpGroup) -> None:
         for obj in objs:
             self.objects.append(obj)
 
-    def make_unique_names(self) -> "OcpGroup":
+    def make_unique_names(self) -> OcpGroup:
         if self.length > 1:
             names = make_unique([obj.name for obj in self.objects])
             for obj, name in zip(self.objects, names):
@@ -278,7 +281,7 @@ class OcpGroup:
                     obj.name = name
         return self
 
-    def cleanup(self) -> "OcpObject | OcpGroup":
+    def cleanup(self) -> OcpObject | OcpGroup:
         if self.length == 1:
             result = self.objects[0]
             result.loc = mul_locations(self.loc, result.loc)

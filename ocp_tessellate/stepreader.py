@@ -4,7 +4,7 @@ import os
 import time
 import unicodedata
 from copy import copy as shallow_copy
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 from typing_extensions import TypedDict
 
@@ -31,6 +31,7 @@ except ImportError:
     pass
 
 from ._kernel import adapter, kernel, kernel_of
+
 if TYPE_CHECKING:
     from .types import (
         Quantity_ColorRGBA,
@@ -42,8 +43,8 @@ if TYPE_CHECKING:
 
 
 # from ocp_tessellate.ocp_utils import deserialize, loc_to_tq, serialize, tq_to_loc
-from ocp_tessellate.utils import warn
 from ocp_tessellate.ocp_utils import make_compound
+from ocp_tessellate.utils import warn
 
 DEFAULT_COLOR = (0.8, 0.8, 0.8, 1)
 
@@ -52,10 +53,10 @@ RGBA = tuple[float, float, float, float]
 
 class AssemblyObject(TypedDict):
     name: str
-    loc: Union[TopLoc_Location, None]
-    color: Union[RGBA, None]
-    shape: Union[TopoDS_Shape, None]
-    shapes: Union["list[AssemblyObject]", None]
+    loc: TopLoc_Location | None
+    color: RGBA | None
+    shape: TopoDS_Shape | None
+    shapes: list[AssemblyObject] | None
 
 
 def clean_string(s):
@@ -75,17 +76,17 @@ class StepReader:
         self.split_compounds = split_compounds
         self.use_colors = use_colors
         self._kernel = kernel()
-        self.shape_tool: Union[XCAFDoc_ShapeTool, None] = None
-        self.color_tool: Union[XCAFDoc_ColorTool, None] = None
-        self.assemblies: Union[list[AssemblyObject], None] = None
+        self.shape_tool: XCAFDoc_ShapeTool | None = None
+        self.color_tool: XCAFDoc_ColorTool | None = None
+        self.assemblies: list[AssemblyObject] | None = None
 
     def _create_assembly_object(
         self,
         name: str,
-        loc: Union[TopLoc_Location, None] = None,
-        color: Union[RGBA, None] = None,
-        shape: Union[TopoDS_Shape, None] = None,
-        children: Union["list[AssemblyObject]", None] = None,
+        loc: TopLoc_Location | None = None,
+        color: RGBA | None = None,
+        shape: TopoDS_Shape | None = None,
+        children: list[AssemblyObject] | None = None,
     ) -> AssemblyObject:
         """
         Create a new object
@@ -133,7 +134,7 @@ class StepReader:
         def to_list(c: Quantity_ColorRGBA) -> RGBA:
             return (c.GetRGB().Red(), c.GetRGB().Green(), c.GetRGB().Blue(), c.Alpha())
 
-        def get_col(obj) -> Union[RGBA, None]:
+        def get_col(obj) -> RGBA | None:
             color_tool = self.color_tool
             assert color_tool is not None, "load() first"
             col = k.Quantity.Quantity_ColorRGBA()
@@ -351,10 +352,10 @@ class StepReader:
         def to_workplane(obj):
             return cq.Workplane(obj=cq.Solid(obj))
 
-        def to_loc(loc: Union[TopLoc_Location, None]) -> "cq.Location":
+        def to_loc(loc: TopLoc_Location | None) -> cq.Location:
             return cq.Location() if loc is None else cq.Location(loc)
 
-        def walk(objs: "list[AssemblyObject]", name=None, loc=None):
+        def walk(objs: list[AssemblyObject], name=None, loc=None):
             a = cq.Assembly(name=name, loc=loc)
             names = {}
             for obj in objs:
@@ -414,10 +415,10 @@ class StepReader:
         Convert internal AssemblyObjects format to build123d Assemblies
         :return: buiild123d assembly
         """
-        def to_loc(loc: Union[TopLoc_Location, None]) -> "Location":
+        def to_loc(loc: TopLoc_Location | None) -> Location:
             return Location() if loc is None else Location(loc)
 
-        def walk(objs: "list[AssemblyObject]", label=None, loc=None):
+        def walk(objs: list[AssemblyObject], label=None, loc=None):
             a = []
             names = {}
             for obj in objs:

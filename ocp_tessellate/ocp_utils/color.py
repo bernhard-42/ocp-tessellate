@@ -24,14 +24,15 @@ from typing import TYPE_CHECKING
 from typing_extensions import TypeIs
 
 from .._kernel import kernel, kernel_of
+
 if TYPE_CHECKING:
     from ..types import (
         Quantity_ColorRGBA,
     )
 
 from ..types import Wrapped
-from .predicates import _is_quantity_color
 from ..utils import Color
+from .predicates import _is_quantity_color
 
 
 def is_ocp_color(obj) -> TypeIs[Wrapped[Quantity_ColorRGBA]]:
@@ -51,7 +52,8 @@ def get_rgba(color, alpha=None, def_color=None) -> Color | None:
     if hasattr(color, "wrapped"):  # CadQery or build123d Color
         try:
             rgba = Color(tuple(color))  # build123d
-        except Exception:
+        except TypeError:
+            # a CadQuery Color is not iterable
             rgba = Color(color.toTuple())  # CadQuery
 
         if alpha is not None:
@@ -61,13 +63,13 @@ def get_rgba(color, alpha=None, def_color=None) -> Color | None:
         k = kernel_of(color)
         r, g, b = color.GetRGB().Values(k.Quantity.Quantity_TypeOfColor.Quantity_TOC_sRGB)
         rgba = Color((
-            int(round(r * 255)),
-            int(round(g * 255)),
-            int(round(b * 255)),
+            round(r * 255),
+            round(g * 255),
+            round(b * 255),
             color.Alpha() if alpha is None else alpha,
         ))
 
-    elif isinstance(color, str) or isinstance(color, (tuple, list)):
+    elif isinstance(color, (str, tuple, list)):
         rgba = Color(color, 1.0 if alpha is None else alpha)
 
     else:

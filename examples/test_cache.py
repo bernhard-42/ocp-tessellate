@@ -33,7 +33,7 @@ class Progress:
 
 cache.clear()
 n = 1000
-I, J = list(range(1, 100)), list(range(n))  # noqa: E741
+I, J = list(range(1, 100)), list(range(n))
 random.shuffle(J)
 random.shuffle(I)
 y = 0

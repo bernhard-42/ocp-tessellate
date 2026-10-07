@@ -1,12 +1,11 @@
 # %%
 from os.path import expanduser
 
+import cadquery
 import cadquery as cq
 from ocp_viewer_core.viewer import show
 
 from ocp_tessellate.ocp_utils import loc_to_tq
-
-import cadquery
 
 
 def lrepl(self):

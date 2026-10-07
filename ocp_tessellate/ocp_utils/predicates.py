@@ -24,15 +24,11 @@ from typing import TYPE_CHECKING
 from typing_extensions import TypeIs
 
 from .._kernel import adapter, binding_of, kernel_of
+
 if TYPE_CHECKING:
     from ..types import (
         Geom_Plane,
         Quantity_ColorRGBA,
-        gp_Ax1,
-        gp_Dir,
-        gp_Pln,
-        gp_Pnt,
-        gp_Vec,
         TopLoc_Location,
         TopoDS_Compound,
         TopoDS_CompSolid,
@@ -43,6 +39,11 @@ if TYPE_CHECKING:
         TopoDS_Solid,
         TopoDS_Vertex,
         TopoDS_Wire,
+        gp_Ax1,
+        gp_Dir,
+        gp_Pln,
+        gp_Pnt,
+        gp_Vec,
     )
 
 from ..types import Wrapped
@@ -222,7 +223,7 @@ def is_empty_compound(obj) -> bool:
         if len(list(obj)) == 0:
             return True
         elif len(list(obj)) == 1:
-            return is_empty_compound(list(obj)[0])
+            return is_empty_compound(next(iter(obj)))
         else:
             return False
     else:

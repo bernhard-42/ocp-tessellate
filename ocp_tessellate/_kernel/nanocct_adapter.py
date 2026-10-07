@@ -32,13 +32,18 @@ from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
-from numpy.typing import NDArray
-import nanocct.TopoDS as TopoDS
-from nanocct import AddOns
+from nanocct import AddOns, TopoDS
 from nanocct.BinTools import BinTools, BinTools_FormatVersion_CURRENT
 from nanocct.BRep import BRep_Tool
 from nanocct.BRepTools import BRepTools
-from nanocct.gp import gp_Pnt, gp_Vec
+from nanocct.gp import gp_Pnt, gp_TrsfForm, gp_Vec
+from nanocct.NCollection import (
+    NCollection_IndexedDataMap,
+    NCollection_IndexedMap,
+    NCollection_List,
+    NCollection_Sequence,
+)
+from nanocct.Quantity import NCollection_Vec3__float
 from nanocct.TDF import TDF_Label
 from nanocct.TopAbs import (
     TopAbs_COMPOUND,
@@ -53,15 +58,8 @@ from nanocct.TopAbs import (
 )
 from nanocct.TopLoc import TopLoc_Location
 from nanocct.TopoDS import TopoDS_Edge, TopoDS_Face, TopoDS_Shape
-from nanocct.gp import gp_TrsfForm
-from nanocct.Quantity import NCollection_Vec3__float
-from nanocct.NCollection import (
-    NCollection_IndexedDataMap,
-    NCollection_IndexedMap,
-    NCollection_List,
-    NCollection_Sequence,
-)
 from nanocct.TopTools import TopTools_ShapeMapHasher
+from numpy.typing import NDArray
 
 if TYPE_CHECKING:
     from ..tessellator import Tessellator

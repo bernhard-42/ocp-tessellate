@@ -20,9 +20,11 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import TYPE_CHECKING, Iterable, Sequence
+from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING
 
 from ._kernel import adapter, kernel_of
+
 if TYPE_CHECKING:
     from .types import (
         TopoDS_Edge,
@@ -35,6 +37,7 @@ from cachetools import LRUCache, cached
 # pylint: disable=no-name-in-module,import-error
 from numpy.typing import NDArray
 
+from . import trace as trace_module
 from .ocp_utils import (
     get_edge_type,
     get_edges,
@@ -44,19 +47,18 @@ from .ocp_utils import (
     get_vertices,
     is_degenerated_edge,
     is_line,
+    is_topods_shape as _is_topods_shape,
     make_compound,
 )
-from .ocp_utils import is_topods_shape as _is_topods_shape
-from . import trace as trace_module
 from .trace import Trace
 from .types import (
     ConvertedVertices,
+    Coords,
     DiscretizedEdges,
     EdgeMapper,
     FaceMapper,
-    Coords,
     Tessellation,
-    TriangleIndices,
+    TriangleIndices,  # noqa: F401 - public via tessellator (tests/api_surface.json)
     VertexMapper,
 )
 from .utils import Timer, round_sig

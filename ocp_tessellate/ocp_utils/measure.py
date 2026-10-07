@@ -22,18 +22,19 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from .._kernel import adapter, kernel_of, kernel_of_all
+
 if TYPE_CHECKING:
     from types import ModuleType
 
     from ..types import (
         BRepExtrema_DistShapeShape,
-        gp_Dir,
-        gp_Pnt,
         TopoDS_Edge,
         TopoDS_Face,
         TopoDS_Shape,
         TopoDS_Shell,
         TopoDS_Wire,
+        gp_Dir,
+        gp_Pnt,
     )
 
 from .predicates import (

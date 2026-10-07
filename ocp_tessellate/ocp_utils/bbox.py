@@ -28,6 +28,7 @@ import numpy as np
 from cachetools import LRUCache, cached
 
 from .._kernel import adapter, kernel_of
+
 if TYPE_CHECKING:
     from ..types import (
         TopLoc_Location,
@@ -35,10 +36,10 @@ if TYPE_CHECKING:
     )
 
 from ..utils import distance
-from .topology import make_compound
-from .measure import center_of_mass
 from .location import loc_to_tq, rotate
+from .measure import center_of_mass
 from .predicates import is_topods_shape
+from .topology import make_compound
 
 
 # Caching helpers for bounding box
@@ -55,7 +56,7 @@ def make_key(
     if is_topods_shape(objs):
         objs = [objs]
 
-    key = (tuple(((adapter(kernel_of(s)).hash_compat(s), id(s)) for s in objs)), loc_to_tq(loc))
+    key = (tuple((adapter(kernel_of(s)).hash_compat(s), id(s)) for s in objs), loc_to_tq(loc))
     return key
 
 
@@ -73,7 +74,7 @@ def get_size(obj: object) -> int:
 cache = LRUCache(maxsize=16 * 1024 * 1024, getsizeof=get_size)
 
 
-class BoundingBox(object):
+class BoundingBox:
     def __init__(self, obj=None, optimal=False):
         self.optimal = optimal
         if obj is None:
@@ -195,7 +196,7 @@ class BoundingBox(object):
             self.zmin = lower(bb["zmin"], self.zmin)
             self.zmax = upper(bb["zmax"], self.zmax)
         else:
-            raise ValueError("Wrong bounding box param")
+            raise TypeError(f"Wrong bounding box param: {type(bb).__name__}")
 
         self._calc()
 
@@ -210,13 +211,9 @@ class BoundingBox(object):
         }
 
     def __repr__(self):
-        return "{xmin:%.2f, xmax:%.2f, ymin:%.2f, ymax:%.2f, zmin:%.2f, zmax:%.2f}" % (
-            self.xmin,
-            self.xmax,
-            self.ymin,
-            self.ymax,
-            self.zmin,
-            self.zmax,
+        return (
+            f"{{xmin:{self.xmin:.2f}, xmax:{self.xmax:.2f}, ymin:{self.ymin:.2f}, "
+            f"ymax:{self.ymax:.2f}, zmin:{self.zmin:.2f}, zmax:{self.zmax:.2f}}}"
         )
 
 
@@ -244,10 +241,12 @@ def nested_bounding_box(objs):
             for obj in objs.values():
                 total.update(bb(obj, total))
         else:
+            # anything without a bounding box (not wrapped, not a shape, an OCCT
+            # failure) adds nothing to the total
             try:
                 new_bb = bounding_box(objs.wrapped)
                 total.update(new_bb)
-            except Exception:
+            except Exception:  # noqa: BLE001, S110
                 pass
         return total
 

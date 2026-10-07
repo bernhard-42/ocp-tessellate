@@ -14,8 +14,8 @@
 # limitations under the License.
 #
 
-from ._version import __version__ as ot_version
-from ._version import __version_info__ as ot_version_info
+from ._kernel import prefer_nanocct
+from ._version import __version__ as ot_version, __version_info__ as ot_version_info
 from .cad_objects import (
     ImageFace,
     OCP_Edges,
@@ -35,11 +35,11 @@ from .defaults import (
     reset_defaults,
     set_defaults,
 )
-from ._kernel import prefer_nanocct
 from .ocp_utils import is_cadquery, occt_version
 from .utils import Color, warn
 
 __all__ = [
+    "Color",
     "ImageFace",
     "OCP_Edges",
     "OCP_Faces",
@@ -51,16 +51,15 @@ __all__ = [
     "create_args",
     "get_default",
     "get_defaults",
-    "reset_defaults",
-    "set_defaults",
     "is_cadquery",
     "occt_version",
-    "prefer_nanocct",
-    "Color",
-    "warn",
     "ot_version",
     "ot_version_info",
+    "prefer_nanocct",
+    "reset_defaults",
+    "set_defaults",
     "versions",
+    "warn",
 ]
 
 

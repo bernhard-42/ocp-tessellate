@@ -3,7 +3,9 @@
 import math
 
 import pytest
+from occt_binding import INSTALLED, occt, root
 
+from ocp_tessellate._kernel import binding_of
 from ocp_tessellate.ocp_utils import (
     angle_between,
     center_of_mass,
@@ -12,9 +14,6 @@ from ocp_tessellate.ocp_utils import (
     face_normal,
     get_faces,
 )
-from ocp_tessellate._kernel import binding_of
-
-from occt_binding import INSTALLED, occt, root
 
 
 def _pnt(b, *xyz):

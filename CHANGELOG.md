@@ -15,6 +15,8 @@
 
 **Changes**
 
+- `BoundingBox` raises `TypeError` instead of `ValueError` for an argument of the wrong type
+- The code passes ruff's default rules (`ruff check`, ruff 0.16); `pyproject.toml` only sets `combine-as-imports`. Two tests that were defined twice under one name, and so never ran, run again, and two cache tests tessellate a group with its own instances
 - `ocp_tessellate.ocp_utils` is a package now, grouped by topic (`compat`, `predicates`, `detect`, `topology`, `measure`, `geometry`, `location`, `bbox`, `serialize`, `color`). Every function, class and value of the former module is still importable from `ocp_tessellate.ocp_utils`, and the star import gives the same names, except the OCCT classes (see above), imported modules (`np`, `OCP`, ...) and third-party helpers
 - ocp_tessellate reaches OCCT through internal kernels (`ocp_tessellate._kernel`), the only places that import OCP or nanocct. Tessellation, bounding boxes and all other results are unchanged (compared bit for bit). Bounding boxes are read with `Bnd_Box.CornerMin()`/`CornerMax()` on every OCP version, which return the same values as the former `Get()` / `GetXMin()` branches
 

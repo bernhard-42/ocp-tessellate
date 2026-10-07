@@ -23,8 +23,6 @@ OCCT classes themselves are not exported: import them from the binding."""
 from __future__ import annotations
 
 # ruff: noqa: F401
-
-
 from ..types import (
     Build123dBuilder,
     Build123dGroupBy,
@@ -42,40 +40,19 @@ from ..types import (
     Wrapped,
 )
 from ..utils import Color, distance, type_name
+from .bbox import (
+    BoundingBox,
+    NumpyBBox,
+    bounding_box,
+    cache,
+    get_size,
+    make_key,
+    nested_bounding_box,
+    np_bbox,
+)
+from .color import get_rgba, is_ocp_color, ocp_color
 from .compat import (
     occt_version,
-)
-from .predicates import (
-    is_closed,
-    is_compound,
-    is_compsolid,
-    is_degenerated_edge,
-    is_degenerated_face,
-    is_edge,
-    is_empty_compound,
-    is_face,
-    is_forward,
-    is_gp_axis,
-    is_gp_plane,
-    is_gp_vec,
-    is_line,
-    is_location,
-    is_shape,
-    is_shell,
-    is_solid,
-    is_toploc_location,
-    is_topods_compound,
-    is_topods_compsolid,
-    is_topods_edge,
-    is_topods_face,
-    is_topods_shape,
-    is_topods_shell,
-    is_topods_solid,
-    is_topods_vertex,
-    is_topods_wire,
-    is_vertex,
-    is_wire,
-    is_wrapped,
 )
 from .detect import (
     is_build123d,
@@ -101,44 +78,6 @@ from .detect import (
     is_cadquery_sketch,
     is_massembly,
     is_vector,
-)
-from .topology import (
-    copy_shape,
-    copy_topods_shape,
-    downcast,
-    extent_or_size,
-    get_compound_type,
-    get_compounds,
-    get_curve,
-    get_downcasted_shape,
-    get_edge_type,
-    get_edges,
-    get_face_type,
-    get_faces,
-    get_solids,
-    get_surface,
-    get_tshape,
-    get_vertices,
-    get_wires,
-    is_mixed_compound,
-    list_topods_compound,
-    make_compound,
-    make_compsolid,
-    unroll_compound,
-    unroll_topods_compound,
-)
-from .measure import (
-    area,
-    center_of_geometry,
-    center_of_mass,
-    closest_directions,
-    dist_shapes,
-    end_points,
-    face_normal,
-    length,
-    position_at,
-    tangent_at,
-    volume,
 )
 from .geometry import (
     angle_between,
@@ -181,16 +120,80 @@ from .location import (
     rotate,
     tq_to_loc,
 )
-from .bbox import (
-    BoundingBox,
-    NumpyBBox,
-    bounding_box,
-    cache,
-    get_size,
-    make_key,
-    nested_bounding_box,
-    np_bbox,
+from .materials import (
+    ALPHA_MODES,
+    VisMaterialValues,
+    make_vis_material,
+    vis_material_values,
+)
+from .measure import (
+    area,
+    center_of_geometry,
+    center_of_mass,
+    closest_directions,
+    dist_shapes,
+    end_points,
+    face_normal,
+    length,
+    position_at,
+    tangent_at,
+    volume,
+)
+from .predicates import (
+    is_closed,
+    is_compound,
+    is_compsolid,
+    is_degenerated_edge,
+    is_degenerated_face,
+    is_edge,
+    is_empty_compound,
+    is_face,
+    is_forward,
+    is_gp_axis,
+    is_gp_plane,
+    is_gp_vec,
+    is_line,
+    is_location,
+    is_shape,
+    is_shell,
+    is_solid,
+    is_toploc_location,
+    is_topods_compound,
+    is_topods_compsolid,
+    is_topods_edge,
+    is_topods_face,
+    is_topods_shape,
+    is_topods_shell,
+    is_topods_solid,
+    is_topods_vertex,
+    is_topods_wire,
+    is_vertex,
+    is_wire,
+    is_wrapped,
 )
 from .serialize import deserialize, ocp_hash, serialize
-from .color import get_rgba, is_ocp_color, ocp_color
-from .materials import ALPHA_MODES, VisMaterialValues, make_vis_material, vis_material_values
+from .topology import (
+    copy_shape,
+    copy_topods_shape,
+    downcast,
+    extent_or_size,
+    get_compound_type,
+    get_compounds,
+    get_curve,
+    get_downcasted_shape,
+    get_edge_type,
+    get_edges,
+    get_face_type,
+    get_faces,
+    get_solids,
+    get_surface,
+    get_tshape,
+    get_vertices,
+    get_wires,
+    is_mixed_compound,
+    list_topods_compound,
+    make_compound,
+    make_compsolid,
+    unroll_compound,
+    unroll_topods_compound,
+)

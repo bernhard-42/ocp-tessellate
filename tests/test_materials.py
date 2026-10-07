@@ -3,12 +3,11 @@
 import importlib
 
 import pytest
+from occt_binding import INSTALLED, occt, root
 
 from ocp_tessellate import prefer_nanocct
-from ocp_tessellate.ocp_utils import ALPHA_MODES, make_vis_material, vis_material_values
 from ocp_tessellate._kernel import binding_of
-
-from occt_binding import INSTALLED, occt, root
+from ocp_tessellate.ocp_utils import ALPHA_MODES, make_vis_material, vis_material_values
 
 
 def _has_emissive(binding):
@@ -116,7 +115,15 @@ def test_unnamed_and_common_materials(binding):
 
 @pytest.mark.skipif(len(INSTALLED) < 2, reason="needs OCP and nanocct")
 def test_both_bindings_give_the_same_values():
-    kwargs = dict(color=(0.1, 0.6, 0.3), alpha=0.8, metallic=0.4, roughness=0.6, ior=1.6, alpha_mode="Blend", double_sided=True)
+    kwargs = {
+        "color": (0.1, 0.6, 0.3),
+        "alpha": 0.8,
+        "metallic": 0.4,
+        "roughness": 0.6,
+        "ior": 1.6,
+        "alpha_mode": "Blend",
+        "double_sided": True,
+    }
     ocp, nanocct = (vis_material_values(_make(b, "same", **kwargs)) for b in INSTALLED)
     for key in ocp:
         if key == "emissive":

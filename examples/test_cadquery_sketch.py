@@ -1,7 +1,8 @@
 # %%
-import cadquery as cq
-from ocp_viewer_core.viewer import show, set_defaults
 from pathlib import Path
+
+import cadquery as cq
+from ocp_viewer_core.viewer import set_defaults, show
 
 c = Path.cwd()
 set_defaults(axes=True, axes0=True)

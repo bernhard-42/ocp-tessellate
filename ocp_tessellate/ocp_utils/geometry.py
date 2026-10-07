@@ -22,11 +22,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from .._kernel import adapter, kernel, kernel_of, kernel_of_all
+
 if TYPE_CHECKING:
     from types import ModuleType
 
     from ..types import (
         Geom_Plane,
+        TopLoc_Location,
+        TopoDS_Edge,
+        TopoDS_Face,
+        TopoDS_Vertex,
+        TopoDS_Wire,
         gp_Ax1,
         gp_Ax3,
         gp_Dir,
@@ -34,25 +40,20 @@ if TYPE_CHECKING:
         gp_Pln,
         gp_Pnt,
         gp_Vec,
-        TopLoc_Location,
-        TopoDS_Edge,
-        TopoDS_Face,
-        TopoDS_Vertex,
-        TopoDS_Wire,
     )
 
+from .measure import area, length, tangent_at
 from .predicates import (
+    _is_geom_plane,
+    _is_gp_dir,
+    _is_gp_pnt,
     is_gp_plane,
     is_gp_vec,
     is_toploc_location,
     is_topods_edge,
     is_topods_face,
     is_topods_vertex,
-    _is_geom_plane,
-    _is_gp_dir,
-    _is_gp_pnt,
 )
-from .measure import area, length, tangent_at
 
 
 def normalized(v):

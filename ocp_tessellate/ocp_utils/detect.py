@@ -26,25 +26,25 @@ from typing_extensions import TypeIs
 
 if TYPE_CHECKING:
     from ..types import (
-        gp_Ax1,
-        gp_Pln,
         TopLoc_Location,
         TopoDS_Compound,
         TopoDS_Shape,
         TopoDS_Shell,
+        gp_Ax1,
+        gp_Pln,
     )
 
 from ..types import (
     Build123dBuilder,
+    Build123dGroupBy,
     Build123dLineBuilder,
+    Build123dLocationList,
     Build123dPartBuilder,
+    Build123dShape,
+    Build123dShapeList,
     Build123dSheetBuilder,
     Build123dSketchBuilder,
     Build123dVector,
-    Build123dGroupBy,
-    Build123dLocationList,
-    Build123dShape,
-    Build123dShapeList,
     CadqueryAssembly,
     CadquerySketch,
     CadqueryWorkplane,
@@ -63,7 +63,7 @@ from .predicates import (
 
 
 def _has(obj, attrs):
-    return all([hasattr(obj, a) for a in attrs])
+    return all(hasattr(obj, a) for a in attrs)
 
 
 def is_cadquery(obj) -> TypeIs[CadqueryWorkplane]:

@@ -1,61 +1,26 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Iterator, Protocol, Sequence, TypeAlias, TypeVar
+from collections.abc import Iterable, Iterator, Sequence
+from typing import (
+    TYPE_CHECKING,
+    Protocol,
+    TypeAlias,
+    TypeVar,
+)
+
+import numpy as np
+from numpy.typing import NDArray
 
 # On Python 3.10, NotRequired only works with typing_extensions' TypedDict,
 # so both must come from there until the floor is 3.11
 from typing_extensions import NotRequired, TypedDict
 
-import numpy as np
-from numpy.typing import NDArray
 from ocp_tessellate.utils import Color
 
 if TYPE_CHECKING:
     # The OCCT types of annotations: the class of either binding. ocp_tessellate
     # does not export OCCT names; these exist for the type checker only, and the
     # other modules import them from here under TYPE_CHECKING, too.
-    from OCP.BRepAdaptor import (
-        BRepAdaptor_Curve as _OCP_BRepAdaptor_Curve,
-        BRepAdaptor_Surface as _OCP_BRepAdaptor_Surface,
-    )
-    from OCP.BRepExtrema import (
-        BRepExtrema_DistShapeShape as _OCP_BRepExtrema_DistShapeShape,
-    )
-    from OCP.Geom import (
-        Geom_Plane as _OCP_Geom_Plane,
-    )
-    from OCP.gp import (
-        gp_Ax1 as _OCP_gp_Ax1,
-        gp_Ax3 as _OCP_gp_Ax3,
-        gp_Dir as _OCP_gp_Dir,
-        gp_Lin as _OCP_gp_Lin,
-        gp_Pln as _OCP_gp_Pln,
-        gp_Pnt as _OCP_gp_Pnt,
-        gp_Vec as _OCP_gp_Vec,
-    )
-    from OCP.Quantity import (
-        Quantity_ColorRGBA as _OCP_Quantity_ColorRGBA,
-    )
-    from OCP.TopLoc import (
-        TopLoc_Location as _OCP_TopLoc_Location,
-    )
-    from OCP.TopoDS import (
-        TopoDS_CompSolid as _OCP_TopoDS_CompSolid,
-        TopoDS_Compound as _OCP_TopoDS_Compound,
-        TopoDS_Edge as _OCP_TopoDS_Edge,
-        TopoDS_Face as _OCP_TopoDS_Face,
-        TopoDS_Shape as _OCP_TopoDS_Shape,
-        TopoDS_Shell as _OCP_TopoDS_Shell,
-        TopoDS_Solid as _OCP_TopoDS_Solid,
-        TopoDS_Vertex as _OCP_TopoDS_Vertex,
-        TopoDS_Wire as _OCP_TopoDS_Wire,
-    )
-    from OCP.XCAFDoc import (
-        XCAFDoc_ColorTool as _OCP_XCAFDoc_ColorTool,
-        XCAFDoc_ShapeTool as _OCP_XCAFDoc_ShapeTool,
-        XCAFDoc_VisMaterial as _OCP_XCAFDoc_VisMaterial,
-        XCAFDoc_VisMaterialPBR as _OCP_XCAFDoc_VisMaterialPBR,
-    )
     from nanocct.BRepAdaptor import (
         BRepAdaptor_Curve as _NC_BRepAdaptor_Curve,
         BRepAdaptor_Surface as _NC_BRepAdaptor_Surface,
@@ -82,8 +47,8 @@ if TYPE_CHECKING:
         TopLoc_Location as _NC_TopLoc_Location,
     )
     from nanocct.TopoDS import (
-        TopoDS_CompSolid as _NC_TopoDS_CompSolid,
         TopoDS_Compound as _NC_TopoDS_Compound,
+        TopoDS_CompSolid as _NC_TopoDS_CompSolid,
         TopoDS_Edge as _NC_TopoDS_Edge,
         TopoDS_Face as _NC_TopoDS_Face,
         TopoDS_Shape as _NC_TopoDS_Shape,
@@ -98,7 +63,51 @@ if TYPE_CHECKING:
         XCAFDoc_VisMaterial as _NC_XCAFDoc_VisMaterial,
         XCAFDoc_VisMaterialPBR as _NC_XCAFDoc_VisMaterialPBR,
     )
+    from OCP.BRepAdaptor import (
+        BRepAdaptor_Curve as _OCP_BRepAdaptor_Curve,
+        BRepAdaptor_Surface as _OCP_BRepAdaptor_Surface,
+    )
+    from OCP.BRepExtrema import (
+        BRepExtrema_DistShapeShape as _OCP_BRepExtrema_DistShapeShape,
+    )
+    from OCP.Geom import (
+        Geom_Plane as _OCP_Geom_Plane,
+    )
+    from OCP.gp import (
+        gp_Ax1 as _OCP_gp_Ax1,
+        gp_Ax3 as _OCP_gp_Ax3,
+        gp_Dir as _OCP_gp_Dir,
+        gp_Lin as _OCP_gp_Lin,
+        gp_Pln as _OCP_gp_Pln,
+        gp_Pnt as _OCP_gp_Pnt,
+        gp_Vec as _OCP_gp_Vec,
+    )
+    from OCP.Quantity import (
+        Quantity_ColorRGBA as _OCP_Quantity_ColorRGBA,
+    )
+    from OCP.TopLoc import (
+        TopLoc_Location as _OCP_TopLoc_Location,
+    )
+    from OCP.TopoDS import (
+        TopoDS_Compound as _OCP_TopoDS_Compound,
+        TopoDS_CompSolid as _OCP_TopoDS_CompSolid,
+        TopoDS_Edge as _OCP_TopoDS_Edge,
+        TopoDS_Face as _OCP_TopoDS_Face,
+        TopoDS_Shape as _OCP_TopoDS_Shape,
+        TopoDS_Shell as _OCP_TopoDS_Shell,
+        TopoDS_Solid as _OCP_TopoDS_Solid,
+        TopoDS_Vertex as _OCP_TopoDS_Vertex,
+        TopoDS_Wire as _OCP_TopoDS_Wire,
+    )
+    from OCP.XCAFDoc import (
+        XCAFDoc_ColorTool as _OCP_XCAFDoc_ColorTool,
+        XCAFDoc_ShapeTool as _OCP_XCAFDoc_ShapeTool,
+        XCAFDoc_VisMaterial as _OCP_XCAFDoc_VisMaterial,
+        XCAFDoc_VisMaterialPBR as _OCP_XCAFDoc_VisMaterialPBR,
+    )
 
+    # the aliases carry OCCT's class names, gp_Pnt and so on, not CamelCase ones
+    # ruff: noqa: PYI042
     BRepAdaptor_Curve: TypeAlias = _OCP_BRepAdaptor_Curve | _NC_BRepAdaptor_Curve
     BRepAdaptor_Surface: TypeAlias = _OCP_BRepAdaptor_Surface | _NC_BRepAdaptor_Surface
     BRepExtrema_DistShapeShape: TypeAlias = (
@@ -169,11 +178,11 @@ class Build123dShape(Wrapped["TopoDS_Shape"], Protocol):
     @property
     def label(self) -> str: ...
     @property
-    def color(self) -> "ColorLike | None": ...
+    def color(self) -> ColorLike | None: ...
     @property
-    def children(self) -> "Sequence[Build123dShape]": ...
-    def faces(self) -> "Iterable[Wrapped[TopoDS_Shape]]": ...
-    def edges(self) -> "Iterable[Wrapped[TopoDS_Shape]]": ...
+    def children(self) -> Sequence[Build123dShape]: ...
+    def faces(self) -> Iterable[Wrapped[TopoDS_Shape]]: ...
+    def edges(self) -> Iterable[Wrapped[TopoDS_Shape]]: ...
 
 
 class Build123dBuilder(Protocol):
@@ -192,9 +201,9 @@ class Build123dPartBuilder(Build123dBuilder, Protocol):
     access it with getattr."""
 
     @property
-    def part(self) -> "Build123dShape | None": ...
+    def part(self) -> Build123dShape | None: ...
     @property
-    def part_local(self) -> "Build123dShape | None": ...
+    def part_local(self) -> Build123dShape | None: ...
 
 
 class Build123dSheetBuilder(Build123dBuilder, Protocol):
@@ -204,9 +213,9 @@ class Build123dSheetBuilder(Build123dBuilder, Protocol):
     always readable, so test emptiness on it first."""
 
     @property
-    def sheet(self) -> "Build123dShape | None": ...
+    def sheet(self) -> Build123dShape | None: ...
     @property
-    def sheet_local(self) -> "Build123dShape": ...
+    def sheet_local(self) -> Build123dShape: ...
 
 
 class Build123dSketchBuilder(Build123dBuilder, Protocol):
@@ -214,9 +223,9 @@ class Build123dSketchBuilder(Build123dBuilder, Protocol):
     access it with getattr."""
 
     @property
-    def sketch(self) -> "Build123dShape | None": ...
+    def sketch(self) -> Build123dShape | None: ...
     @property
-    def sketch_local(self) -> "Build123dShape | None": ...
+    def sketch_local(self) -> Build123dShape | None: ...
 
 
 class Build123dLineBuilder(Build123dBuilder, Protocol):
@@ -224,9 +233,9 @@ class Build123dLineBuilder(Build123dBuilder, Protocol):
     access it with getattr."""
 
     @property
-    def line(self) -> "Build123dShape | None": ...
+    def line(self) -> Build123dShape | None: ...
     @property
-    def line_local(self) -> "Build123dShape | None": ...
+    def line_local(self) -> Build123dShape | None: ...
 
 
 class Build123dShapeList(Protocol):
@@ -261,12 +270,12 @@ class Build123dLocationList(Protocol):
     """A build123d LocationList context manager."""
 
     @property
-    def locations(self) -> "Sequence[Wrapped[TopLoc_Location]]": ...
+    def locations(self) -> Sequence[Wrapped[TopLoc_Location]]: ...
     def __enter__(self) -> object: ...
     def __exit__(
         self, exc_type: object, exc_value: object, traceback: object, /
     ) -> object: ...
-    def __iter__(self) -> "Iterator[Wrapped[TopLoc_Location]]": ...
+    def __iter__(self) -> Iterator[Wrapped[TopLoc_Location]]: ...
 
 
 class CadqueryPlane(Protocol):
@@ -280,13 +289,13 @@ class CadqueryWorkplane(Protocol):
     """A CadQuery Workplane: a context with a stack of objects."""
 
     @property
-    def objects(self) -> "Sequence[object]": ...
+    def objects(self) -> Sequence[object]: ...
     @property
     def ctx(self) -> object: ...
     @property
     def plane(self) -> CadqueryPlane: ...
     def val(self) -> object: ...
-    def vals(self) -> "Sequence[object]": ...
+    def vals(self) -> Sequence[object]: ...
 
 
 class CadqueryAssembly(Protocol):
@@ -299,11 +308,11 @@ class CadqueryAssembly(Protocol):
     @property
     def name(self) -> str: ...
     @property
-    def color(self) -> "ColorLike | None": ...
+    def color(self) -> ColorLike | None: ...
     @property
-    def parent(self) -> "CadqueryAssembly | None": ...
+    def parent(self) -> CadqueryAssembly | None: ...
     @property
-    def children(self) -> "Sequence[CadqueryAssembly]": ...
+    def children(self) -> Sequence[CadqueryAssembly]: ...
 
 
 class CadquerySketch(Protocol):
@@ -312,11 +321,11 @@ class CadquerySketch(Protocol):
     @property
     def _faces(self) -> object: ...
     @property
-    def _edges(self) -> "Iterable[object]": ...
+    def _edges(self) -> Iterable[object]: ...
     @property
-    def _selection(self) -> "Sequence[object] | None": ...
+    def _selection(self) -> Sequence[object] | None: ...
     @property
-    def locs(self) -> "Sequence[Wrapped[TopLoc_Location]]": ...
+    def locs(self) -> Sequence[Wrapped[TopLoc_Location]]: ...
 
 
 class Instance(TypedDict):

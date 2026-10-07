@@ -62,6 +62,10 @@ unused-ignore-comment = "ignore"
 
 # black settings
 
+[tool.ruff.lint.isort]
+# keep `from x import (a as b, c as d)` in one statement (types.py, the adapters)
+combine-as-imports = true
+
 [tool.black]
 target-version = ["py310", "py311", "py312", "py313"]
 line-length = 88
