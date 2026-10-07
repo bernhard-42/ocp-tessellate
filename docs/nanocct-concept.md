@@ -161,6 +161,19 @@ No signature changes: the first implementation added a keyword-only `use_nanocct
 
 They never meet (section 3.0): ocp_tessellate creates no locations of its own above the user's objects, a CAD object and its children share one binding, and containers get no location. `cad_objects.collect`, `ImageFace` and `convert` multiply with `mul_locations`, which raises `TypeError` for locations of two bindings. The first implementation of step 7 converted between bindings instead; an experiment (no locations of our own, a strict product) showed that only `ImageFace` and the conversion test itself depended on it, and mixed lists, dicts and nested containers gave the same results as with the conversion.
 
+### 3.7 The OCCT code of ocp-viewer-core
+
+ocp-viewer-core's `measure.py` and `materials.py` were its only modules that imported OCP. Their OCCT parts moved to ocp_tessellate, dual binding; the report wording of the measurements and the mapping to threejs-materials' `PbrProperties` stay in ocp-viewer-core, which imports no binding any more (nor do ocp_vscode, ocp_viewer and jupyter-cadquery), and ocp_tessellate gets no threejs-materials dependency.
+
+- `ocp_utils.face_normal(face)`: the normal at the center of the UV bounds (`BRepGProp_Face::Normal`, so it follows the orientation), None where it vanishes.
+- `ocp_utils.closest_directions(shape1, shape2)`: the tangent of an edge or the normal of a face at the closest points (first `BRepExtrema_DistShapeShape` solution), None where undefined, a TypeError for other shapes.
+- `ocp_utils.angle_between(v1, v2)`: `gp_Dir::Angle` of two gp_Dir, gp_Vec or tuples.
+- `ocp_utils.vis_material_values(vis)` / `make_vis_material(name, ...)`: an `XCAFDoc_VisMaterial` as plain values (`VisMaterialValues`: name, sRGB color, alpha, metallic, roughness, ior, linear emissive, alpha mode as one of `ALPHA_MODES`, alpha cutoff, double-sidedness) and back; `make_vis_material` gets no OCCT object and builds in `kernel()`.
+- The adapters gained `par_on_edge` (`ParOnEdgeS1/S2` returns a 1-tuple in OCP and a float in nanocct; the only difference among the measurement calls, probed in nanocct8-ocp8) and `emissive_of` / `set_emissive`: the emissive factor is a `gp_Vec3f` in OCP 7.9, not bound in OCP 8, and an `NCollection_Vec3<float>` in nanocct. So emissive now survives a round trip on nanocct, too.
+- `get_center` of ocp-viewer-core returns coordinates instead of a vertex: a vertex built from `center_of_mass`'s tuple would be in the default binding, not in the shape's, and with both bindings installed the distance of two nanocct centers failed with mixed bindings. The center distance is computed from the coordinates; on all 9 recorded cases it equals BRepExtrema's to the bit.
+- Checked against the old code: 128 results (properties of 17 shapes covering every reported edge and face type, distances and angles of 10 pairs with and without centers, 12 material round trips) are identical on OCP 7.9 and 8.0, except the 3 that raised before (`get_center` of two compounds and a center distance between them, see below), which now give the volume-weighted centers; with nanocct shapes (nanocct8-ocp8) all 128 equal the OCP 8 results to the bit, and with nanocct only all but the 4 emissive round trips, which nanocct keeps. ocp-viewer-core's suite runs in all four venvs (85 passed; on OCP 8, and with both bindings installed where OCP is the default, the 2 emissive tests skip instead of failing), and ocp_vscode's 81 measurement tests pass with nanocct shapes.
+- Found on the way and fixed: `get_center` raised `UnboundLocalError` for wires, shells, compsolids and compounds (only "Solid" was handled; `get_shape_type` did not know wires and shells), so a center distance between two build123d parts, which are compounds, failed. And `center_of_mass` used volume properties for everything but a face, so vertices, edges and compounds of faces, edges or vertices came out at the origin; it now measures by the highest dimension (volume, area, length, else the mean of the vertices). Solids, faces and compounds of solids give the same values as before; `tests/test_measure.py` checks the others, an arc against its closed-form centroid.
+
 ## 4. Tessellator
 
 ### 4.1 Removed
@@ -218,7 +231,7 @@ Before any change, a test records for `ocp_tessellate`, `ocp_utils`, `convert`, 
 - `dir(module)`
 - `inspect.signature` of every public callable
 
-Afterwards the only allowed differences are the deliberate removals of section 7, the OCCT names (section 3.0) and the deliberate addition `ocp_tessellate.prefer_nanocct` (`DELIBERATE_ADDITIONS`; it is defined in `_kernel`, so `KERNEL_API` makes the test describe it although it ignores `_kernel` otherwise). Signatures must match the snapshot exactly.
+Afterwards the only allowed differences are the deliberate removals of section 7, the OCCT names (section 3.0) the helpers of section 3.7 in `ocp_utils` and, by star import, `convert`, and the deliberate addition `ocp_tessellate.prefer_nanocct` (`DELIBERATE_ADDITIONS`; it is defined in `_kernel`, so `KERNEL_API` makes the test describe it although it ignores `_kernel` otherwise). Signatures must match the snapshot exactly.
 
 ## 7. Deliberate removals and downstream changes
 
@@ -351,6 +364,6 @@ Each step is its own commit; each commit waits for an explicit go.
 ## 10. Open points
 
 - Release versions and pins of ocp-viewer-core, ocp_vscode and ocp_viewer (constraints in 7.5).
-- ocp-viewer-core and the viewers still import OCP themselves (e.g. ocp-viewer-core's selectors, measure and materials); a nanocct-only environment needs them to go through ocp_tessellate or a kernel of their own. Not part of this concept yet.
+- ocp-viewer-core and the viewers import no binding any more (section 3.7).
 - A nanocct pin in ocp-tessellate's `pyproject.toml` (like OCP, nanocct is not a declared dependency today).
 - Linux and Windows: coexistence of OCP and nanocct in one process is only verified on macOS; CI on Linux would settle it.

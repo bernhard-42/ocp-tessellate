@@ -18,6 +18,9 @@ if TYPE_CHECKING:
         BRepAdaptor_Curve as _OCP_BRepAdaptor_Curve,
         BRepAdaptor_Surface as _OCP_BRepAdaptor_Surface,
     )
+    from OCP.BRepExtrema import (
+        BRepExtrema_DistShapeShape as _OCP_BRepExtrema_DistShapeShape,
+    )
     from OCP.Geom import (
         Geom_Plane as _OCP_Geom_Plane,
     )
@@ -50,10 +53,15 @@ if TYPE_CHECKING:
     from OCP.XCAFDoc import (
         XCAFDoc_ColorTool as _OCP_XCAFDoc_ColorTool,
         XCAFDoc_ShapeTool as _OCP_XCAFDoc_ShapeTool,
+        XCAFDoc_VisMaterial as _OCP_XCAFDoc_VisMaterial,
+        XCAFDoc_VisMaterialPBR as _OCP_XCAFDoc_VisMaterialPBR,
     )
     from nanocct.BRepAdaptor import (
         BRepAdaptor_Curve as _NC_BRepAdaptor_Curve,
         BRepAdaptor_Surface as _NC_BRepAdaptor_Surface,
+    )
+    from nanocct.BRepExtrema import (
+        BRepExtrema_DistShapeShape as _NC_BRepExtrema_DistShapeShape,
     )
     from nanocct.Geom import (
         Geom_Plane as _NC_Geom_Plane,
@@ -87,10 +95,15 @@ if TYPE_CHECKING:
     from nanocct.XCAFDoc import (
         XCAFDoc_ColorTool as _NC_XCAFDoc_ColorTool,
         XCAFDoc_ShapeTool as _NC_XCAFDoc_ShapeTool,
+        XCAFDoc_VisMaterial as _NC_XCAFDoc_VisMaterial,
+        XCAFDoc_VisMaterialPBR as _NC_XCAFDoc_VisMaterialPBR,
     )
 
     BRepAdaptor_Curve: TypeAlias = _OCP_BRepAdaptor_Curve | _NC_BRepAdaptor_Curve
     BRepAdaptor_Surface: TypeAlias = _OCP_BRepAdaptor_Surface | _NC_BRepAdaptor_Surface
+    BRepExtrema_DistShapeShape: TypeAlias = (
+        _OCP_BRepExtrema_DistShapeShape | _NC_BRepExtrema_DistShapeShape
+    )
     Geom_Plane: TypeAlias = _OCP_Geom_Plane | _NC_Geom_Plane
     Quantity_ColorRGBA: TypeAlias = _OCP_Quantity_ColorRGBA | _NC_Quantity_ColorRGBA
     TopLoc_Location: TypeAlias = _OCP_TopLoc_Location | _NC_TopLoc_Location
@@ -105,6 +118,8 @@ if TYPE_CHECKING:
     TopoDS_Wire: TypeAlias = _OCP_TopoDS_Wire | _NC_TopoDS_Wire
     XCAFDoc_ColorTool: TypeAlias = _OCP_XCAFDoc_ColorTool | _NC_XCAFDoc_ColorTool
     XCAFDoc_ShapeTool: TypeAlias = _OCP_XCAFDoc_ShapeTool | _NC_XCAFDoc_ShapeTool
+    XCAFDoc_VisMaterial: TypeAlias = _OCP_XCAFDoc_VisMaterial | _NC_XCAFDoc_VisMaterial
+    XCAFDoc_VisMaterialPBR: TypeAlias = _OCP_XCAFDoc_VisMaterialPBR | _NC_XCAFDoc_VisMaterialPBR
     gp_Ax1: TypeAlias = _OCP_gp_Ax1 | _NC_gp_Ax1
     gp_Ax3: TypeAlias = _OCP_gp_Ax3 | _NC_gp_Ax3
     gp_Dir: TypeAlias = _OCP_gp_Dir | _NC_gp_Dir

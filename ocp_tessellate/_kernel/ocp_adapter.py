@@ -21,7 +21,8 @@ Everything that is the same in both bindings the code reaches through the
 binding itself (`k.gp.gp_Pnt`, see `__init__.py`). This module holds only what
 differs between OCP versions and between OCP and nanocct: the TopoDS downcasts,
 the TopTools map and TDF label sequence classes, the shape hash, the
-out-parameter and stream conventions, and the tessellation loops.
+out-parameter and stream conventions, the emissive factor of PBR materials,
+and the tessellation loops.
 `nanocct_adapter.py` provides the same names (tests/test_kernel.py).
 """
 
@@ -61,6 +62,16 @@ else:
         IndexedMap_TopoDS_Shape_TopTools_ShapeMapHasher as TopTools_IndexedMapOfShape,
         Sequence_TDF_Label as TDF_LabelSequence,
     )
+
+# the emissive factor of a PBR material: a gp_Vec3f in OCP 7.9, not bound in
+# OCP 8 (neither gp_Vec3f nor XCAFDoc_VisMaterialPBR.EmissiveFactor)
+try:
+    # OCP's stubs do not list gp_Vec3f, OCP 7.9 binds it (probed at runtime here)
+    from OCP.gp import gp_Vec3f  # ty: ignore[unresolved-import]
+except ImportError:
+    _HAS_EMISSIVE = False
+else:
+    _HAS_EMISSIVE = True
 
 if TYPE_CHECKING:
     from ..tessellator import Tessellator
@@ -136,6 +147,30 @@ def bin_write(shape: TopoDS_Shape, triangles: bool, normals: bool) -> bytes:
     bio = io.BytesIO()
     BinTools.Write_s(shape, bio, triangles, normals, BinTools_FormatVersion_CURRENT)
     return bio.getvalue()
+
+
+def par_on_edge(extrema, solution: int, shape_index: int) -> float:
+    """The edge parameter of an extrema solution, BRepExtrema_DistShapeShape::ParOnEdgeS1/S2(N, t)."""
+    if shape_index == 1:
+        (t,) = extrema.ParOnEdgeS1(solution)
+    else:
+        (t,) = extrema.ParOnEdgeS2(solution)
+    return t
+
+
+def emissive_of(pbr) -> tuple[float, float, float] | None:
+    """XCAFDoc_VisMaterialPBR::EmissiveFactor as linear RGB, None where OCP does not bind it."""
+    if _HAS_EMISSIVE is False:
+        return None
+    factor = pbr.EmissiveFactor
+    return (factor.r(), factor.g(), factor.b())
+
+
+def set_emissive(pbr, rgb: tuple[float, float, float]) -> None:
+    """Set XCAFDoc_VisMaterialPBR::EmissiveFactor; nothing is set where OCP does not bind it."""
+    if _HAS_EMISSIVE is False:
+        return
+    pbr.EmissiveFactor = gp_Vec3f(*rgb)
 
 
 #

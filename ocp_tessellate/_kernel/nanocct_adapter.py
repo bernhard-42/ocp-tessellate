@@ -21,8 +21,9 @@ The counterpart of `ocp_adapter.py`, with the same names (tests/test_kernel.py).
 OCCT 8 1:1, so the differences to OCP are calling conventions: OCCT's
 namespace functions are module functions (`TopoDS.Face`), out-parameters are
 returned (`BRep_Tool.Curve_s`), output streams are returned
-(`BinTools.Write_s`), `Coord()` returns a gp_XYZ, and the NCollection
-templates are generic classes. The tessellation loops run on zero-copy numpy
+(`BinTools.Write_s`, `ParOnEdgeS1`), `Coord()` returns a gp_XYZ, the
+NCollection templates are generic classes, and the emissive factor of PBR
+materials is an `NCollection_Vec3<float>`. The tessellation loops run on zero-copy numpy
 views of the triangulation and on nanocct's C++ helpers (nanocct.AddOns).
 """
 
@@ -53,6 +54,7 @@ from nanocct.TopAbs import (
 from nanocct.TopLoc import TopLoc_Location
 from nanocct.TopoDS import TopoDS_Edge, TopoDS_Face, TopoDS_Shape
 from nanocct.gp import gp_TrsfForm
+from nanocct.Quantity import NCollection_Vec3__float
 from nanocct.NCollection import (
     NCollection_IndexedDataMap,
     NCollection_IndexedMap,
@@ -126,6 +128,25 @@ def curve_of(edge: TopoDS_Edge, loc: TopLoc_Location):
 def bin_write(shape: TopoDS_Shape, triangles: bool, normals: bool) -> bytes:
     """The shape in OCCT's binary BRep format, written to memory."""
     return BinTools.Write_s(shape, triangles, normals, BinTools_FormatVersion_CURRENT)
+
+
+def par_on_edge(extrema, solution: int, shape_index: int) -> float:
+    """The edge parameter of an extrema solution, BRepExtrema_DistShapeShape::ParOnEdgeS1/S2(N, t)."""
+    # the out-parameter t is returned as a float, not as a 1-tuple
+    if shape_index == 1:
+        return extrema.ParOnEdgeS1(solution)
+    return extrema.ParOnEdgeS2(solution)
+
+
+def emissive_of(pbr) -> tuple[float, float, float] | None:
+    """XCAFDoc_VisMaterialPBR::EmissiveFactor as linear RGB."""
+    factor = pbr.EmissiveFactor
+    return (factor.r(), factor.g(), factor.b())
+
+
+def set_emissive(pbr, rgb: tuple[float, float, float]) -> None:
+    """Set XCAFDoc_VisMaterialPBR::EmissiveFactor (an NCollection_Vec3<float>)."""
+    pbr.EmissiveFactor = NCollection_Vec3__float(*rgb)
 
 
 #

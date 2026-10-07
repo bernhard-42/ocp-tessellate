@@ -72,9 +72,22 @@ DELIBERATE_REMOVALS: dict[str, set[str]] = {
 }
 
 # names added on purpose since the snapshot was taken, see docs/nanocct-concept.md
+# the OCCT side of ocp-viewer-core's measurements and materials, dual binding
+# (4.0.0); convert has them by star import
+_VIEWER_HELPERS = {
+    "angle_between",
+    "closest_directions",
+    "face_normal",
+    "make_vis_material",
+    "vis_material_values",
+    "ALPHA_MODES",
+    "VisMaterialValues",
+}
 DELIBERATE_ADDITIONS: dict[str, set[str]] = {
     # the process-wide binding setting (4.0.0)
     "ocp_tessellate": {"prefer_nanocct"},
+    "ocp_tessellate.ocp_utils": _VIEWER_HELPERS,
+    "ocp_tessellate.convert": _VIEWER_HELPERS,
 }
 
 # public names that ocp_tessellate._kernel defines: the setting lives there

@@ -23,6 +23,8 @@ from typing import TYPE_CHECKING
 
 from .._kernel import adapter, kernel, kernel_of, kernel_of_all
 if TYPE_CHECKING:
+    from types import ModuleType
+
     from ..types import (
         Geom_Plane,
         gp_Ax1,
@@ -67,6 +69,21 @@ def cross(v1, v2):
     z = (v2 if is_gp_vec(v2) else k.gp.gp_Vec(*v2)).Normalized()
     y = x.Crossed(z).Normalized()
     return adapter(k).coord(y)
+
+
+def angle_between(v1, v2) -> float:
+    """The angle between two directions in radians (gp_Dir::Angle), each a
+    gp_Dir, a gp_Vec or (x, y, z)."""
+    k = kernel_of_all((v1, v2))
+    return _as_dir(k, v1).Angle(_as_dir(k, v2))
+
+
+def _as_dir(k: ModuleType, v) -> gp_Dir:
+    if _is_gp_dir(v):
+        return v
+    if is_gp_vec(v):
+        return k.gp.gp_Dir(v)
+    return k.gp.gp_Dir(*v)
 
 
 def get_point(vertex_or_pnt: TopoDS_Vertex | gp_Pnt) -> tuple[float, float, float]:

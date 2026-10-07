@@ -131,14 +131,17 @@ from .measure import (
     area,
     center_of_geometry,
     center_of_mass,
+    closest_directions,
     dist_shapes,
     end_points,
+    face_normal,
     length,
     position_at,
     tangent_at,
     volume,
 )
 from .geometry import (
+    angle_between,
     axis,
     axis_to_line,
     circle,
@@ -190,3 +193,4 @@ from .bbox import (
 )
 from .serialize import deserialize, ocp_hash, serialize
 from .color import get_rgba, is_ocp_color, ocp_color
+from .materials import ALPHA_MODES, VisMaterialValues, make_vis_material, vis_material_values

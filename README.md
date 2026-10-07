@@ -84,6 +84,18 @@ Inputs are walked recursively. The resulting tree mirrors the input structure:
 - build123d (current)
 - CadQuery 2.x
 
+## Test coverage
+
+The suite runs in each of the three installations, OCP only, nanocct only and both, and what it skips depends on the installation, not on failures:
+
+- OCP only (OCP 7.9 or 8.0) and nanocct only: every test that needs both bindings in one process is skipped - the equivalence of the two kernels on the same mesh (`tests/test_binding_equivalence.py`), objects of two bindings combined or kept apart, mixed scenes, locations of two bindings (`tests/test_kernel.py`), and the comparisons of both bindings' measurements and materials (`tests/test_measure.py`, `tests/test_materials.py`).
+- Both installed: nothing is skipped. Tests of ocp_tessellate's dispatch run once per installed binding, so this installation runs the most tests.
+- OCP 7.9 with build123d 0.12.0 also skips the BuildSheet tests (BuildSheet exists only in later build123d versions).
+- `tests/test_cadquery.py` and `tests/test_color.py` import CadQuery: where CadQuery is not installed (as in a nanocct-only environment without a CadQuery port) they cannot be collected and are left out with `--ignore`.
+- The emissive factor of materials exists in OCP 7.9 and nanocct but not in OCP 8; `tests/test_materials.py` checks that it reads as None there instead of skipping.
+
+The emissive difference also shows downstream: ocp-viewer-core's two emissive tests skip where the default binding is OCP 8, including an installation of both bindings without `prefer_nanocct(True)`.
+
 ## License
 
 Apache 2.0. See [LICENSE](LICENSE).
