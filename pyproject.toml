@@ -49,6 +49,12 @@ dev = ["questionary~=1.10.0", "bump-my-version", "black", "twine", "pytest"]
 
 # ty settings
 
+[tool.ty.analysis]
+# nanocct is optional: the nanocct kernel (ocp_tessellate/_kernel/nanocct.py)
+# is type checked where it is installed, and its imports are allowed to be
+# unresolved where it is not
+allowed-unresolved-imports = ["nanocct", "nanocct.**"]
+
 [tool.ty.rules]
 # suppressions for optional imports (cadquery) are unused in the
 # dev environment where everything is installed - do not fail on them

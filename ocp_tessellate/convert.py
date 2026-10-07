@@ -1,11 +1,12 @@
+from __future__ import annotations
+
 import enum
 from hashlib import sha256
-from typing import Dict, Iterable, List, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Iterable, List, Sequence, Tuple, Union
 
 import json
 import numpy as np
 
-from ocp_tessellate._kernel import ANY
 from ocp_tessellate.cad_objects import (
     CoordAxis,
     CoordSystem,
@@ -37,6 +38,15 @@ from ocp_tessellate.types import (
 )
 from ocp_tessellate.utils import *
 
+if TYPE_CHECKING:
+    from .types import (
+        gp_Ax1,
+        gp_Pln,
+        TopLoc_Location,
+        TopoDS_Compound,
+        TopoDS_Shape,
+    )
+
 LINE_WIDTH = 2
 POINT_SIZE = 6
 
@@ -55,8 +65,6 @@ def _default_or(value, fallback):
 # ocp_tessellate does not import build123d or CadQuery, so their objects
 # are described structurally.
 
-# build123d and CadQuery compounds
-Compound = Wrapped[TopoDS_Compound]
 # CadQuery Workplane
 Workplane = CadqueryWorkplane
 # CadQuery assemblies
@@ -67,15 +75,19 @@ ShapeList = Build123dShapeList
 LocationList = Build123dLocationList
 # build123d Builder Objects
 BuilderObject = Build123dBuilder
-# build123d or CadQuery Locations or Planes, raw or wrapped
-LocationLike = Union[
-    TopLoc_Location, gp_Pln, Wrapped[TopLoc_Location], Wrapped[gp_Pln], None
-]
-# build123d Axis
-Axis = Wrapped[gp_Ax1]
-# can be build123d or CadQuery shapes
-ShapeLike = Union[TopoDS_Shape, Wrapped[TopoDS_Shape]]
-CompoundLike = Union[TopoDS_Compound, Wrapped[TopoDS_Compound]]
+
+if TYPE_CHECKING:
+    # build123d and CadQuery compounds
+    Compound = Wrapped[TopoDS_Compound]
+    # build123d or CadQuery Locations or Planes, raw or wrapped
+    LocationLike = Union[
+        TopLoc_Location, gp_Pln, Wrapped[TopLoc_Location], Wrapped[gp_Pln], None
+    ]
+    # build123d Axis
+    Axis = Wrapped[gp_Ax1]
+    # can be build123d or CadQuery shapes
+    ShapeLike = Union[TopoDS_Shape, Wrapped[TopoDS_Shape]]
+    CompoundLike = Union[TopoDS_Compound, Wrapped[TopoDS_Compound]]
 
 
 class Progress:
@@ -163,14 +175,14 @@ def unwrap(
 
     @return: The unwrapped object or list of objects
     """
-    if isinstance(obj, ANY.TopoDS_Shape):
+    if is_topods_shape(obj):
         return obj
     if not isinstance(obj, (list, tuple)):
         return obj.wrapped
 
     result: List[TopoDS_Shape] = []
     for x in list(obj):
-        if isinstance(x, ANY.TopoDS_Shape):
+        if is_topods_shape(x):
             result.append(x)
         elif is_vector(x):
             result.append(vertex((x.X, x.Y, x.Z)))
@@ -185,11 +197,11 @@ def unwrap(
 
 
 def _to_topods(o: object) -> TopoDS_Shape:
-    if isinstance(o, ANY.TopoDS_Shape):
+    if is_topods_shape(o):
         return o
     assert is_wrapped(o), f"expected a shape, got {o}"
     w = o.wrapped
-    assert isinstance(w, ANY.TopoDS_Shape), f"expected a wrapped shape, got {w}"
+    assert is_topods_shape(w), f"expected a wrapped shape, got {w}"
     return w
 
 
@@ -404,7 +416,7 @@ class OcpConverter:
             # an empty input produces so names/colors stay aligned
             return self.handle_empty_iterables(name, 0)
 
-        if isinstance(ocp_obj, ANY.TopoDS_Shape):
+        if is_topods_shape(ocp_obj):
             first = ocp_obj
         else:
             first = ocp_obj[0]
@@ -414,7 +426,7 @@ class OcpConverter:
 
         if kind in ("solid", "face", "shell"):
             # solid/face/shell kinds always unify into a single shape
-            assert isinstance(ocp_obj, ANY.TopoDS_Shape), f"not unified: {ocp_obj}"
+            assert is_topods_shape(ocp_obj), f"not unified: {ocp_obj}"
             cache_id = create_cache_id(ocp_obj)
             ref, loc = self.get_instance(ocp_obj, cache_id, name)
             ocp_object = OcpObject(
@@ -823,7 +835,7 @@ class OcpConverter:
                         if mate_def.assembly == cad_obj
                     ],
                     name=f"{cad_obj.name}_mates",
-                    loc=identity_location(),  # mates inherit the parent location, so actually add a no-op
+                    loc=None,  # mates inherit the parent location
                 )
                 if len(mates.objects) > 0:
                     ocp_obj.add(mates)
@@ -925,7 +937,7 @@ class OcpConverter:
         # unwrap everything else
         else:
             unwrapped = unwrap(cad_obj)
-            assert not isinstance(unwrapped, ANY.TopoDS_Shape), (
+            assert not is_topods_shape(unwrapped), (
                 "a list input unwraps to a list"
             )
             objs = unwrapped
@@ -1535,7 +1547,7 @@ class OcpConverter:
         """
         self._debug(level, "build123d Axis", obj_name)
 
-        if isinstance(cad_obj, ANY.gp_Ax1):
+        if is_gp_axis(cad_obj):
             axis = cad_obj
         else:
             axis = cad_obj.wrapped
@@ -1568,7 +1580,7 @@ class OcpConverter:
             ref, loc = self.get_instance(
                 cad_obj.objs[0], create_cache_id(cad_obj.objs[0]), name
             )
-            ocp_obj.loc = cad_obj.loc * loc
+            ocp_obj.loc = mul_locations(cad_obj.loc, loc)
             ocp_obj.ref = ref
             ocp_obj.obj = None
         return ocp_obj
@@ -1636,9 +1648,9 @@ class OcpConverter:
 
         @return: The OcpObject or OcpGroup hierarchy
         """
-        if loc is None:
-            loc = identity_location()
-        # ensures group.can_be_cleaned_up works
+        # no location of our own when none is given: None is the identity
+        # (can_be_cleaned_up, collect), and a location created here would be of
+        # one binding while the objects can be of the other
         group = OcpGroup(name=None, loc=loc)
 
         # ============================= Validate parameters ============================= #

@@ -2,7 +2,7 @@
 
 Tessellate [OCP](https://github.com/cadquery/OCP) (Python bindings for OpenCascade) shapes into a JSON-friendly format suitable for [three-cad-viewer](https://github.com/bernhard-42/three-cad-viewer) and downstream tooling such as [ocp_vscode](https://github.com/bernhard-42/vscode-ocp-cad-viewer).
 
-It accepts geometry from [CadQuery](https://github.com/CadQuery/cadquery), [build123d](https://github.com/gumyr/build123d), and raw OCP `TopoDS_*` shapes, walks the structure, computes triangulations / discretized edges, and emits a hierarchical group of meshed instances.
+It accepts geometry from [CadQuery](https://github.com/CadQuery/cadquery), [build123d](https://github.com/gumyr/build123d), and raw `TopoDS_*` shapes of [OCP](https://github.com/cadquery/OCP) or [nanocct](https://github.com/bernhard-42/nanocct), walks the structure, computes triangulations / discretized edges, and emits a hierarchical group of meshed instances.
 
 ## Installation
 
@@ -10,7 +10,9 @@ It accepts geometry from [CadQuery](https://github.com/CadQuery/cadquery), [buil
 pip install ocp-tessellate
 ```
 
-Requires Python 3.10+ and OCP 7.8, 7.9 or 8.0.
+Requires Python 3.10+ and OCP 7.8, 7.9 or 8.0, or nanocct 8.0.1, or both.
+
+OCP and nanocct objects are each handled with their own binding, also side by side in one scene. Where no OCCT object decides - functions given only tuples, `deserialize`, `StepReader`, ... - ocp_tessellate uses OCP, or nanocct if it is the only binding installed. With both installed, `ocp_tessellate.prefer_nanocct(True)` switches this default to nanocct for the whole process.
 
 ## Quick start
 
@@ -78,6 +80,7 @@ Inputs are walked recursively. The resulting tree mirrors the input structure:
 
 - Python 3.10+
 - OCP 7.8, 7.9 and 8.0
+- nanocct 8.0.1
 - build123d (current)
 - CadQuery 2.x
 

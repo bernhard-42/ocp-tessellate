@@ -1,4 +1,6 @@
-from typing import Iterable, Iterator, Protocol, Sequence, TypeVar
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Iterable, Iterator, Protocol, Sequence, TypeAlias, TypeVar
 
 # On Python 3.10, NotRequired only works with typing_extensions' TypedDict,
 # so both must come from there until the floor is 3.11
@@ -6,16 +8,110 @@ from typing_extensions import NotRequired, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
-from ._kernel.default import (
-    gp_Vec,
-    TopLoc_Location,
-    TopoDS_Edge,
-    TopoDS_Face,
-    TopoDS_Shape,
-    TopoDS_Vertex,
-)
-
 from ocp_tessellate.utils import Color
+
+if TYPE_CHECKING:
+    # The OCCT types of annotations: the class of either binding. ocp_tessellate
+    # does not export OCCT names; these exist for the type checker only, and the
+    # other modules import them from here under TYPE_CHECKING, too.
+    from OCP.BRepAdaptor import (
+        BRepAdaptor_Curve as _OCP_BRepAdaptor_Curve,
+        BRepAdaptor_Surface as _OCP_BRepAdaptor_Surface,
+    )
+    from OCP.Geom import (
+        Geom_Plane as _OCP_Geom_Plane,
+    )
+    from OCP.gp import (
+        gp_Ax1 as _OCP_gp_Ax1,
+        gp_Ax3 as _OCP_gp_Ax3,
+        gp_Dir as _OCP_gp_Dir,
+        gp_Lin as _OCP_gp_Lin,
+        gp_Pln as _OCP_gp_Pln,
+        gp_Pnt as _OCP_gp_Pnt,
+        gp_Vec as _OCP_gp_Vec,
+    )
+    from OCP.Quantity import (
+        Quantity_ColorRGBA as _OCP_Quantity_ColorRGBA,
+    )
+    from OCP.TopLoc import (
+        TopLoc_Location as _OCP_TopLoc_Location,
+    )
+    from OCP.TopoDS import (
+        TopoDS_CompSolid as _OCP_TopoDS_CompSolid,
+        TopoDS_Compound as _OCP_TopoDS_Compound,
+        TopoDS_Edge as _OCP_TopoDS_Edge,
+        TopoDS_Face as _OCP_TopoDS_Face,
+        TopoDS_Shape as _OCP_TopoDS_Shape,
+        TopoDS_Shell as _OCP_TopoDS_Shell,
+        TopoDS_Solid as _OCP_TopoDS_Solid,
+        TopoDS_Vertex as _OCP_TopoDS_Vertex,
+        TopoDS_Wire as _OCP_TopoDS_Wire,
+    )
+    from OCP.XCAFDoc import (
+        XCAFDoc_ColorTool as _OCP_XCAFDoc_ColorTool,
+        XCAFDoc_ShapeTool as _OCP_XCAFDoc_ShapeTool,
+    )
+    from nanocct.BRepAdaptor import (
+        BRepAdaptor_Curve as _NC_BRepAdaptor_Curve,
+        BRepAdaptor_Surface as _NC_BRepAdaptor_Surface,
+    )
+    from nanocct.Geom import (
+        Geom_Plane as _NC_Geom_Plane,
+    )
+    from nanocct.gp import (
+        gp_Ax1 as _NC_gp_Ax1,
+        gp_Ax3 as _NC_gp_Ax3,
+        gp_Dir as _NC_gp_Dir,
+        gp_Lin as _NC_gp_Lin,
+        gp_Pln as _NC_gp_Pln,
+        gp_Pnt as _NC_gp_Pnt,
+        gp_Vec as _NC_gp_Vec,
+    )
+    from nanocct.Quantity import (
+        Quantity_ColorRGBA as _NC_Quantity_ColorRGBA,
+    )
+    from nanocct.TopLoc import (
+        TopLoc_Location as _NC_TopLoc_Location,
+    )
+    from nanocct.TopoDS import (
+        TopoDS_CompSolid as _NC_TopoDS_CompSolid,
+        TopoDS_Compound as _NC_TopoDS_Compound,
+        TopoDS_Edge as _NC_TopoDS_Edge,
+        TopoDS_Face as _NC_TopoDS_Face,
+        TopoDS_Shape as _NC_TopoDS_Shape,
+        TopoDS_Shell as _NC_TopoDS_Shell,
+        TopoDS_Solid as _NC_TopoDS_Solid,
+        TopoDS_Vertex as _NC_TopoDS_Vertex,
+        TopoDS_Wire as _NC_TopoDS_Wire,
+    )
+    from nanocct.XCAFDoc import (
+        XCAFDoc_ColorTool as _NC_XCAFDoc_ColorTool,
+        XCAFDoc_ShapeTool as _NC_XCAFDoc_ShapeTool,
+    )
+
+    BRepAdaptor_Curve: TypeAlias = _OCP_BRepAdaptor_Curve | _NC_BRepAdaptor_Curve
+    BRepAdaptor_Surface: TypeAlias = _OCP_BRepAdaptor_Surface | _NC_BRepAdaptor_Surface
+    Geom_Plane: TypeAlias = _OCP_Geom_Plane | _NC_Geom_Plane
+    Quantity_ColorRGBA: TypeAlias = _OCP_Quantity_ColorRGBA | _NC_Quantity_ColorRGBA
+    TopLoc_Location: TypeAlias = _OCP_TopLoc_Location | _NC_TopLoc_Location
+    TopoDS_CompSolid: TypeAlias = _OCP_TopoDS_CompSolid | _NC_TopoDS_CompSolid
+    TopoDS_Compound: TypeAlias = _OCP_TopoDS_Compound | _NC_TopoDS_Compound
+    TopoDS_Edge: TypeAlias = _OCP_TopoDS_Edge | _NC_TopoDS_Edge
+    TopoDS_Face: TypeAlias = _OCP_TopoDS_Face | _NC_TopoDS_Face
+    TopoDS_Shape: TypeAlias = _OCP_TopoDS_Shape | _NC_TopoDS_Shape
+    TopoDS_Shell: TypeAlias = _OCP_TopoDS_Shell | _NC_TopoDS_Shell
+    TopoDS_Solid: TypeAlias = _OCP_TopoDS_Solid | _NC_TopoDS_Solid
+    TopoDS_Vertex: TypeAlias = _OCP_TopoDS_Vertex | _NC_TopoDS_Vertex
+    TopoDS_Wire: TypeAlias = _OCP_TopoDS_Wire | _NC_TopoDS_Wire
+    XCAFDoc_ColorTool: TypeAlias = _OCP_XCAFDoc_ColorTool | _NC_XCAFDoc_ColorTool
+    XCAFDoc_ShapeTool: TypeAlias = _OCP_XCAFDoc_ShapeTool | _NC_XCAFDoc_ShapeTool
+    gp_Ax1: TypeAlias = _OCP_gp_Ax1 | _NC_gp_Ax1
+    gp_Ax3: TypeAlias = _OCP_gp_Ax3 | _NC_gp_Ax3
+    gp_Dir: TypeAlias = _OCP_gp_Dir | _NC_gp_Dir
+    gp_Lin: TypeAlias = _OCP_gp_Lin | _NC_gp_Lin
+    gp_Pln: TypeAlias = _OCP_gp_Pln | _NC_gp_Pln
+    gp_Pnt: TypeAlias = _OCP_gp_Pnt | _NC_gp_Pnt
+    gp_Vec: TypeAlias = _OCP_gp_Vec | _NC_gp_Vec
 
 Coords = tuple[float, float, float]
 TriangleIndices = tuple[int, int, int]
@@ -41,7 +137,7 @@ class Wrapped(Protocol[T_co]):
 ColorLike = str | tuple[int | float, ...] | list[int | float] | Color | Wrapped[object]
 
 
-class Build123dVector(Wrapped[gp_Vec], Protocol):
+class Build123dVector(Wrapped["gp_Vec"], Protocol):
     """A build123d/CadQuery Vector: a wrapped gp_Vec with coordinate properties."""
 
     @property
@@ -52,7 +148,7 @@ class Build123dVector(Wrapped[gp_Vec], Protocol):
     def Z(self) -> float: ...
 
 
-class Build123dShape(Wrapped[TopoDS_Shape], Protocol):
+class Build123dShape(Wrapped["TopoDS_Shape"], Protocol):
     """A build123d Shape: a wrapped TopoDS_Shape with assembly children."""
 
     @property

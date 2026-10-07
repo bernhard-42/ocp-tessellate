@@ -17,16 +17,31 @@
 
 """Locations, axes and their conversions."""
 
+from __future__ import annotations
+
 from collections.abc import Iterator
-from typing import Literal, Protocol, TypedDict, overload
+from typing import TYPE_CHECKING, Literal, Protocol, TypedDict, overload
 
 import numpy as np
 from numpy.typing import ArrayLike
 
-from .._kernel import ANY, kernel, kernel_of
-from .._kernel.default import gp_Ax1, gp_Pln, gp_Vec, TopLoc_Location, TopoDS_Shape
+from .._kernel import adapter, kernel, kernel_of
+if TYPE_CHECKING:
+    from types import ModuleType
 
-from .predicates import is_topods_shape, is_wrapped
+    from ..types import (
+        gp_Ax1,
+        gp_Pln,
+        gp_Vec,
+        TopLoc_Location,
+        TopoDS_Shape,
+    )
+
+from .predicates import (
+    is_toploc_location,
+    is_topods_shape,
+    is_wrapped,
+)
 from .topology import copy_topods_shape, get_tshape
 
 
@@ -37,12 +52,18 @@ class VectorLike(Protocol):
 def tq_to_loc(
     t: tuple[float, float, float], q: tuple[float, float, float, float]
 ) -> TopLoc_Location:
-    k = kernel()
-    T = k.gp_Trsf()
-    Q = k.gp_Quaternion(*q)
-    V = k.gp_Vec(*t)
+    return _tq_to_loc(kernel(), t, q)
+
+
+def _tq_to_loc(
+    k: ModuleType, t: tuple[float, float, float], q: tuple[float, float, float, float]
+) -> TopLoc_Location:
+    """tq_to_loc in binding k, for a location that goes with an OCCT object."""
+    T = k.gp.gp_Trsf()
+    Q = k.gp.gp_Quaternion(*q)
+    V = k.gp.gp_Vec(*t)
     T.SetTransformation(Q, V)
-    return k.TopLoc_Location(T)
+    return k.TopLoc.TopLoc_Location(T)
 
 
 def loc_to_tq(
@@ -62,8 +83,8 @@ def loc_to_tq(
 
 def identity_location() -> TopLoc_Location:
     k = kernel()
-    loc = k.TopLoc_Location()
-    k.TopLoc_Location.Identity(loc)
+    loc = k.TopLoc.TopLoc_Location()
+    k.TopLoc.TopLoc_Location.Identity(loc)
     return loc
 
 
@@ -78,7 +99,7 @@ def relocate(obj: TopoDS_Shape) -> tuple[TopoDS_Shape, TopLoc_Location]:
     loc = get_location(obj)
 
     if loc is None:
-        return obj, identity_location()
+        return obj, kernel_of(obj).TopLoc.TopLoc_Location()
 
     obj2 = copy_topods_shape(obj)
 
@@ -120,7 +141,7 @@ def get_location(obj: object, as_none: bool = True) -> TopLoc_Location | None:
     elif is_wrapped(obj) and hasattr(obj.wrapped, "Location"):
         loc = _call_if_callable(getattr(obj.wrapped, "Location"))
 
-    elif isinstance(obj, ANY.TopLoc_Location):
+    elif is_toploc_location(obj):
         return obj
 
     elif is_topods_shape(obj):
@@ -131,7 +152,7 @@ def get_location(obj: object, as_none: bool = True) -> TopLoc_Location | None:
 
     if is_wrapped(loc):
         loc = loc.wrapped
-    if isinstance(loc, ANY.TopLoc_Location):
+    if is_toploc_location(loc):
         return loc
     raise TypeError(f"Unknown location typ {type(loc)}")
 
@@ -143,6 +164,12 @@ def mul_locations(
         return loc2
     if loc2 is None:
         return loc1
+    if kernel_of(loc1) is not kernel_of(loc2):
+        # ocp_tessellate creates no locations of its own above the user's objects,
+        # and a CAD object and its children share one binding: this is a bug
+        raise TypeError(
+            f"locations of two bindings: {type(loc1).__module__} and {type(loc2).__module__}"
+        )
     return loc1 * loc2
 
 
@@ -150,7 +177,7 @@ def copy_location(loc: TopLoc_Location | None) -> TopLoc_Location | None:
     k = kernel_of(loc)
     if loc is None:
         return None
-    return k.TopLoc_Location(loc.Transformation())
+    return k.TopLoc.TopLoc_Location(loc.Transformation())
 
 
 class AxisCoord(TypedDict):
@@ -161,8 +188,8 @@ class AxisCoord(TypedDict):
 def get_axis_coord(axis: gp_Ax1) -> AxisCoord:
     k = kernel_of(axis)
     return {
-        "origin": k.coord(axis.Location()),
-        "z_dir": k.coord(axis.Direction()),
+        "origin": adapter(k).coord(axis.Location()),
+        "z_dir": adapter(k).coord(axis.Direction()),
     }
 
 
@@ -180,15 +207,15 @@ def get_location_coord(loc: TopLoc_Location) -> LocationCoord:
     origin = trsf.TranslationPart()
     q = trsf.GetRotation()
 
-    x_dir = q * k.gp_Vec(1, 0, 0)
-    y_dir = q * k.gp_Vec(0, 1, 0)
-    z_dir = q * k.gp_Vec(0, 0, 1)
+    x_dir = q * k.gp.gp_Vec(1, 0, 0)
+    y_dir = q * k.gp.gp_Vec(0, 1, 0)
+    z_dir = q * k.gp.gp_Vec(0, 0, 1)
 
     return {
-        "origin": k.coord(origin),
-        "x_dir": k.coord(x_dir),
-        "y_dir": k.coord(y_dir),
-        "z_dir": k.coord(z_dir),
+        "origin": adapter(k).coord(origin),
+        "x_dir": adapter(k).coord(x_dir),
+        "y_dir": adapter(k).coord(y_dir),
+        "z_dir": adapter(k).coord(z_dir),
     }
 
 
@@ -196,11 +223,11 @@ def loc_to_vecs(
     origin: VectorLike, x_dir: VectorLike, z_dir: VectorLike
 ) -> tuple[gp_Vec, gp_Vec, gp_Vec, gp_Vec]:
     k = kernel()
-    ax3 = k.gp_Ax3(k.gp_Pnt(*origin), k.gp_Dir(*z_dir), k.gp_Dir(*x_dir))
-    o = k.gp_Vec(ax3.Location().XYZ())
-    x = k.gp_Vec(ax3.XDirection().XYZ())
-    y = k.gp_Vec(ax3.YDirection().XYZ())
-    z = k.gp_Vec(ax3.Direction().XYZ())
+    ax3 = k.gp.gp_Ax3(k.gp.gp_Pnt(*origin), k.gp.gp_Dir(*z_dir), k.gp.gp_Dir(*x_dir))
+    o = k.gp.gp_Vec(ax3.Location().XYZ())
+    x = k.gp.gp_Vec(ax3.XDirection().XYZ())
+    y = k.gp.gp_Vec(ax3.YDirection().XYZ())
+    z = k.gp.gp_Vec(ax3.Direction().XYZ())
     return (o, x, y, z)
 
 
@@ -210,22 +237,22 @@ def loc_from_gp_pln(pln: gp_Pln) -> TopLoc_Location:
     x = pln.XAxis().Direction()
     z = pln.Axis().Direction()
 
-    ax3 = k.gp_Ax3(o, z, x)
-    trsf = k.gp_Trsf()
+    ax3 = k.gp.gp_Ax3(o, z, x)
+    trsf = k.gp.gp_Trsf()
     trsf.SetTransformation(ax3)
     trsf.Invert()
-    return k.TopLoc_Location(trsf)
+    return k.TopLoc.TopLoc_Location(trsf)
 
 
 def axis_to_vecs(
     origin: VectorLike, z_dir: VectorLike
 ) -> tuple[gp_Vec, gp_Vec, gp_Vec, gp_Vec]:
     k = kernel()
-    ax3 = k.gp_Ax3(k.gp_Pnt(*origin), k.gp_Dir(*z_dir))
-    o = k.gp_Vec(ax3.Location().XYZ())
-    x = k.gp_Vec(ax3.XDirection().XYZ())
-    y = k.gp_Vec(ax3.YDirection().XYZ())
-    z = k.gp_Vec(ax3.Direction().XYZ())
+    ax3 = k.gp.gp_Ax3(k.gp.gp_Pnt(*origin), k.gp.gp_Dir(*z_dir))
+    o = k.gp.gp_Vec(ax3.Location().XYZ())
+    x = k.gp.gp_Vec(ax3.XDirection().XYZ())
+    y = k.gp.gp_Vec(ax3.YDirection().XYZ())
+    z = k.gp.gp_Vec(ax3.Direction().XYZ())
     return (o, x, y, z)
 
 

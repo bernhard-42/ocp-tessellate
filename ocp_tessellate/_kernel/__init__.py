@@ -14,100 +14,148 @@
 # limitations under the License.
 #
 
-"""The OCCT bindings ocp_tessellate runs on.
+"""The OCCT bindings ocp_tessellate runs on, hidden from its users.
 
-ocp_tessellate is to support OCP (cadquery-ocp) and nanocct, installed alone or
-together (docs/nanocct-concept.md). Everything binding-specific lives in a
-kernel module - `ocp.py` - and the rest of the package reaches OCCT only
-through a kernel:
+ocp_tessellate supports OCP (cadquery-ocp) and nanocct, installed alone or
+together (docs/nanocct-concept.md). The kernel of an object is its binding, the
+module `OCP` or `nanocct`, and the code reaches OCCT through it with OCCT's own
+package structure, which both bindings share:
 
-- `kernel_of(obj)`: the kernel of an OCCT object, of the OCCT object a
-  build123d or CadQuery object wraps, or of the first such object in a list or
-  tuple; the default kernel when there is none
-- `kernel()`: the default kernel
-- `ANY.<Name>`: the class <Name> of every installed binding, for isinstance()
+    k = kernel_of(shape)
+    poly = k.BRep.BRep_Tool.Triangulation_s(face, k.TopLoc.TopLoc_Location())
 
-The package probes are the only imports inside `try`: a kernel module imports
-its binding at top level, so a name missing in one version fails loudly
-instead of looking like a binding that is not installed.
+- `kernel()`: the binding for what no OCCT object decides - the only one
+  installed, else OCP unless `prefer_nanocct(True)` was called.
+- `kernel_of(obj)`: the binding of the OCCT object obj, `kernel()` for anything
+  else (tuples, None).
+- `kernel_of_all(objs)`: the one binding of the OCCT objects in a sequence, for
+  functions that take several (make_compound, cross), `kernel()` if there are
+  none; a TypeError for objects of two bindings.
+- `binding_of(obj)`: the binding of obj, None if it is not an OCCT object (for
+  predicates).
+- `prefer_nanocct(flag)`: the one public setting, as
+  `ocp_tessellate.prefer_nanocct`; process-wide.
+- `adapter(k)`: what differs between the bindings and OCP versions - downcasts,
+  collection classes, calling conventions, the tessellation loops - from
+  `ocp_adapter.py` or `nanocct_adapter.py`.
+
+The binding of an object is the top-level package of its class's module,
+decided once per class and cached - for classes that are not OCCT as well.
+Wrappers (build123d, CadQuery) are not looked into: callers pass `.wrapped`.
+The package probes are the only imports inside `try`; the adapters import their
+binding at top level, so a name missing in one version fails loudly instead of
+looking like a binding that is not installed.
 """
 
+from collections.abc import Sequence
 from types import ModuleType
-from typing import TYPE_CHECKING
 
-HAS_OCP = True
+# the top-level package of an OCCT class -> its binding
+_BY_PACKAGE: dict[str, ModuleType] = {}
+
+# the binding -> its adapter
+_ADAPTERS: dict[ModuleType, ModuleType] = {}
+
+# classes already seen -> their binding, None for classes that are not OCCT
+_BY_TYPE: dict[type, ModuleType | None] = {}
+
+# Only the probe is inside `try`: an ImportError from the adapter (a name missing
+# in one version) raises instead of looking like a binding that is not installed.
 try:
-    import OCP  # noqa: F401
+    import OCP
 except ImportError:
     HAS_OCP = False
+else:
+    HAS_OCP = True
+    from . import ocp_adapter
 
-HAS_NANOCCT = True
+    _BY_PACKAGE["OCP"] = OCP
+    _ADAPTERS[OCP] = ocp_adapter
+
+
 try:
-    import nanocct  # noqa: F401  # ty: ignore[unresolved-import]
+    import nanocct
 except ImportError:
     HAS_NANOCCT = False
+else:
+    HAS_NANOCCT = True
+    from . import nanocct_adapter
 
-if HAS_OCP is False:
-    # the nanocct kernel follows (docs/nanocct-concept.md, section 9, step 7)
-    raise ImportError("ocp_tessellate needs OCP (cadquery-ocp)")
+    _BY_PACKAGE["nanocct"] = nanocct
+    _ADAPTERS[nanocct] = nanocct_adapter
 
-from . import ocp as ocp_kernel  # noqa: E402
+if HAS_OCP is False and HAS_NANOCCT is False:
+    raise ImportError("ocp_tessellate needs OCP (cadquery-ocp) or nanocct")
 
-KERNELS: tuple[ModuleType, ...] = (ocp_kernel,)
 
-# the top-level package of an OCCT class -> its kernel
-_BY_PACKAGE: dict[str, ModuleType] = {"OCP": ocp_kernel}
-# OCCT classes already seen -> their kernel
-_BY_TYPE: dict[type, ModuleType] = {}
+# the installed bindings, OCP first
+KERNELS: tuple[ModuleType, ...] = tuple(_BY_PACKAGE.values())
+
+# set by prefer_nanocct; read only here, in kernel()
+_PREFER_NANOCCT = False
+
+
+def prefer_nanocct(flag: bool) -> None:
+    """Use nanocct where no OCCT object decides the binding.
+
+    It matters only when OCP and nanocct are both installed: OCCT objects
+    always keep their own binding, and with one binding installed there is
+    nothing to prefer. The setting is process-wide.
+    """
+    global _PREFER_NANOCCT
+    if not isinstance(flag, bool):
+        raise TypeError(f"prefer_nanocct takes True or False, not {flag!r}")
+    if flag is True and HAS_NANOCCT is False:
+        raise ImportError("prefer_nanocct(True), but nanocct is not installed")
+    _PREFER_NANOCCT = flag
 
 
 def kernel() -> ModuleType:
-    """The default kernel."""
-    return ocp_kernel
+    """The binding for what no OCCT object decides.
+
+    The only binding installed, else OCP unless prefer_nanocct(True) was called.
+    """
+    if HAS_OCP is False or _PREFER_NANOCCT is True:
+        return nanocct
+    return OCP
 
 
-def _find(obj: object) -> ModuleType | None:
+def binding_of(obj: object) -> ModuleType | None:
+    """The binding of obj, None if obj is not an OCCT object."""
     cls = type(obj)
-    found = _BY_PACKAGE.get(cls.__module__.partition(".")[0])
-    if found is not None:
+    try:
+        return _BY_TYPE[cls]
+    except KeyError:
+        found = _BY_PACKAGE.get(cls.__module__.partition(".")[0])
         _BY_TYPE[cls] = found
         return found
-    if isinstance(obj, (list, tuple)):
-        # not any other iterable: a generator would be consumed
-        for item in obj:
-            found = _find(item)
-            if found is not None:
-                return found
-        return None
-    wrapped = getattr(obj, "wrapped", None)
-    if wrapped is not None and wrapped is not obj:
-        return _find(wrapped)
-    return None
 
 
 def kernel_of(obj: object) -> ModuleType:
-    """The kernel of obj, see the module docstring."""
-    found = _BY_TYPE.get(type(obj))
-    if found is not None:
-        return found
-    found = _find(obj)
+    """The binding of the OCCT object obj, kernel() if obj is not one."""
+    found = binding_of(obj)
     if found is None:
         return kernel()
     return found
 
 
-class _AnyKernel:
-    """`ANY.TopoDS_Face` is the tuple of TopoDS_Face classes of all kernels."""
+def kernel_of_all(objs: Sequence[object]) -> ModuleType:
+    """The one binding of the OCCT objects in objs (other objects are ignored).
 
-    def __getattr__(self, name: str) -> tuple[type, ...]:
-        classes = tuple(getattr(k, name) for k in KERNELS)
-        self.__dict__[name] = classes
-        return classes
+    kernel() if there is none, a TypeError if they belong to two bindings.
+    """
+    found: set[ModuleType] = set()
+    for obj in objs:
+        binding = binding_of(obj)
+        if binding is not None:
+            found.add(binding)
+    if len(found) > 1:
+        raise TypeError("objects of two bindings, OCP and nanocct, cannot be combined")
+    if len(found) == 1:
+        return found.pop()
+    return kernel()
 
 
-if TYPE_CHECKING:
-    # for the type checker the default kernel's classes, so that
-    # isinstance(x, ANY.TopoDS_Face) narrows x to TopoDS_Face as before
-    from . import default as ANY
-else:
-    ANY = _AnyKernel()
+def adapter(k: ModuleType) -> ModuleType:
+    """What differs in binding k: the module ocp_adapter.py or nanocct_adapter.py."""
+    return _ADAPTERS[k]

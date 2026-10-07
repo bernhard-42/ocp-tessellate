@@ -17,21 +17,28 @@
 
 """Bounding boxes, OCP and numpy based."""
 
+from __future__ import annotations
+
 import itertools
 import sys
 from collections.abc import Iterable
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 import numpy as np
 from cachetools import LRUCache, cached
 
-from .._kernel import ANY, kernel_of
-from .._kernel.default import TopLoc_Location, TopoDS_Shape
+from .._kernel import adapter, kernel_of
+if TYPE_CHECKING:
+    from ..types import (
+        TopLoc_Location,
+        TopoDS_Shape,
+    )
 
 from ..utils import distance
 from .topology import make_compound
 from .measure import center_of_mass
 from .location import loc_to_tq, rotate
+from .predicates import is_topods_shape
 
 
 # Caching helpers for bounding box
@@ -45,10 +52,10 @@ def make_key(
     | tuple[None, None],
 ]:  # pylint: disable=unused-argument
     # optimal is not used and as such ignored
-    if isinstance(objs, ANY.TopoDS_Shape):
+    if is_topods_shape(objs):
         objs = [objs]
 
-    key = (tuple(((kernel_of(s).hash_compat(s), id(s)) for s in objs)), loc_to_tq(loc))
+    key = (tuple(((adapter(kernel_of(s)).hash_compat(s), id(s)) for s in objs)), loc_to_tq(loc))
     return key
 
 
@@ -96,12 +103,12 @@ class BoundingBox(object):
 
     def _bounding_box(self, obj, tol=1e-6):
         k = kernel_of(obj)
-        bbox = k.Bnd_Box()
+        bbox = k.Bnd.Bnd_Box()
         if self.optimal:
-            k.BRepTools.Clean_s(obj)
-            k.BRepBndLib.AddOptimal_s(obj, bbox)
+            k.BRepTools.BRepTools.Clean_s(obj)
+            k.BRepBndLib.BRepBndLib.AddOptimal_s(obj, bbox)
         else:
-            k.BRepBndLib.Add_s(obj, bbox)
+            k.BRepBndLib.BRepBndLib.Add_s(obj, bbox)
         if not bbox.IsVoid():
             # The corners, not Get(): on OCP 8 Get() resolves to the overload returning
             # the Bnd_Box::Limits struct, which is not bound and always raises, and

@@ -17,20 +17,22 @@
 
 """Recognise build123d and CadQuery objects by duck typing."""
 
+from __future__ import annotations
+
 from collections.abc import Iterable
-from typing import TypeGuard
+from typing import TYPE_CHECKING, TypeGuard
 
 from typing_extensions import TypeIs
 
-from .._kernel import ANY
-from .._kernel.default import (
-    gp_Ax1,
-    gp_Pln,
-    TopLoc_Location,
-    TopoDS_Compound,
-    TopoDS_Shape,
-    TopoDS_Shell,
-)
+if TYPE_CHECKING:
+    from ..types import (
+        gp_Ax1,
+        gp_Pln,
+        TopLoc_Location,
+        TopoDS_Compound,
+        TopoDS_Shape,
+        TopoDS_Shell,
+    )
 
 from ..types import (
     Build123dBuilder,
@@ -51,6 +53,7 @@ from ..types import (
 from .predicates import (
     is_gp_axis,
     is_gp_plane,
+    is_gp_vec,
     is_toploc_location,
     is_topods_compound,
     is_topods_shape,
@@ -91,7 +94,7 @@ def is_cadquery_empty_workplane(obj) -> TypeGuard[CadqueryWorkplane]:
 
     # (len(obj.objects) == 0 or (len(obj.objects) == 1 and is_vector(obj.objects[0])))
 def is_vector(obj) -> TypeIs[Build123dVector]:
-    return hasattr(obj, "wrapped") and isinstance(obj.wrapped, ANY.gp_Vec)
+    return hasattr(obj, "wrapped") and is_gp_vec(obj.wrapped)
 
 
 def is_massembly(obj) -> TypeGuard[CadqueryAssembly]:

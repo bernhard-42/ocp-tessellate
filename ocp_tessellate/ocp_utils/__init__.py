@@ -15,73 +15,15 @@
 #
 
 
-"""OCP helpers, grouped by topic in the submodules and re-exported here.
+"""OCCT helpers, grouped by topic in the submodules and re-exported here.
 
-Every name `ocp_tessellate.ocp_utils` had as a single module is available
-from the package, so `from ocp_tessellate.ocp_utils import ...` and the star
-import keep working. The OCP classes are re-exported for the same reason."""
+The helpers work on OCP and nanocct objects alike (see ocp_tessellate._kernel).
+OCCT classes themselves are not exported: import them from the binding."""
+
+from __future__ import annotations
 
 # ruff: noqa: F401
 
-from .._kernel.default import (
-    BRepAdaptor_CompCurve,
-    BRepAdaptor_Curve,
-    BRepAdaptor_Surface,
-    BRepBndLib,
-    BRepBuilderAPI_Copy,
-    BRepBuilderAPI_FindPlane,
-    BRepBuilderAPI_MakeEdge,
-    BRepBuilderAPI_MakeFace,
-    BRepBuilderAPI_MakeVertex,
-    BRepExtrema_DistShapeShape,
-    BRepGProp,
-    BRepGProp_Face,
-    BRepTools,
-    BRep_Tool,
-    BinTools,
-    BinTools_FormatVersion_CURRENT,
-    Bnd_Box,
-    GCPnts_AbscissaPoint,
-    GProp_GProps,
-    GeomAbs_CurveType,
-    GeomLib_IsPlanarSurface,
-    Geom_Plane,
-    Quantity_ColorRGBA,
-    Quantity_TypeOfColor,
-    TopAbs_COMPOUND,
-    TopAbs_COMPSOLID,
-    TopAbs_EDGE,
-    TopAbs_FACE,
-    TopAbs_Orientation,
-    TopAbs_SHELL,
-    TopAbs_SOLID,
-    TopAbs_VERTEX,
-    TopAbs_WIRE,
-    TopExp,
-    TopLoc_Location,
-    TopoDS_Builder,
-    TopoDS_CompSolid,
-    TopoDS_Compound,
-    TopoDS_Edge,
-    TopoDS_Face,
-    TopoDS_Iterator,
-    TopoDS_Shape,
-    TopoDS_Shell,
-    TopoDS_Solid,
-    TopoDS_Vertex,
-    TopoDS_Wire,
-    gp_Ax1,
-    gp_Ax2,
-    gp_Ax3,
-    gp_Circ,
-    gp_Dir,
-    gp_Lin,
-    gp_Pln,
-    gp_Pnt,
-    gp_Quaternion,
-    gp_Trsf,
-    gp_Vec,
-)
 
 from ..types import (
     Build123dBuilder,
@@ -101,8 +43,6 @@ from ..types import (
 )
 from ..utils import Color, distance, type_name
 from .compat import (
-    TopTools_IndexedDataMapOfShapeListOfShape,
-    TopTools_IndexedMapOfShape,
     occt_version,
 )
 from .predicates import (
@@ -166,7 +106,6 @@ from .topology import (
     copy_shape,
     copy_topods_shape,
     downcast,
-    downcast_LUT,
     extent_or_size,
     get_compound_type,
     get_compounds,

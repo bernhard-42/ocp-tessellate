@@ -12,17 +12,22 @@ What counts as the surface of a module:
 Not part of it: imported modules, third-party functions and classes (numpy,
 cachetools, typing, ...), typing constructs, the names `stepreader` gets from
 `from build123d import *`, and helpers of the private package
-ocp_tessellate._kernel (kernel_of, kernel, ANY) that modules import.
+ocp_tessellate._kernel (kernel_of, kernel, ...) that modules import - except the
+names in KERNEL_API, which the kernel defines for the public API.
 
 Allowed differences to the snapshot:
 - the names in DELIBERATE_REMOVALS are gone
-- a keyword-only parameter `use_nanocct` with default False is appended
+- every OCCT name (kind "occt") is gone: since 4.0.0 ocp_tessellate hides the
+  OCCT bindings and exports none of their classes; a module that exposes one
+  fails
+- the names in DELIBERATE_ADDITIONS are new
 - names in OPTIONAL may be missing when the optional package is not installed
 
 Regenerate the snapshot (only when the API is meant to change):
     python tests/test_api_surface.py --update
 """
 
+import __future__
 import importlib
 import inspect
 import json
@@ -61,7 +66,24 @@ DELIBERATE_REMOVALS: dict[str, set[str]] = {
     # the native tessellator (ocp_addons) is gone
     "ocp_tessellate.tessellator": {"NATIVE", "NativeTessellator", "TesselatorProtocol"},
     "ocp_tessellate.types": {"TesselatorProtocol"},
+    # the downcast table of one binding (convert has it by star import)
+    "ocp_tessellate.ocp_utils": {"downcast_LUT"},
+    "ocp_tessellate.convert": {"downcast_LUT"},
 }
+
+# names added on purpose since the snapshot was taken, see docs/nanocct-concept.md
+DELIBERATE_ADDITIONS: dict[str, set[str]] = {
+    # the process-wide binding setting (4.0.0)
+    "ocp_tessellate": {"prefer_nanocct"},
+}
+
+# public names that ocp_tessellate._kernel defines: the setting lives there
+KERNEL_API: dict[str, set[str]] = {
+    "ocp_tessellate": {"prefer_nanocct"},
+}
+
+# kinds of entries that are gone everywhere: the bindings are hidden (4.0.0)
+REMOVED_KINDS = {"occt"}
 
 # names that only exist when an optional package is installed
 OPTIONAL = {
@@ -72,9 +94,6 @@ OPTIONAL = {
 FOREIGN_STAR_IMPORTS = {
     "ocp_tessellate.stepreader": "build123d",
 }
-
-NEW_PARAMETER = ["use_nanocct", "KEYWORD_ONLY", "False"]
-
 
 def _top_package(module_name):
     if module_name is None:
@@ -134,11 +153,13 @@ def _is_private(module_name):
     return module_name == PRIVATE_PREFIX or module_name.startswith(PRIVATE_PREFIX + ".")
 
 
-def _describe(obj, foreign_ids):
+def _describe(obj, foreign_ids, public_kernel_name=False):
     """Return the description of a module attribute, or None if not part of the surface."""
     if inspect.ismodule(obj) or id(obj) in foreign_ids:
         return None
-    if inspect.isclass(obj) or inspect.isroutine(obj):
+    if public_kernel_name is True:
+        pass
+    elif inspect.isclass(obj) or inspect.isroutine(obj):
         if _is_private(getattr(obj, "__module__", None)):
             return None
     elif _is_private(type(obj).__module__):
@@ -182,17 +203,27 @@ def _foreign_star_names(module_name):
     return set(names)
 
 
+def _is_language_plumbing(name, obj):
+    """`from __future__ import annotations` and `from typing import TYPE_CHECKING`."""
+    if name == "annotations" and obj is __future__.annotations:
+        return True
+    return name == "TYPE_CHECKING" and obj is False
+
+
 def collect_surface():
     surface = {}
     foreign_ids = _foreign_value_ids()
     for module_name in MODULES:
         module = importlib.import_module(module_name)
         excluded = _foreign_star_names(module_name)
+        kernel_api = KERNEL_API.get(module_name, set())
         entries = {}
         for name in sorted(dir(module)):
             if name.startswith("_") or name in excluded:
                 continue
-            description = _describe(getattr(module, name), foreign_ids)
+            if _is_language_plumbing(name, getattr(module, name)):
+                continue
+            description = _describe(getattr(module, name), foreign_ids, name in kernel_api)
             if description is not None:
                 entries[name] = description
         surface[module_name] = entries
@@ -202,9 +233,6 @@ def collect_surface():
 def _compare_params(where, expected, actual, problems):
     if expected == actual:
         return
-    if expected is not None and actual is not None:
-        if actual[: len(expected)] == expected and actual[len(expected) :] == [NEW_PARAMETER]:
-            return
     problems.append(f"{where}: parameters changed\n    was {expected}\n    now {actual}")
 
 
@@ -237,7 +265,7 @@ def compare(expected_surface, actual_surface):
         removals = DELIBERATE_REMOVALS.get(module_name, set())
         optional = OPTIONAL.get(module_name, set())
         for name, entry in expected.items():
-            if name in removals:
+            if name in removals or entry["kind"] in REMOVED_KINDS:
                 if name in actual:
                     problems.append(f"{module_name}.{name}: should be removed")
                 continue
@@ -246,8 +274,17 @@ def compare(expected_surface, actual_surface):
                     problems.append(f"{module_name}.{name}: removed")
                 continue
             _compare_entry(f"{module_name}.{name}", entry, actual[name], problems)
+        additions = DELIBERATE_ADDITIONS.get(module_name, set())
         for name in sorted(set(actual) - set(expected)):
-            problems.append(f"{module_name}.{name}: added")
+            if name not in additions:
+                problems.append(f"{module_name}.{name}: added")
+        for name in sorted(additions - set(actual)):
+            problems.append(f"{module_name}.{name}: should be added")
+        for name, entry in actual.items():
+            if entry["kind"] in REMOVED_KINDS and name in expected:
+                pass  # reported above as "should be removed"
+            elif entry["kind"] in REMOVED_KINDS:
+                problems.append(f"{module_name}.{name}: exposes an OCCT object")
     return problems
 
 

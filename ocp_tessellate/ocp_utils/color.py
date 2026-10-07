@@ -17,22 +17,29 @@
 
 """Colors."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from typing_extensions import TypeIs
 
-from .._kernel import ANY, kernel, kernel_of
-from .._kernel.default import Quantity_ColorRGBA
+from .._kernel import kernel, kernel_of
+if TYPE_CHECKING:
+    from ..types import (
+        Quantity_ColorRGBA,
+    )
 
 from ..types import Wrapped
+from .predicates import _is_quantity_color
 from ..utils import Color
 
 
 def is_ocp_color(obj) -> TypeIs[Wrapped[Quantity_ColorRGBA]]:
     # the guarded object is the wrapper, not the Quantity_ColorRGBA itself
-    return hasattr(obj, "wrapped") and isinstance(obj.wrapped, ANY.Quantity_ColorRGBA)
+    return hasattr(obj, "wrapped") and _is_quantity_color(obj.wrapped)
 
 
 def get_rgba(color, alpha=None, def_color=None) -> Color | None:
-    k = kernel_of(color)
     if color is None:
         if def_color is None:
             return None
@@ -50,8 +57,9 @@ def get_rgba(color, alpha=None, def_color=None) -> Color | None:
         if alpha is not None:
             rgba.a = alpha
 
-    elif isinstance(color, ANY.Quantity_ColorRGBA):  # OCP
-        r, g, b = color.GetRGB().Values(k.Quantity_TypeOfColor.Quantity_TOC_sRGB)
+    elif _is_quantity_color(color):  # OCP
+        k = kernel_of(color)
+        r, g, b = color.GetRGB().Values(k.Quantity.Quantity_TypeOfColor.Quantity_TOC_sRGB)
         rgba = Color((
             int(round(r * 255)),
             int(round(g * 255)),
@@ -70,4 +78,4 @@ def get_rgba(color, alpha=None, def_color=None) -> Color | None:
 
 def ocp_color(r: float, g: float, b: float, alpha: float = 1.0) -> Quantity_ColorRGBA:
     k = kernel()
-    return k.Quantity_ColorRGBA(r, g, b, alpha)
+    return k.Quantity.Quantity_ColorRGBA(r, g, b, alpha)

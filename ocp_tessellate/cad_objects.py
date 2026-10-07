@@ -1,9 +1,16 @@
+from __future__ import annotations
+
 import base64
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 import imagesize
-from ._kernel import ANY
-from ._kernel.default import TopLoc_Location, TopoDS_Shape
+from ._kernel import kernel_of, kernel_of_all
+from .ocp_utils.location import _tq_to_loc
+if TYPE_CHECKING:
+    from .types import (
+        TopLoc_Location,
+        TopoDS_Shape,
+    )
 
 from ocp_tessellate.defaults import get_default
 from ocp_tessellate.ocp_utils import (
@@ -12,16 +19,17 @@ from ocp_tessellate.ocp_utils import (
     axis_to_vecs,
     copy_location,
     copy_topods_shape,
-    identity_location,
+    identity_location,  # noqa: F401 - public via cad_objects (tests/api_surface.json)
+    is_identity,
     line,
     loc_to_tq,
     loc_to_vecs,
     make_compound,
     mul_locations,
     rect,
-    tq_to_loc,
-    is_identity,
+    tq_to_loc,  # noqa: F401 - public via cad_objects (tests/api_surface.json)
 )
+from ocp_tessellate.ocp_utils import is_topods_shape as _is_topods_shape
 from ocp_tessellate.types import ConvertedVertices, DiscretizedEdges, Instance
 from ocp_tessellate.utils import Color, make_unique
 
@@ -31,14 +39,15 @@ EMPTY = 3
 
 PROTOCOL_VERSION = 3
 
-# Callbacks provided by tessellate_group to discretize edge and vertex leaves
-# during collect
-EdgeDiscretizer = Callable[
-    [list[TopoDS_Shape], str, str], tuple[DiscretizedEdges, BoundingBox]
-]
-VertexConverter = Callable[
-    [list[TopoDS_Shape], str, str], tuple[ConvertedVertices, BoundingBox]
-]
+if TYPE_CHECKING:
+    # Callbacks provided by tessellate_group to discretize edge and vertex leaves
+    # during collect
+    EdgeDiscretizer = Callable[
+        [list[TopoDS_Shape], str, str], tuple[DiscretizedEdges, BoundingBox]
+    ]
+    VertexConverter = Callable[
+        [list[TopoDS_Shape], str, str], tuple[ConvertedVertices, BoundingBox]
+    ]
 
 
 class OcpObject:
@@ -154,7 +163,7 @@ class OcpObject:
         elif self.loc is None:
             combined_loc = loc
         else:
-            combined_loc = loc * self.loc
+            combined_loc = mul_locations(loc, self.loc)
 
         if self.kind == "imageface":
             image = {"data": self.image, "format": self.image_type}
@@ -192,7 +201,7 @@ class OcpObject:
             assert self.color is not None, f"'{self.name}' has no color"
             convert = convert_vertices if self.kind == "vertex" else discretize_edges
             assert convert is not None, f"no converter for kind {self.kind}"
-            objs = [self.obj] if isinstance(self.obj, ANY.TopoDS_Shape) else self.obj
+            objs = [self.obj] if _is_topods_shape(self.obj) else self.obj
             self.obj = objs
             values, bb = convert(objs, self.name, self.id)
 
@@ -317,7 +326,7 @@ class OcpGroup:
         elif self.loc is None:
             combined_loc = loc
         else:
-            combined_loc = loc * self.loc
+            combined_loc = mul_locations(loc, self.loc)
 
         result = {
             "version": PROTOCOL_VERSION,
@@ -370,7 +379,8 @@ class OcpWrapper:
         self.kind = kind
         self.name = name
         self.color = color
-        self.loc = identity_location() if loc is None else loc
+        # an identity location of the objects' binding
+        self.loc = kernel_of_all(objs).TopLoc.TopLoc_Location() if loc is None else loc
         self.width = width
         self.show_edges = show_edges
         self.show_faces = show_faces
@@ -460,10 +470,12 @@ class ImageFace(OcpWrapper):
         xs = x * scale[0]
         ys = y * scale[1]
 
-        plane = rect(ws, hs)
         loc = location.wrapped if hasattr(location, "wrapped") else location
-        o = tq_to_loc((ws / 2 - xs, hs / 2 - ys, 0), (0, 0, 0, 1))
-        loc = loc * o if loc is not None else o
+        # the face in the binding of the location, kernel() without one
+        k = kernel_of(loc)
+        plane = rect(ws, hs, k.gp.gp_Ax3())
+        o = _tq_to_loc(k, (ws / 2 - xs, hs / 2 - ys, 0), (0, 0, 0, 1))
+        loc = mul_locations(loc, o)
 
         super().__init__(
             [plane], "imageface", name, Color("white"), show_edges=True, loc=loc

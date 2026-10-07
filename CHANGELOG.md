@@ -1,13 +1,18 @@
-## v3.6.0 (unreleased)
+## v4.0.0 (unreleased)
+
+**Features**
+
+- nanocct support: ocp_tessellate runs on OCP, on nanocct, or on both installed side by side. An OCP or nanocct object - or the build123d / CadQuery object wrapping it - is handled with its own binding, so OCP and nanocct objects can be shown together in one list or dict. With nanocct the tessellation runs on numpy views of the triangulation and nanocct's C++ helpers (about twice as fast for many small parts); on the same mesh both bindings give identical results. Functions that get no OCCT object (`identity_location`, `tq_to_loc`, `vector`, `axis`, `deserialize`, `ocp_color`, `occt_version`, `StepReader`, `import_step_as_single_compound`, and `vertex`/`line`/`circle`/`rect`/`normalized`/`cross`/`make_compound`/`ImageFace` given only tuples, an empty list or no location) use OCP, as before; nanocct when it is the only binding installed, or after `ocp_tessellate.prefer_nanocct(True)` when both are. The setting is process-wide, raises `ImportError` without nanocct, and does not change the binding of OCCT objects. No signature changes
 
 **Breaking changes**
 
+- OCCT classes are no longer exported: `ocp_utils`, `convert`, `tessellator`, `stepreader`, `cad_objects` and `types` re-exported the OCP classes they used (`ocp_utils.TopoDS_Shape`, `tessellator.gp_Pnt`, ...), and `ocp_utils` also `downcast_LUT`, `hash_compat` and the `TopTools` map classes. ocp_tessellate now hides the binding; import OCCT classes from OCP or nanocct directly
 - The native tessellator is removed: `NativeTessellator`, `NATIVE`, `enable_native_tessellator()`, `disable_native_tessellator()`, `is_native_tessellator_enabled()` and the `NATIVE_TESSELLATOR` environment variable are gone, and `ocp_addons` is no longer used. `tessellate()` always uses `Tessellator`. `TesselatorProtocol` is removed with it, since it only existed so that the two tessellator classes could share an interface
 
 **Changes**
 
-- `ocp_tessellate.ocp_utils` is a package now, grouped by topic (`compat`, `predicates`, `detect`, `topology`, `measure`, `geometry`, `location`, `bbox`, `serialize`, `color`). Every name of the former module, including the re-exported OCP classes, is still importable from `ocp_tessellate.ocp_utils`, and the star import gives the same names; only imported modules (`np`, `OCP`, ...) and third-party helpers are no longer re-exported
-- ocp_tessellate reaches OCCT through an internal kernel (`ocp_tessellate._kernel`), the one place that imports OCP; the preparation for nanocct support. Tessellation, bounding boxes and all other results are unchanged (compared bit for bit). Bounding boxes are read with `Bnd_Box.CornerMin()`/`CornerMax()` on every OCP version, which return the same values as the former `Get()` / `GetXMin()` branches
+- `ocp_tessellate.ocp_utils` is a package now, grouped by topic (`compat`, `predicates`, `detect`, `topology`, `measure`, `geometry`, `location`, `bbox`, `serialize`, `color`). Every function, class and value of the former module is still importable from `ocp_tessellate.ocp_utils`, and the star import gives the same names, except the OCCT classes (see above), imported modules (`np`, `OCP`, ...) and third-party helpers
+- ocp_tessellate reaches OCCT through internal kernels (`ocp_tessellate._kernel`), the only places that import OCP or nanocct. Tessellation, bounding boxes and all other results are unchanged (compared bit for bit). Bounding boxes are read with `Bnd_Box.CornerMin()`/`CornerMax()` on every OCP version, which return the same values as the former `Get()` / `GetXMin()` branches
 
 ## v3.5.3
 

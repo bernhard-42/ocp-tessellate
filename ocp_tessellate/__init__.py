@@ -35,6 +35,7 @@ from .defaults import (
     reset_defaults,
     set_defaults,
 )
+from ._kernel import prefer_nanocct
 from .ocp_utils import is_cadquery, occt_version
 from .utils import Color, warn
 
@@ -54,6 +55,7 @@ __all__ = [
     "set_defaults",
     "is_cadquery",
     "occt_version",
+    "prefer_nanocct",
     "Color",
     "warn",
     "ot_version",

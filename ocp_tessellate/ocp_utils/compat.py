@@ -15,28 +15,12 @@
 #
 
 
-"""The public names for OCP version and binding differences.
+"""The OCCT version of a binding."""
 
-The differences themselves live in the kernels (`ocp_tessellate._kernel`). These
-names are the default kernel's: the TopTools map classes, the shape hash and the
-OCCT version.
-"""
+from __future__ import annotations
 
-from .._kernel import kernel
-from .._kernel.default import (
-    TopTools_IndexedDataMapOfShapeListOfShape,
-    TopTools_IndexedMapOfShape,
-)
-
-__all__ = [
-    "TopTools_IndexedDataMapOfShapeListOfShape",
-    "TopTools_IndexedMapOfShape",
-    "hash_compat",
-    "occt_version",
-]
-
-hash_compat = kernel().hash_compat
+from .._kernel import adapter, kernel
 
 
 def occt_version() -> str:
-    return kernel().version()
+    return adapter(kernel()).version()

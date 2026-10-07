@@ -17,47 +17,56 @@
 
 """Measure shapes: mass properties, distances, lengths, tangents."""
 
-from .._kernel import ANY, kernel_of
-from .._kernel.default import (
-    gp_Dir,
-    gp_Pnt,
-    TopoDS_Edge,
-    TopoDS_Face,
-    TopoDS_Shape,
-    TopoDS_Wire,
-)
+from __future__ import annotations
 
-from .predicates import is_forward, is_topods_face
+from typing import TYPE_CHECKING
+
+from .._kernel import kernel_of
+if TYPE_CHECKING:
+    from ..types import (
+        gp_Dir,
+        gp_Pnt,
+        TopoDS_Edge,
+        TopoDS_Face,
+        TopoDS_Shape,
+        TopoDS_Wire,
+    )
+
+from .predicates import (
+    is_forward,
+    is_topods_edge,
+    is_topods_face,
+)
 
 
 def center_of_mass(obj: TopoDS_Shape) -> tuple[float, float, float]:
     k = kernel_of(obj)
     if is_topods_face(obj):
-        properties = k.GProp_GProps()
-        k.BRepGProp.SurfaceProperties_s(obj, properties)
+        properties = k.GProp.GProp_GProps()
+        k.BRepGProp.BRepGProp.SurfaceProperties_s(obj, properties)
         center = properties.CentreOfMass()
     else:
-        Properties = k.GProp_GProps()
-        k.BRepGProp.VolumeProperties_s(obj, Properties)
+        Properties = k.GProp.GProp_GProps()
+        k.BRepGProp.BRepGProp.VolumeProperties_s(obj, Properties)
         center = Properties.CentreOfMass()
     return (center.X(), center.Y(), center.Z())
 
 
 def center_of_geometry(obj: TopoDS_Face) -> tuple[float, float, float]:
     k = kernel_of(obj)
-    u0, u1, v0, v1 = k.BRepTools.UVBounds_s(obj)
+    u0, u1, v0, v1 = k.BRepTools.BRepTools.UVBounds_s(obj)
     u = 0.5 * (u0 + u1)
     v = 0.5 * (v0 + v1)
-    center = k.gp_Pnt()
-    normal = k.gp_Vec()
+    center = k.gp.gp_Pnt()
+    normal = k.gp.gp_Vec()
 
-    k.BRepGProp_Face(obj).Normal(u, v, center, normal)
+    k.BRepGProp.BRepGProp_Face(obj).Normal(u, v, center, normal)
     return (center.X(), center.Y(), center.Z())
 
 
 def dist_shapes(obj1: TopoDS_Shape, obj2: TopoDS_Shape) -> tuple[float, gp_Pnt, gp_Pnt]:
     k = kernel_of(obj1)
-    distCalc = k.BRepExtrema_DistShapeShape(obj1, obj2)
+    distCalc = k.BRepExtrema.BRepExtrema_DistShapeShape(obj1, obj2)
     distCalc.Perform()
 
     if distCalc.IsDone():
@@ -72,15 +81,15 @@ def dist_shapes(obj1: TopoDS_Shape, obj2: TopoDS_Shape) -> tuple[float, gp_Pnt, 
 
 def area(obj: TopoDS_Face) -> float:
     k = kernel_of(obj)
-    properties = k.GProp_GProps()
-    k.BRepGProp.SurfaceProperties_s(obj, properties)
+    properties = k.GProp.GProp_GProps()
+    k.BRepGProp.BRepGProp.SurfaceProperties_s(obj, properties)
     return properties.Mass()
 
 
 def volume(obj: TopoDS_Shape) -> float:
     k = kernel_of(obj)
-    properties = k.GProp_GProps()
-    k.BRepGProp.VolumeProperties_s(obj, properties)
+    properties = k.GProp.GProp_GProps()
+    k.BRepGProp.BRepGProp.VolumeProperties_s(obj, properties)
     return properties.Mass()
 
 
@@ -88,7 +97,7 @@ def end_points(
     obj: TopoDS_Edge,
 ) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
     k = kernel_of(obj)
-    curve = k.BRepAdaptor_Curve(obj)
+    curve = k.BRepAdaptor.BRepAdaptor_Curve(obj)
     umin = curve.FirstParameter()
     umax = curve.LastParameter()
     e1, e2 = curve.Value(umin), curve.Value(umax)
@@ -97,21 +106,21 @@ def end_points(
 
 def length(edge_or_wire: TopoDS_Edge | TopoDS_Wire) -> float:
     k = kernel_of(edge_or_wire)
-    if isinstance(edge_or_wire, ANY.TopoDS_Edge):
-        curve = k.BRepAdaptor_Curve(edge_or_wire)
+    if is_topods_edge(edge_or_wire):
+        curve = k.BRepAdaptor.BRepAdaptor_Curve(edge_or_wire)
     else:
-        curve = k.BRepAdaptor_CompCurve(edge_or_wire)
-    return k.GCPnts_AbscissaPoint.Length_s(curve)
+        curve = k.BRepAdaptor.BRepAdaptor_CompCurve(edge_or_wire)
+    return k.GCPnts.GCPnts_AbscissaPoint.Length_s(curve)
 
 
 def position_at(edge_or_wire: TopoDS_Edge | TopoDS_Wire, distance: float) -> gp_Pnt:
     k = kernel_of(edge_or_wire)
-    if isinstance(edge_or_wire, ANY.TopoDS_Edge):
-        curve = k.BRepAdaptor_Curve(edge_or_wire)
+    if is_topods_edge(edge_or_wire):
+        curve = k.BRepAdaptor.BRepAdaptor_Curve(edge_or_wire)
     else:
-        curve = k.BRepAdaptor_CompCurve(edge_or_wire)
-    length = k.GCPnts_AbscissaPoint.Length_s(curve)
-    parameter = k.GCPnts_AbscissaPoint(
+        curve = k.BRepAdaptor.BRepAdaptor_CompCurve(edge_or_wire)
+    length = k.GCPnts.GCPnts_AbscissaPoint.Length_s(curve)
+    parameter = k.GCPnts.GCPnts_AbscissaPoint(
         curve, length * distance, curve.FirstParameter()
     ).Parameter()
     return curve.Value(parameter)
@@ -121,20 +130,20 @@ def tangent_at(
     edge_or_wire: TopoDS_Edge | TopoDS_Wire, distance: float
 ) -> tuple[gp_Pnt, gp_Dir]:
     k = kernel_of(edge_or_wire)
-    if isinstance(edge_or_wire, ANY.TopoDS_Edge):
-        curve = k.BRepAdaptor_Curve(edge_or_wire)
+    if is_topods_edge(edge_or_wire):
+        curve = k.BRepAdaptor.BRepAdaptor_Curve(edge_or_wire)
     else:
-        curve = k.BRepAdaptor_CompCurve(edge_or_wire)
+        curve = k.BRepAdaptor.BRepAdaptor_CompCurve(edge_or_wire)
 
-    length = k.GCPnts_AbscissaPoint.Length_s(curve)
-    parameter = k.GCPnts_AbscissaPoint(
+    length = k.GCPnts.GCPnts_AbscissaPoint.Length_s(curve)
+    parameter = k.GCPnts.GCPnts_AbscissaPoint(
         curve, length * distance, curve.FirstParameter()
     ).Parameter()
 
-    pnt = k.gp_Pnt()
-    vec = k.gp_Vec()
+    pnt = k.gp.gp_Pnt()
+    vec = k.gp.gp_Vec()
     curve.D1(parameter, pnt, vec)
 
     if is_forward(edge_or_wire):
         vec = vec.Reversed()
-    return (pnt, k.gp_Dir(vec))
+    return (pnt, k.gp.gp_Dir(vec))

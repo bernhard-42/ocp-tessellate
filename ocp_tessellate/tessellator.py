@@ -16,29 +16,19 @@
 
 """Tessellator class"""
 
+from __future__ import annotations
+
 import os
 import sys
-from typing import Iterable, Sequence
+from typing import TYPE_CHECKING, Iterable, Sequence
 
-from ._kernel import ANY, kernel_of
-from ._kernel.default import (
-    TopoDS_Edge,
-    TopoDS_Shape,
-    TopoDS_Vertex,
-    BRep_Tool,
-    BRepAdaptor_Curve,
-    BRepGProp_Face,
-    BRepTools,
-    BRepMesh_IncrementalMesh,
-    GCPnts_QuasiUniformDeflection,
-    GCPnts_UniformDeflection,
-    gp_Pnt,
-    gp_Vec,
-    TopAbs_Orientation,
-    TopAbs_SOLID,
-    TopExp_Explorer,
-    TopLoc_Location,
-)
+from ._kernel import adapter, kernel_of
+if TYPE_CHECKING:
+    from .types import (
+        TopoDS_Edge,
+        TopoDS_Shape,
+        TopoDS_Vertex,
+    )
 import numpy as np
 from cachetools import LRUCache, cached
 
@@ -56,6 +46,8 @@ from .ocp_utils import (
     is_line,
     make_compound,
 )
+from .ocp_utils import is_topods_shape as _is_topods_shape
+from . import trace as trace_module
 from .trace import Trace
 from .types import (
     ConvertedVertices,
@@ -166,14 +158,19 @@ def vertex_mapper(vertices: Iterable[TopoDS_Vertex], id: str) -> VertexMapper:
 class Tessellator:
     def __init__(self, shape_id: str):
         self.shape_id = shape_id
-        self.triangles: list[int] = []  # flat triangle indices
+        # flat buffers: lists filled by the OCP kernel, numpy arrays by the
+        # nanocct kernel; the getters convert either
+        self.triangles: list[int] | NDArray[np.int64] = []  # flat triangle indices
         self.triangles_per_face: list[int] = []
-        self.vertices: list[float] = []  # flat triangle vertex coordinates
-        self.normals: list[float] = []  # flat normal coordinates
-        self.uvs: list[float] = []
+        self.vertices: list[float] | NDArray[np.float64] = []  # flat triangle vertex coordinates
+        self.normals: list[float] | NDArray[np.float64] = []  # flat normal coordinates
+        self.uvs: list[float] | NDArray[np.float64] = []
         # point pairs, flattened by compute_edges and paired by
         # _compute_missing_edges - get_edges ravels both to the same flat array
-        self.edges: list[Coords | tuple[NDArray[np.float32], NDArray[np.float32]]] = []
+        self.edges: (
+            list[Coords | tuple[NDArray[np.float32], NDArray[np.float32]]]
+            | NDArray[np.float64]
+        ) = []
         self.segments_per_edge: list[int] = []
 
         self.obj_vertices: list[float] = []  # flat object vertex coordinates
@@ -189,7 +186,7 @@ class Tessellator:
     def number_solids(self, shape: TopoDS_Shape) -> int:
         k = kernel_of(shape)
         count = 0
-        e = k.TopExp_Explorer(shape, k.TopAbs_SOLID)
+        e = k.TopExp.TopExp_Explorer(shape, k.TopAbs.TopAbs_SOLID)
         while e.More():
             count += 1
             e.Next()
@@ -230,7 +227,7 @@ class Tessellator:
             # https://dev.opencascade.org/node/81262#comment-21130
             # BRepTools.Clean_s(shape)
             # print(quality, False, angular_tolerance, True)
-            k.BRepMesh_IncrementalMesh(shape, quality, False, angular_tolerance, True)
+            k.BRepMesh.BRepMesh_IncrementalMesh(shape, quality, False, angular_tolerance, True)
 
         trace = Trace(LOG_FILE)
 
@@ -254,7 +251,7 @@ class Tessellator:
     def tessellate(self, trace: Trace):
         assert self.shape is not None, "compute() sets the shape"
         # the per-face loops are binding-specific and live in the kernel
-        kernel_of(self.shape).tessellate_faces(
+        adapter(kernel_of(self.shape)).tessellate_faces(
             self, get_faces(self.shape), get_face_type, trace
         )
 
@@ -292,6 +289,8 @@ class Tessellator:
         return normals.ravel()
 
     def _compute_missing_edges(self):
+        # only called when no edge was found, so edges is still the empty list
+        assert isinstance(self.edges, list)
         vertices = np.asarray(self.vertices).reshape(-1, 3)
         triangles = np.asarray(self.triangles).reshape(-1, 3)
         for triangle in triangles:
@@ -301,8 +300,8 @@ class Tessellator:
     def compute_edges(self, trace: Trace):
         assert self.shape is not None, "compute() sets the shape"
         # the per-edge loops are binding-specific and live in the kernel
-        kernel_of(self.shape).compute_edges(
-            self, get_edges(self.shape, True), get_edge_type, trace
+        adapter(kernel_of(self.shape)).compute_edges(
+            self, get_edges(self.shape, True), get_edge_type, trace, trace_module.DEBUG
         )
 
         if len(self.edges) == 0:
@@ -373,7 +372,7 @@ def tessellate(
     compute_uvs: bool = False,
     normalize_uvs: bool = True,
 ) -> Tessellation:
-    if not isinstance(shape, ANY.TopoDS_Shape):
+    if not _is_topods_shape(shape):
         if len(shape) == 1:
             shape = shape[0]
         else:
@@ -426,12 +425,12 @@ def discretize_edge(
         A list of pairs of points representing the discretized edge. Shape (N, 2, 3)
     """
     k = kernel_of(edge)
-    curve_adaptator = k.BRepAdaptor_Curve(edge)
+    curve_adaptator = k.BRepAdaptor.BRepAdaptor_Curve(edge)
 
     if quasi:
-        discretizer = k.GCPnts_QuasiUniformDeflection()
+        discretizer = k.GCPnts.GCPnts_QuasiUniformDeflection()
     else:
-        discretizer = k.GCPnts_UniformDeflection()
+        discretizer = k.GCPnts.GCPnts_UniformDeflection()
     discretizer.Initialize(
         curve_adaptator,
         deflection,
@@ -445,7 +444,7 @@ def discretize_edge(
         return np.empty((0, 2, 3), dtype=np.float32)
 
     points: list[Coords] = [
-        k.coord(curve_adaptator.Value(discretizer.Parameter(i)))
+        adapter(k).coord(curve_adaptator.Value(discretizer.Parameter(i)))
         for i in range(1, discretizer.NbPoints() + 1)
     ]
 

@@ -3,17 +3,22 @@ import tempfile
 import unittest
 
 from build123d import *
-from OCP.gp import gp_Pnt
-from OCP.BRep import BRep_Builder
-from OCP.BRepBuilderAPI import (
-    BRepBuilderAPI_MakeEdge,
-    BRepBuilderAPI_MakeFace,
-    BRepBuilderAPI_MakePolygon,
-)
-from OCP.TopoDS import TopoDS_Compound, TopoDS_Face
 
 from ocp_tessellate.convert import OcpConverter, tessellate_group
 from ocp_tessellate.ocp_utils import *
+
+from occt_binding import occt
+
+# raw OCCT objects of build123d's binding: they are combined with build123d
+# objects below. After the star import, which brings the default kernel's
+# classes (OCP's when both bindings are installed).
+gp_Pnt = occt("gp", "gp_Pnt")
+BRep_Builder = occt("BRep", "BRep_Builder")
+BRepBuilderAPI_MakeEdge = occt("BRepBuilderAPI", "BRepBuilderAPI_MakeEdge")
+BRepBuilderAPI_MakeFace = occt("BRepBuilderAPI", "BRepBuilderAPI_MakeFace")
+BRepBuilderAPI_MakePolygon = occt("BRepBuilderAPI", "BRepBuilderAPI_MakePolygon")
+TopoDS_Compound = occt("TopoDS", "TopoDS_Compound")
+TopoDS_Face = occt("TopoDS", "TopoDS_Face")
 
 
 def _degenerate_face():

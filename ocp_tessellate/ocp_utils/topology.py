@@ -17,41 +17,41 @@
 
 """Explore, downcast, build and copy topology."""
 
-from collections.abc import Iterable, Iterator
-from typing import Literal, overload
+from __future__ import annotations
 
-from .._kernel import kernel, kernel_of
-from .._kernel.default import (
-    BRepAdaptor_Curve,
-    BRepAdaptor_Surface,
-    TopoDS_Compound,
-    TopoDS_CompSolid,
-    TopoDS_Edge,
-    TopoDS_Face,
-    TopoDS_Shape,
-    TopoDS_Solid,
-    TopoDS_Vertex,
-    TopoDS_Wire,
-)
+from collections.abc import Iterable, Iterator
+from typing import TYPE_CHECKING, Literal, overload
+
+from .._kernel import adapter, kernel_of, kernel_of_all
+if TYPE_CHECKING:
+    from ..types import (
+        BRepAdaptor_Curve,
+        BRepAdaptor_Surface,
+        TopoDS_Compound,
+        TopoDS_CompSolid,
+        TopoDS_Edge,
+        TopoDS_Face,
+        TopoDS_Shape,
+        TopoDS_Solid,
+        TopoDS_Vertex,
+        TopoDS_Wire,
+    )
 
 from ..utils import type_name
 from .predicates import is_compound, is_topods_compound
 
 
-# the default kernel's table, kept as a public name; downcast() uses the table of
-# the shape's own kernel
-downcast_LUT = kernel().downcast_LUT
-
-
 def downcast(obj: TopoDS_Shape) -> TopoDS_Shape:
-    d_func = kernel_of(obj).downcast_LUT[obj.ShapeType()]
+    d_func = adapter(kernel_of(obj)).downcast_LUT[obj.ShapeType()]
     return d_func(obj)
 
 
 def make_compound(objs: Iterable[TopoDS_Shape]) -> TopoDS_Compound:
-    k = kernel_of(objs)
-    comp = k.TopoDS_Compound()
-    builder = k.TopoDS_Builder()
+    # a list, so that a generator can be looked at and then iterated
+    objs = list(objs)
+    k = kernel_of_all(objs)
+    comp = k.TopoDS.TopoDS_Compound()
+    builder = k.TopoDS.TopoDS_Builder()
     builder.MakeCompound(comp)
 
     for obj in objs:
@@ -61,9 +61,11 @@ def make_compound(objs: Iterable[TopoDS_Shape]) -> TopoDS_Compound:
 
 
 def make_compsolid(objs):
-    k = kernel_of(objs)
-    comp = k.TopoDS_CompSolid()
-    builder = k.TopoDS_Builder()
+    # a list, so that a generator can be looked at and then iterated
+    objs = list(objs)
+    k = kernel_of_all(objs)
+    comp = k.TopoDS.TopoDS_CompSolid()
+    builder = k.TopoDS.TopoDS_Builder()
     builder.MakeCompSolid(comp)
 
     for shape in objs:
@@ -74,7 +76,7 @@ def make_compsolid(objs):
 
 def copy_topods_shape(obj):
     k = kernel_of(obj)
-    result = downcast(k.BRepBuilderAPI_Copy(obj).Shape())
+    result = downcast(k.BRepBuilderAPI.BRepBuilderAPI_Copy(obj).Shape())
     return result
 
 
@@ -82,7 +84,7 @@ def copy_shape(obj):
     k = kernel_of(obj)
     cls = obj.__class__
     result = cls.__new__(cls)
-    result.wrapped = downcast(k.BRepBuilderAPI_Copy(obj.wrapped).Shape())
+    result.wrapped = downcast(k.BRepBuilderAPI.BRepBuilderAPI_Copy(obj.wrapped).Shape())
     return result
 
 
@@ -107,38 +109,38 @@ def extent_or_size(obj):
 
 def get_compounds(shape: TopoDS_Shape) -> Iterator[TopoDS_Compound]:
     k = kernel_of(shape)
-    compound_map = k.TopTools_IndexedMapOfShape()
-    k.TopExp.MapShapes_s(shape, k.TopAbs_COMPOUND, compound_map)
+    compound_map = adapter(k).TopTools_IndexedMapOfShape()
+    k.TopExp.TopExp.MapShapes_s(shape, k.TopAbs.TopAbs_COMPOUND, compound_map)
 
     for i in range(1, extent_or_size(compound_map) + 1):
-        yield k.downcast_compound(compound_map.FindKey(i))
+        yield adapter(k).downcast_compound(compound_map.FindKey(i))
 
 
 def get_solids(shape: TopoDS_Shape) -> Iterator[TopoDS_Solid]:
     k = kernel_of(shape)
-    solid_map = k.TopTools_IndexedMapOfShape()
-    k.TopExp.MapShapes_s(shape, k.TopAbs_SOLID, solid_map)
+    solid_map = adapter(k).TopTools_IndexedMapOfShape()
+    k.TopExp.TopExp.MapShapes_s(shape, k.TopAbs.TopAbs_SOLID, solid_map)
 
     for i in range(1, extent_or_size(solid_map) + 1):
-        yield k.downcast_solid(solid_map.FindKey(i))
+        yield adapter(k).downcast_solid(solid_map.FindKey(i))
 
 
 def get_faces(shape: TopoDS_Shape) -> Iterator[TopoDS_Face]:
     k = kernel_of(shape)
-    face_map = k.TopTools_IndexedMapOfShape()
-    k.TopExp.MapShapes_s(shape, k.TopAbs_FACE, face_map)
+    face_map = adapter(k).TopTools_IndexedMapOfShape()
+    k.TopExp.TopExp.MapShapes_s(shape, k.TopAbs.TopAbs_FACE, face_map)
 
     for i in range(1, extent_or_size(face_map) + 1):
-        yield k.downcast_face(face_map.FindKey(i))
+        yield adapter(k).downcast_face(face_map.FindKey(i))
 
 
 def get_wires(shape: TopoDS_Shape) -> Iterator[TopoDS_Wire]:
     k = kernel_of(shape)
-    wire_map = k.TopTools_IndexedMapOfShape()
-    k.TopExp.MapShapes_s(shape, k.TopAbs_WIRE, wire_map)
+    wire_map = adapter(k).TopTools_IndexedMapOfShape()
+    k.TopExp.TopExp.MapShapes_s(shape, k.TopAbs.TopAbs_WIRE, wire_map)
 
     for i in range(1, extent_or_size(wire_map) + 1):
-        yield k.downcast_wire(wire_map.FindKey(i))
+        yield adapter(k).downcast_wire(wire_map.FindKey(i))
 
 
 @overload
@@ -153,15 +155,15 @@ def get_edges(
     shape: TopoDS_Shape, with_face: bool = False
 ) -> Iterator[TopoDS_Edge | tuple[TopoDS_Edge, TopoDS_Face]]:
     k = kernel_of(shape)
-    edge_map = k.TopTools_IndexedMapOfShape()
-    k.TopExp.MapShapes_s(shape, k.TopAbs_EDGE, edge_map)
+    edge_map = adapter(k).TopTools_IndexedMapOfShape()
+    k.TopExp.TopExp.MapShapes_s(shape, k.TopAbs.TopAbs_EDGE, edge_map)
 
     if with_face:
-        face_map = k.TopTools_IndexedDataMapOfShapeListOfShape()
-        k.TopExp.MapShapesAndAncestors_s(shape, k.TopAbs_EDGE, k.TopAbs_FACE, face_map)
+        face_map = adapter(k).TopTools_IndexedDataMapOfShapeListOfShape()
+        k.TopExp.TopExp.MapShapesAndAncestors_s(shape, k.TopAbs.TopAbs_EDGE, k.TopAbs.TopAbs_FACE, face_map)
 
     for i in range(1, extent_or_size(edge_map) + 1):
-        edge = k.downcast_edge(edge_map.FindKey(i))
+        edge = adapter(k).downcast_edge(edge_map.FindKey(i))
 
         if with_face:
             face_list = face_map.FindFromKey(edge)
@@ -169,18 +171,18 @@ def get_edges(
                 # print("no faces")
                 continue
 
-            yield edge, k.downcast_face(face_list.First())
+            yield edge, adapter(k).downcast_face(face_list.First())
         else:
             yield edge
 
 
 def get_vertices(shape: TopoDS_Shape) -> Iterator[TopoDS_Vertex]:
     k = kernel_of(shape)
-    vertex_map = k.TopTools_IndexedMapOfShape()
-    k.TopExp.MapShapes_s(shape, k.TopAbs_VERTEX, vertex_map)
+    vertex_map = adapter(k).TopTools_IndexedMapOfShape()
+    k.TopExp.TopExp.MapShapes_s(shape, k.TopAbs.TopAbs_VERTEX, vertex_map)
 
     for i in range(1, extent_or_size(vertex_map) + 1):
-        yield k.downcast_vertex(vertex_map.FindKey(i))
+        yield adapter(k).downcast_vertex(vertex_map.FindKey(i))
 
 
 def get_downcasted_shape(shape: TopoDS_Shape) -> Iterable[TopoDS_Shape]:
@@ -212,7 +214,7 @@ def list_topods_compound(
     compound: TopoDS_Compound | TopoDS_CompSolid,
 ) -> Iterable[TopoDS_Shape]:
     k = kernel_of(compound)
-    iterator = k.TopoDS_Iterator(compound)
+    iterator = k.TopoDS.TopoDS_Iterator(compound)
     while iterator.More():
         yield downcast(iterator.Value())
         iterator.Next()
@@ -240,7 +242,7 @@ def unroll_topods_compound(compound, typ=None):
     k = kernel_of(compound)
     result = []
 
-    iterator = k.TopoDS_Iterator(compound)
+    iterator = k.TopoDS.TopoDS_Iterator(compound)
     while iterator.More():
         obj = downcast(iterator.Value())
 
@@ -280,7 +282,7 @@ def get_face_type(face: TopoDS_Face) -> int:
     Get the type of the face as an integer using GeomAbs_SurfaceType
     """
     k = kernel_of(face)
-    t = k.BRepAdaptor_Surface(face).GetType()
+    t = k.BRepAdaptor.BRepAdaptor_Surface(face).GetType()
     if isinstance(t, int):
         return t
     else:
@@ -289,7 +291,7 @@ def get_face_type(face: TopoDS_Face) -> int:
 
 def get_surface(face: TopoDS_Face) -> BRepAdaptor_Surface:
     k = kernel_of(face)
-    return k.BRepAdaptor_Surface(face)
+    return k.BRepAdaptor.BRepAdaptor_Surface(face)
 
 
 def get_edge_type(edge: TopoDS_Edge) -> int:
@@ -297,7 +299,7 @@ def get_edge_type(edge: TopoDS_Edge) -> int:
     Get the type of the edge as an integer using GeomAbs_CurveType
     """
     k = kernel_of(edge)
-    t = k.BRepAdaptor_Curve(edge).GetType()
+    t = k.BRepAdaptor.BRepAdaptor_Curve(edge).GetType()
     if isinstance(t, int):
         return t
     else:
@@ -306,4 +308,4 @@ def get_edge_type(edge: TopoDS_Edge) -> int:
 
 def get_curve(edge: TopoDS_Edge) -> BRepAdaptor_Curve:
     k = kernel_of(edge)
-    return k.BRepAdaptor_Curve(edge)
+    return k.BRepAdaptor.BRepAdaptor_Curve(edge)

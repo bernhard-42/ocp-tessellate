@@ -15,13 +15,14 @@
 #
 
 
-"""The OCP kernel: everything ocp_tessellate takes from OCP (cadquery-ocp).
+"""The OCP adapter: what differs in OCP (cadquery-ocp).
 
-The rest of the package reaches OCCT through a kernel (see `__init__.py`), so
-this module is the one place that imports OCP, and the place for what differs
-between OCP versions and between OCP and nanocct: the TopoDS downcasts, the
-TopTools map and TDF label sequence classes, the shape hash, the out-parameter
-and stream conventions, and the tessellation loops.
+Everything that is the same in both bindings the code reaches through the
+binding itself (`k.gp.gp_Pnt`, see `__init__.py`). This module holds only what
+differs between OCP versions and between OCP and nanocct: the TopoDS downcasts,
+the TopTools map and TDF label sequence classes, the shape hash, the
+out-parameter and stream conventions, and the tessellation loops.
+`nanocct_adapter.py` provides the same names (tests/test_kernel.py).
 """
 
 import io
@@ -30,55 +31,10 @@ from typing import TYPE_CHECKING
 
 import OCP
 from OCP.BinTools import BinTools, BinTools_FormatVersion_CURRENT
-from OCP.Bnd import Bnd_Box
 from OCP.BRep import BRep_Tool
-from OCP.BRepAdaptor import (
-    BRepAdaptor_CompCurve,
-    BRepAdaptor_Curve,
-    BRepAdaptor_Surface,
-)
-from OCP.BRepBndLib import BRepBndLib
-from OCP.BRepBuilderAPI import (
-    BRepBuilderAPI_Copy,
-    BRepBuilderAPI_FindPlane,
-    BRepBuilderAPI_MakeEdge,
-    BRepBuilderAPI_MakeFace,
-    BRepBuilderAPI_MakeVertex,
-)
-from OCP.BRepExtrema import BRepExtrema_DistShapeShape
-from OCP.BRepGProp import BRepGProp, BRepGProp_Face
-from OCP.BRepMesh import BRepMesh_IncrementalMesh
+from OCP.BRepGProp import BRepGProp_Face
 from OCP.BRepTools import BRepTools
-from OCP.GCPnts import (
-    GCPnts_AbscissaPoint,
-    GCPnts_QuasiUniformDeflection,
-    GCPnts_UniformDeflection,
-)
-from OCP.Geom import Geom_Plane
-from OCP.GeomAbs import GeomAbs_CurveType
-from OCP.GeomLib import GeomLib_IsPlanarSurface
-from OCP.gp import (
-    gp_Ax1,
-    gp_Ax2,
-    gp_Ax3,
-    gp_Circ,
-    gp_Dir,
-    gp_Lin,
-    gp_Pln,
-    gp_Pnt,
-    gp_Quaternion,
-    gp_Trsf,
-    gp_Vec,
-)
-from OCP.GProp import GProp_GProps
-from OCP.IFSelect import IFSelect_RetDone
-from OCP.Quantity import Quantity_ColorRGBA, Quantity_TypeOfColor
-from OCP.STEPCAFControl import STEPCAFControl_Reader
-from OCP.STEPControl import STEPControl_Reader
-from OCP.TCollection import TCollection_AsciiString, TCollection_ExtendedString
-from OCP.TDataStd import TDataStd_Name
-from OCP.TDF import TDF_ChildIterator, TDF_Label
-from OCP.TDocStd import TDocStd_Document
+from OCP.gp import gp_Pnt, gp_Vec
 from OCP.TopAbs import (
     TopAbs_COMPOUND,
     TopAbs_COMPSOLID,
@@ -90,30 +46,8 @@ from OCP.TopAbs import (
     TopAbs_VERTEX,
     TopAbs_WIRE,
 )
-from OCP.TopExp import TopExp, TopExp_Explorer
 from OCP.TopLoc import TopLoc_Location
-from OCP.TopoDS import (
-    TopoDS,
-    TopoDS_Builder,
-    TopoDS_Compound,
-    TopoDS_CompSolid,
-    TopoDS_Edge,
-    TopoDS_Face,
-    TopoDS_Iterator,
-    TopoDS_Shape,
-    TopoDS_Shell,
-    TopoDS_Solid,
-    TopoDS_Vertex,
-    TopoDS_Wire,
-)
-from OCP.XCAFDoc import (
-    XCAFDoc_ColorCurv,
-    XCAFDoc_ColorGen,
-    XCAFDoc_ColorSurf,
-    XCAFDoc_ColorTool,
-    XCAFDoc_DocumentTool,
-    XCAFDoc_ShapeTool,
-)
+from OCP.TopoDS import TopoDS, TopoDS_Edge, TopoDS_Face, TopoDS_Shape
 
 if OCP.__version__.startswith("7"):
     from OCP.TDF import TDF_LabelSequence
@@ -220,6 +154,9 @@ def tessellate_faces(
     The OCP part of Tessellator.tessellate: one Python loop per face over its
     triangulation nodes and triangles, BRepGProp_Face.Normal per node.
     """
+    # the OCP kernel fills the buffers as lists (the nanocct kernel as arrays)
+    assert isinstance(tess.vertices, list) and isinstance(tess.triangles, list)
+    assert isinstance(tess.normals, list) and isinstance(tess.uvs, list)
     # global buffers
     p_buf = gp_Pnt()
     n_buf = gp_Vec()
@@ -368,12 +305,16 @@ def compute_edges(
     edges_with_faces: Iterable[tuple[TopoDS_Edge, TopoDS_Face]],
     edge_type: Callable[[TopoDS_Edge], int],
     trace: "Trace",
+    debug: bool,
 ) -> None:
     """Fill the edge segments of `tess` from the polygons on triangulation of its edges.
 
     The OCP part of Tessellator.compute_edges: one Python loop per edge over
-    the nodes of its polygon on the triangulation of its first face.
+    the nodes of its polygon on the triangulation of its first face. Every
+    edge is traced, so `debug` is not needed.
     """
+    # the OCP kernel fills the buffers as lists (the nanocct kernel as arrays)
+    assert isinstance(tess.edges, list)
     for ind, (edge, face) in enumerate(edges_with_faces):
         trace.edge(f"{tess.shape_id}/edges/edges_{ind}", edge)
 
@@ -406,104 +347,3 @@ def compute_edges(
             v1 = v2
         tess.edges.extend(edges)
         tess.segments_per_edge.append(len(edges) // 2)
-
-
-__all__ = [
-    "bin_write",
-    "BinTools",
-    "BinTools_FormatVersion_CURRENT",
-    "Bnd_Box",
-    "BRep_Tool",
-    "BRepAdaptor_CompCurve",
-    "BRepAdaptor_Curve",
-    "BRepAdaptor_Surface",
-    "BRepBndLib",
-    "BRepBuilderAPI_Copy",
-    "BRepBuilderAPI_FindPlane",
-    "BRepBuilderAPI_MakeEdge",
-    "BRepBuilderAPI_MakeFace",
-    "BRepBuilderAPI_MakeVertex",
-    "BRepExtrema_DistShapeShape",
-    "BRepGProp",
-    "BRepGProp_Face",
-    "BRepMesh_IncrementalMesh",
-    "BRepTools",
-    "compute_edges",
-    "coord",
-    "curve_of",
-    "downcast_compound",
-    "downcast_compsolid",
-    "downcast_edge",
-    "downcast_face",
-    "downcast_LUT",
-    "downcast_shell",
-    "downcast_solid",
-    "downcast_vertex",
-    "downcast_wire",
-    "GCPnts_AbscissaPoint",
-    "GCPnts_QuasiUniformDeflection",
-    "GCPnts_UniformDeflection",
-    "Geom_Plane",
-    "GeomAbs_CurveType",
-    "GeomLib_IsPlanarSurface",
-    "gp_Ax1",
-    "gp_Ax2",
-    "gp_Ax3",
-    "gp_Circ",
-    "gp_Dir",
-    "gp_Lin",
-    "gp_Pln",
-    "gp_Pnt",
-    "gp_Quaternion",
-    "gp_Trsf",
-    "gp_Vec",
-    "GProp_GProps",
-    "hash_compat",
-    "IFSelect_RetDone",
-    "NAME",
-    "Quantity_ColorRGBA",
-    "Quantity_TypeOfColor",
-    "STEPCAFControl_Reader",
-    "STEPControl_Reader",
-    "TCollection_AsciiString",
-    "TCollection_ExtendedString",
-    "TDataStd_Name",
-    "TDF_ChildIterator",
-    "TDF_Label",
-    "TDF_LabelSequence",
-    "TDocStd_Document",
-    "tessellate_faces",
-    "TopAbs_COMPOUND",
-    "TopAbs_COMPSOLID",
-    "TopAbs_EDGE",
-    "TopAbs_FACE",
-    "TopAbs_Orientation",
-    "TopAbs_SHELL",
-    "TopAbs_SOLID",
-    "TopAbs_VERTEX",
-    "TopAbs_WIRE",
-    "TopExp",
-    "TopExp_Explorer",
-    "TopLoc_Location",
-    "TopoDS",
-    "TopoDS_Builder",
-    "TopoDS_Compound",
-    "TopoDS_CompSolid",
-    "TopoDS_Edge",
-    "TopoDS_Face",
-    "TopoDS_Iterator",
-    "TopoDS_Shape",
-    "TopoDS_Shell",
-    "TopoDS_Solid",
-    "TopoDS_Vertex",
-    "TopoDS_Wire",
-    "TopTools_IndexedDataMapOfShapeListOfShape",
-    "TopTools_IndexedMapOfShape",
-    "version",
-    "XCAFDoc_ColorCurv",
-    "XCAFDoc_ColorGen",
-    "XCAFDoc_ColorSurf",
-    "XCAFDoc_ColorTool",
-    "XCAFDoc_DocumentTool",
-    "XCAFDoc_ShapeTool",
-]
