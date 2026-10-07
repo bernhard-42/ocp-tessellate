@@ -13,6 +13,7 @@ from ocp_tessellate.ocp_utils import (
     downcast,
     face_normal,
     get_faces,
+    is_same_plane,
 )
 
 
@@ -127,6 +128,9 @@ def test_two_bindings_do_not_combine():
         angle_between(occt("gp", "gp_Dir", "OCP")(1, 0, 0), occt("gp", "gp_Dir", "nanocct")(0, 1, 0))
     with pytest.raises(TypeError, match="objects of two bindings"):
         closest_directions(_line("OCP", (0, 0, 0), (1, 0, 0)), _line("nanocct", (0, 1, 0), (1, 1, 0)))
+    with pytest.raises(TypeError, match="objects of two bindings"):
+        is_same_plane(_square("OCP", 0, 0), _square("nanocct", 0, 0))
+    assert is_same_plane(_square("OCP", 0, 0), _square("OCP", 0, 0)) is True
 
 
 @pytest.mark.skipif(len(INSTALLED) < 2, reason="needs OCP and nanocct")

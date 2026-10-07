@@ -292,7 +292,8 @@ class OcpConverter:
 
         # Create the relocated object as a copy
         loc = obj.Location()  # Get location
-        obj2 = downcast(obj.Moved(loc.Inverted()))
+        # the shape's own location: one binding at runtime; the OCP | nanocct unions cannot say so (known limit)
+        obj2 = downcast(obj.Moved(loc.Inverted()))  # ty: ignore[invalid-argument-type]
 
         # check if the same instance is already available
         for i, instance in enumerate(self.instances):
@@ -768,7 +769,8 @@ class OcpConverter:
                 if joint.loc is None:
                     joint.loc = location.Inverted()
                 else:
-                    joint.loc = location.Inverted() * joint.loc
+                    # the joints of this object: one binding at runtime; the OCP | nanocct unions cannot say so (known limit)
+                    joint.loc = location.Inverted() * joint.loc  # ty: ignore[unsupported-operator]
             ocp_obj.helpers = joints
 
         return ocp_obj.make_unique_names()
@@ -1123,7 +1125,8 @@ class OcpConverter:
                 if joint.loc is None:
                     joint.loc = loc.Inverted()
                 else:
-                    joint.loc = loc.Inverted() * joint.loc
+                    # the joints of this object: one binding at runtime; the OCP | nanocct unions cannot say so (known limit)
+                    joint.loc = loc.Inverted() * joint.loc  # ty: ignore[unsupported-operator]
             ocp_obj.helpers = joints
 
         if self.show_parent and (
@@ -1406,17 +1409,18 @@ class OcpConverter:
                 if is_location(objs[0]):
                     assert selection is not None
                     locations: list[TopLoc_Location] = []
+                    # the locations and selection of one builder: one binding at runtime; the OCP | nanocct unions cannot say so (known limit)
                     for obj in selection:
                         assert is_location(obj), f"expected a location: {obj}"
                         for loc in cad_obj.locs:
-                            locations.append(loc.wrapped * obj.wrapped)
+                            locations.append(loc.wrapped * obj.wrapped)  # ty: ignore[unsupported-operator]
                     compound = locations
                 else:
                     shapes: list[TopoDS_Shape] = []
                     for obj in objs:
                         assert is_shape(obj), f"expected a shape: {obj}"
                         for loc in cad_obj.locs:
-                            shapes.append(downcast(obj.wrapped.Moved(loc.wrapped)))
+                            shapes.append(downcast(obj.wrapped.Moved(loc.wrapped)))  # ty: ignore[invalid-argument-type]
                     compound = make_compound(shapes)
                 cad_objs.append(compound)
                 names.append(typ)

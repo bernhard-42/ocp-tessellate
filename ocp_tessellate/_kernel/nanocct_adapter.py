@@ -128,6 +128,15 @@ def bin_write(shape: TopoDS_Shape, triangles: bool, normals: bool) -> bytes:
     return BinTools.Write_s(shape, triangles, normals, BinTools_FormatVersion_CURRENT)
 
 
+def find_attribute(label, attribute_class):
+    """The attribute of type attribute_class (e.g. TDataStd_Name) of a TDF_Label,
+    None if it has none; FindAttribute(ID) returns (found, attribute)."""
+    found, attribute = label.FindAttribute(attribute_class.GetID_s())
+    if found is True:
+        return attribute
+    return None
+
+
 def par_on_edge(extrema, solution: int, shape_index: int) -> float:
     """The edge parameter of an extrema solution, BRepExtrema_DistShapeShape::ParOnEdgeS1/S2(N, t)."""
     # the out-parameter t is returned as a float, not as a 1-tuple
@@ -294,9 +303,10 @@ def compute_edges(
             trace.edge(f"{tess.shape_id}/edges/edges_{ind}", edge)
 
     # the stub types the result as object; its docstring says what it is
+    # tess.shape is a nanocct shape here: the adapter of its binding is called
     segments, per_edge, types = cast(
         "tuple[NDArray[np.float64], NDArray[np.int32], NDArray[np.int32]]",
-        AddOns.Tessellator.EdgeSegments(tess.shape),
+        AddOns.Tessellator.EdgeSegments(tess.shape),  # ty: ignore[invalid-argument-type]
     )
     if len(segments) > 0:
         tess.edges = segments  # (2 * segments, 3) point pairs

@@ -169,7 +169,8 @@ def mul_locations(
         raise TypeError(
             f"locations of two bindings: {type(loc1).__module__} and {type(loc2).__module__}"
         )
-    return loc1 * loc2
+    # checked above: one binding at runtime (kernel_of / kernel_of_all); the OCP | nanocct unions cannot say so (known limit, ty in a venv with both bindings)
+    return loc1 * loc2  # ty: ignore[unsupported-operator]
 
 
 def copy_location(loc: TopLoc_Location | None) -> TopLoc_Location | None:

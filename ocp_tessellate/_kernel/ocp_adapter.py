@@ -151,6 +151,16 @@ def bin_write(shape: TopoDS_Shape, triangles: bool, normals: bool) -> bytes:
     return bio.getvalue()
 
 
+def find_attribute(label, attribute_class):
+    """The attribute of type attribute_class (e.g. TDataStd_Name) of a TDF_Label,
+    None if it has none; TDF_Label::FindAttribute(ID, attribute) fills the
+    attribute passed in."""
+    attribute = attribute_class()
+    if label.FindAttribute(attribute_class.GetID_s(), attribute):
+        return attribute
+    return None
+
+
 def par_on_edge(extrema, solution: int, shape_index: int) -> float:
     """The edge parameter of an extrema solution, BRepExtrema_DistShapeShape::ParOnEdgeS1/S2(N, t)."""
     if shape_index == 1:

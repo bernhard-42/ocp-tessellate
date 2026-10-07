@@ -15,6 +15,9 @@
 
 **Changes**
 
+- `StepReader` works with nanocct: it read names with OCP's out-parameter convention of `TDF_Label.FindAttribute` (nanocct returns `(found, attribute)`), so loading failed. All its methods use the binding it was created in, and `to_build123d` raises a `TypeError` that names `prefer_nanocct` when build123d wraps the other binding. `tests/test_stepreader.py` covers names, colors, locations, nested assemblies and `to_build123d` per binding
+- `is_same_plane` raises a `TypeError` for planes of two bindings
+- ty: where both bindings are installed, the OCP | nanocct unions of the annotations cannot express that values share one binding; these sites carry a `ty: ignore` with the reason (a known limit)
 - `BoundingBox` raises `TypeError` instead of `ValueError` for an argument of the wrong type
 - The code passes ruff's default rules (`ruff check`, ruff 0.16); `pyproject.toml` only sets `combine-as-imports`. Two tests that were defined twice under one name, and so never ran, run again, and two cache tests tessellate a group with its own instances
 - `ocp_tessellate.ocp_utils` is a package now, grouped by topic (`compat`, `predicates`, `detect`, `topology`, `measure`, `geometry`, `location`, `bbox`, `serialize`, `color`). Every function, class and value of the former module is still importable from `ocp_tessellate.ocp_utils`, and the star import gives the same names, except the OCCT classes (see above), imported modules (`np`, `OCP`, ...) and third-party helpers

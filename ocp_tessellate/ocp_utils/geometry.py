@@ -76,7 +76,8 @@ def angle_between(v1, v2) -> float:
     """The angle between two directions in radians (gp_Dir::Angle), each a
     gp_Dir, a gp_Vec or (x, y, z)."""
     k = kernel_of_all((v1, v2))
-    return _as_dir(k, v1).Angle(_as_dir(k, v2))
+    # one binding at runtime (kernel_of / kernel_of_all); the OCP | nanocct unions cannot say so (known limit, ty in a venv with both bindings)
+    return _as_dir(k, v1).Angle(_as_dir(k, v2))  # ty: ignore[invalid-argument-type]
 
 
 def _as_dir(k: ModuleType, v) -> gp_Dir:
@@ -230,17 +231,20 @@ def is_same_plane(
     plane1: TopoDS_Face | TopLoc_Location | gp_Pln,
     plane2: TopoDS_Face | TopLoc_Location | gp_Pln,
 ) -> bool:
+    # a TypeError for planes of two bindings, which cannot be compared
+    kernel_of_all((plane1, plane2))
     first_plane = _as_plane(plane1)
     second_plane = _as_plane(plane2)
 
     coordSystem1 = first_plane.Position()
     coordSystem2 = second_plane.Position()
 
+    # checked above: one binding at runtime; the OCP | nanocct unions cannot say so (known limit)
     return (
-        coordSystem1.Location().IsEqual(coordSystem2.Location(), 1e-6)
-        and coordSystem1.XDirection().IsEqual(coordSystem2.XDirection(), 1e-6)
-        and coordSystem1.YDirection().IsEqual(coordSystem2.YDirection(), 1e-6)
-        and coordSystem1.Direction().IsEqual(coordSystem2.Direction(), 1e-6)
+        coordSystem1.Location().IsEqual(coordSystem2.Location(), 1e-6)  # ty: ignore[invalid-argument-type]
+        and coordSystem1.XDirection().IsEqual(coordSystem2.XDirection(), 1e-6)  # ty: ignore[invalid-argument-type]
+        and coordSystem1.YDirection().IsEqual(coordSystem2.YDirection(), 1e-6)  # ty: ignore[invalid-argument-type]
+        and coordSystem1.Direction().IsEqual(coordSystem2.Direction(), 1e-6)  # ty: ignore[invalid-argument-type]
     )
 
 

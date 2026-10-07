@@ -30,7 +30,7 @@ try:
 except ImportError:
     pass
 
-from ._kernel import adapter, kernel, kernel_of
+from ._kernel import adapter, binding_of, kernel
 
 if TYPE_CHECKING:
     from .types import (
@@ -111,13 +111,12 @@ class StepReader:
         :param label: TDF_label of a STEP file
         :return: str
         """
-        k = kernel_of(label)
-        t = k.TDataStd.TDataStd_Name()
-        if label.FindAttribute(k.TDataStd.TDataStd_Name.GetID_s(), t):
-            name = k.TCollection.TCollection_AsciiString(t.Get()).ToCString()
-            return clean_string(name)
-        else:
+        k = self._kernel
+        attribute = adapter(k).find_attribute(label, k.TDataStd.TDataStd_Name)
+        if attribute is None:
             return "Component"
+        name = k.TCollection.TCollection_AsciiString(attribute.Get()).ToCString()
+        return clean_string(name)
 
     def get_color(self, shape):
         """
@@ -130,7 +129,8 @@ class StepReader:
         :return: str
         """
 
-        k = kernel_of(shape)
+        k = self._kernel
+
         def to_list(c: Quantity_ColorRGBA) -> RGBA:
             return (c.GetRGB().Red(), c.GetRGB().Green(), c.GetRGB().Blue(), c.Alpha())
 
@@ -195,7 +195,7 @@ class StepReader:
         :param loc: object location (TopLoc_Location)
         :return: list of TopAbs_SOLID
         """
-        k = kernel_of(label)
+        k = self._kernel
         it = k.TDF.TDF_ChildIterator()
         it.Initialize(label)
         i = 0
@@ -223,7 +223,8 @@ class StepReader:
         :param loc: object location (TopLoc_Location)
         :return: list of AssemblyObjects
         """
-        k = kernel_of(label)
+        # every label belongs to the document load() read in self._kernel
+        k = self._kernel
         shape_tool = self.shape_tool
         assert shape_tool is not None, "load() first"
         labels = adapter(k).TDF_LabelSequence()
@@ -415,8 +416,21 @@ class StepReader:
         Convert internal AssemblyObjects format to build123d Assemblies
         :return: buiild123d assembly
         """
+        # build123d wraps the objects of one binding: the one the STEP file must
+        # have been read with
+        build123d_binding = binding_of(Location().wrapped)
+        if build123d_binding is not self._kernel:
+            assert build123d_binding is not None, "build123d wraps OCP or nanocct objects"
+            prefer = build123d_binding.__name__ == "nanocct"
+            raise TypeError(
+                f"the STEP file was read with {self._kernel.__name__}, but build123d "
+                f"uses {build123d_binding.__name__}: call "
+                f"ocp_tessellate.prefer_nanocct({prefer}) before creating the StepReader"
+            )
+
         def to_loc(loc: TopLoc_Location | None) -> Location:
-            return Location() if loc is None else Location(loc)
+            # the binding is checked above; the union does not narrow (known limit)
+            return Location() if loc is None else Location(loc)  # ty: ignore[no-matching-overload]
 
         def walk(objs: list[AssemblyObject], label=None, loc=None):
             a = []

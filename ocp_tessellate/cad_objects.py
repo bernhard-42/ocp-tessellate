@@ -413,22 +413,23 @@ class CoordAxis(OcpWrapper):
         if color is None:
             color = Color("black")
         o, x, y, z = axis_to_vecs(origin, z_dir)
-        edge = line(o, o + size * z)
+        # vectors of axis_to_vecs: one binding at runtime (kernel_of / kernel_of_all); the OCP | nanocct unions cannot say so (known limit, ty in a venv with both bindings)
+        edge = line(o, o + size * z)  # ty: ignore[unsupported-operator]
         f = 0.7
         dz = size * f * z
         dx = size * ((1 - f) / 4) * x
         dy = size * ((1 - f) / 4) * y
         a = [
-            line(o + size * z, o + dz - dx),
-            line(o + size * z, o + dz + dx),
-            line(o + size * z, o + dz - dy),
-            line(o + size * z, o + dz + dy),
-            line(o + dz - dx, o + dz + dx),
-            line(o + dz - dy, o + dz + dy),
-            line(o + dz - dy, o + dz + dx),
-            line(o + dz - dy, o + dz - dx),
-            line(o + dz + dy, o + dz + dx),
-            line(o + dz + dy, o + dz - dx),
+            line(o + size * z, o + dz - dx),  # ty: ignore[unsupported-operator]
+            line(o + size * z, o + dz + dx),  # ty: ignore[unsupported-operator]
+            line(o + size * z, o + dz - dy),  # ty: ignore[unsupported-operator]
+            line(o + size * z, o + dz + dy),  # ty: ignore[unsupported-operator]
+            line(o + dz - dx, o + dz + dx),  # ty: ignore[unsupported-operator]
+            line(o + dz - dy, o + dz + dy),  # ty: ignore[unsupported-operator]
+            line(o + dz - dy, o + dz + dx),  # ty: ignore[unsupported-operator]
+            line(o + dz - dy, o + dz - dx),  # ty: ignore[unsupported-operator]
+            line(o + dz + dy, o + dz + dx),  # ty: ignore[unsupported-operator]
+            line(o + dz + dy, o + dz - dx),  # ty: ignore[unsupported-operator]
         ]
 
         super().__init__([edge] + a, "edge", name, color, width=2)
@@ -444,9 +445,10 @@ class CoordSystem(OcpWrapper):
         size: float = 1,
     ):
         o, x, y, z = loc_to_vecs(origin, x_dir, z_dir)
-        x_edge = line(o, o + size * x)
-        y_edge = line(o, o + size * y)
-        z_edge = line(o, o + size * z)
+        # vectors of loc_to_vecs: one binding at runtime (kernel_of / kernel_of_all); the OCP | nanocct unions cannot say so (known limit, ty in a venv with both bindings)
+        x_edge = line(o, o + size * x)  # ty: ignore[unsupported-operator]
+        y_edge = line(o, o + size * y)  # ty: ignore[unsupported-operator]
+        z_edge = line(o, o + size * z)  # ty: ignore[unsupported-operator]
 
         colors = [Color("red"), Color("green"), Color("blue")]
         super().__init__([x_edge, y_edge, z_edge], "edge", name, colors, width=2)
