@@ -7,15 +7,17 @@ to be the one installed. The dispatch tests run once per installed binding.
 
 import ast
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 
+import numpy as np
 import pytest
-from occt_binding import INSTALLED, occt, root
+from occt_binding import DEFAULT_BINDING, INSTALLED, occt, root
 
 import ocp_tessellate._kernel as kernels
-from ocp_tessellate import ImageFace, ocp_utils, prefer_nanocct
+from ocp_tessellate import ImageFace, ocp_utils
 from ocp_tessellate._kernel import adapter, binding_of, kernel, kernel_of, kernel_of_all
 from ocp_tessellate.convert import tessellate_group, to_ocpgroup
 
@@ -30,7 +32,7 @@ MAY_IMPORT = {
 }
 # and only for the type checker: the OCCT types of annotations
 MAY_IMPORT_FOR_TYPES = {PACKAGE / "types.py": {"OCP", "nanocct"}}
-DEFAULT = root("nanocct" if INSTALLED == ["nanocct"] else "OCP")
+DEFAULT = root(DEFAULT_BINDING)
 
 
 #
@@ -233,36 +235,6 @@ def test_no_occt_names_are_exported():
         assert not hasattr(ocp_utils, name), name
 
 
-def test_prefer_nanocct():
-    if "nanocct" in INSTALLED:
-        prefer_nanocct(True)
-        assert kernel() is root("nanocct")
-        assert kernel_of(1.0) is root("nanocct")
-        assert binding_of(ocp_utils.identity_location()) is root("nanocct")
-    else:
-        with pytest.raises(ImportError, match="nanocct is not installed"):
-            prefer_nanocct(True)
-        # the failed call changed nothing
-        assert kernel() is DEFAULT
-    prefer_nanocct(False)
-    assert kernel() is DEFAULT
-    assert binding_of(ocp_utils.identity_location()) is DEFAULT
-
-
-@pytest.mark.parametrize("flag", [1, 0, None, "nanocct"])
-def test_prefer_nanocct_takes_a_bool(flag):
-    with pytest.raises(TypeError, match="True or False"):
-        prefer_nanocct(flag)
-    assert kernel() is DEFAULT
-
-
-def test_prefer_nanocct_is_public():
-    import ocp_tessellate
-
-    assert "prefer_nanocct" in ocp_tessellate.__all__
-    assert ocp_tessellate.prefer_nanocct is kernels.prefer_nanocct
-
-
 #
 # Dispatch, once per installed binding
 #
@@ -279,13 +251,10 @@ def test_kernel_of_an_occt_object(binding):
 
 
 @pytest.mark.parametrize("binding", INSTALLED)
-def test_an_occt_object_keeps_its_binding_whatever_the_preference(binding):
+def test_an_occt_object_keeps_its_binding_whatever_the_default(binding):
     box = _box(binding)
     assert kernel_of(box) is root(binding)
-    if "nanocct" in INSTALLED:
-        prefer_nanocct(True)
-        assert kernel_of(box) is root(binding)
-        assert kernel_of_all([box, (1, 2, 3)]) is root(binding)
+    assert kernel_of_all([box, (1, 2, 3)]) is root(binding)
 
 
 @pytest.mark.parametrize("binding", INSTALLED)
@@ -321,9 +290,6 @@ def test_objects_of_two_bindings_do_not_combine():
 @pytest.mark.parametrize("obj", [None, 1.0, "text", (1.0, 2.0, 3.0), [], object()])
 def test_kernel_of_something_else_is_the_default(obj):
     assert kernel_of(obj) is kernel()
-    if "nanocct" in INSTALLED:
-        prefer_nanocct(True)
-        assert kernel_of(obj) is root("nanocct")
 
 
 @pytest.mark.parametrize("binding", INSTALLED)
@@ -360,10 +326,12 @@ def test_locations_of_two_bindings_do_not_mix():
     """ocp_tessellate creates no locations of its own above the user's objects,
     so a product of locations of two bindings is a bug and raises."""
     outer = ocp_utils.tq_to_loc((1, 2, 3), (0, 0, 0, 1))
-    prefer_nanocct(True)
-    inner = ocp_utils.tq_to_loc((4, 0, 0), (0, 0, 0, 1))
-    assert binding_of(outer) is root("OCP")
-    assert binding_of(inner) is root("nanocct")
+    other = "nanocct" if DEFAULT_BINDING == "OCP" else "OCP"
+    trsf = occt("gp", "gp_Trsf", other)()
+    trsf.SetTranslationPart(occt("gp", "gp_Vec", other)(4, 0, 0))
+    inner = occt("TopLoc", "TopLoc_Location", other)(trsf)
+    assert binding_of(outer) is root(DEFAULT_BINDING)
+    assert binding_of(inner) is root(other)
     with pytest.raises(TypeError, match="locations of two bindings"):
         ocp_utils.mul_locations(outer, inner)
 
@@ -404,11 +372,11 @@ def _vec(binding, *xyz):
     return occt("gp", "gp_Vec", binding)(*xyz)
 
 
-def test_cross_of_tuples_uses_the_default():
-    expected = ocp_utils.cross((1, 2, 3), (9, 4, 1))
-    if "nanocct" in INSTALLED:
-        prefer_nanocct(True)
-        assert ocp_utils.cross((1, 2, 3), (9, 4, 1)) == pytest.approx(expected)
+def test_cross_of_tuples():
+    x = np.array((1, 2, 3)) / np.linalg.norm((1, 2, 3))
+    z = np.array((9, 4, 1)) / np.linalg.norm((9, 4, 1))
+    y = np.cross(x, z)
+    assert ocp_utils.cross((1, 2, 3), (9, 4, 1)) == pytest.approx(tuple(y / np.linalg.norm(y)))
 
 
 @pytest.mark.parametrize("binding", INSTALLED)
@@ -444,13 +412,8 @@ def test_line_circle_vertex_rect_take_the_binding_of_any_occt_argument(binding):
 
 def test_image_face_without_location_uses_the_default():
     face = ImageFace(str(IMAGE))
-    assert binding_of(face.objs[0]) is kernel()
-    assert binding_of(face.loc) is kernel()
-    if "nanocct" in INSTALLED:
-        prefer_nanocct(True)
-        face = ImageFace(str(IMAGE))
-        assert binding_of(face.objs[0]) is root("nanocct")
-        assert binding_of(face.loc) is root("nanocct")
+    assert binding_of(face.objs[0]) is root(DEFAULT_BINDING)
+    assert binding_of(face.loc) is root(DEFAULT_BINDING)
 
 
 @pytest.mark.parametrize("binding", INSTALLED)
@@ -477,29 +440,47 @@ except ImportError as e:
 else:
     out["flags"] = [k.HAS_OCP, k.HAS_NANOCCT]
     out["default"] = k.kernel().__name__
-    try:
-        k.prefer_nanocct(True)
-    except ImportError as e:
-        out["preferred"] = str(e)
-    else:
-        out["preferred"] = k.kernel().__name__
 print(json.dumps(out))
 """
 
 
+def _probe(hidden, occt_binding=None):
+    """Run PROBE in a subprocess with `hidden` bindings and OCCT_BINDING set or unset."""
+    env = {k: v for k, v in os.environ.items() if k != "OCCT_BINDING"}
+    if occt_binding is not None:
+        env["OCCT_BINDING"] = occt_binding
+    result = subprocess.run(
+        [sys.executable, "-c", PROBE, *hidden], capture_output=True, text=True, check=True, env=env
+    )
+    return json.loads(result.stdout.strip().splitlines()[-1])
+
+
 @pytest.mark.parametrize("hidden", [(), ("OCP",), ("nanocct",), ("OCP", "nanocct")])
 def test_installation_cases(hidden):
-    result = subprocess.run(
-        [sys.executable, "-c", PROBE, *hidden], capture_output=True, text=True, check=True
-    )
-    out = json.loads(result.stdout.strip().splitlines()[-1])
+    out = _probe(hidden)
     available = [b for b in INSTALLED if b not in hidden]
     if len(available) == 0:
         assert out == {"error": "ocp_tessellate needs OCP (cadquery-ocp) or nanocct"}
         return
     assert out["flags"] == ["OCP" in available, "nanocct" in available]
     assert out["default"] == ("OCP" if "OCP" in available else "nanocct")
-    if "nanocct" in available:
-        assert out["preferred"] == "nanocct"
+
+
+@pytest.mark.parametrize("hidden", [(), ("OCP",), ("nanocct",)])
+@pytest.mark.parametrize("occt_binding", ["OCP", "nanocct"])
+def test_occt_binding_environment_variable(hidden, occt_binding):
+    """OCCT_BINDING gives the initial preference; a binding it names must be installed."""
+    out = _probe(hidden, occt_binding)
+    available = [b for b in INSTALLED if b not in hidden]
+    if len(available) == 0:
+        assert out == {"error": "ocp_tessellate needs OCP (cadquery-ocp) or nanocct"}
+    elif occt_binding not in available:
+        assert out == {"error": f"OCCT_BINDING={occt_binding}, but {occt_binding} is not installed"}
     else:
-        assert out["preferred"] == "prefer_nanocct(True), but nanocct is not installed"
+        # "default" is kernel() right after import
+        assert out["default"] == occt_binding
+
+
+def test_occt_binding_must_be_a_binding():
+    out = _probe((), "ocp")
+    assert out == {"error": "OCCT_BINDING must be one of ('OCP', 'nanocct'), not 'ocp'"}

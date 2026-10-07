@@ -3,9 +3,8 @@
 import importlib
 
 import pytest
-from occt_binding import INSTALLED, occt, root
+from occt_binding import DEFAULT_BINDING, INSTALLED, occt, root
 
-from ocp_tessellate import prefer_nanocct
 from ocp_tessellate._kernel import binding_of
 from ocp_tessellate.ocp_utils import ALPHA_MODES, make_vis_material, vis_material_values
 
@@ -18,8 +17,7 @@ def _has_emissive(binding):
 
 
 def _make(binding, *args, **kwargs):
-    """make_vis_material in `binding`: it gets no OCCT object, so the preference decides."""
-    prefer_nanocct(binding == "nanocct")
+    """make_vis_material gets no OCCT object: it builds in the run's binding."""
     vis = make_vis_material(*args, **kwargs)
     assert binding_of(vis) is root(binding)
     return vis
@@ -30,7 +28,7 @@ def test_an_empty_material_has_no_values(binding):
     assert vis_material_values(occt("XCAFDoc", "XCAFDoc_VisMaterial", binding)()) is None
 
 
-@pytest.mark.parametrize("binding", INSTALLED)
+@pytest.mark.parametrize("binding", [DEFAULT_BINDING])
 def test_round_trip(binding):
     vis = _make(
         binding,
@@ -57,7 +55,7 @@ def test_round_trip(binding):
     assert values["double_sided"] is True
 
 
-@pytest.mark.parametrize("binding", INSTALLED)
+@pytest.mark.parametrize("binding", [DEFAULT_BINDING])
 def test_defaults(binding):
     values = vis_material_values(_make(binding, "plain"))
     assert values is not None
@@ -73,13 +71,13 @@ def test_defaults(binding):
     assert translucent["alpha"] == pytest.approx(0.25)
 
 
-@pytest.mark.parametrize("binding", INSTALLED)
+@pytest.mark.parametrize("binding", [DEFAULT_BINDING])
 @pytest.mark.parametrize("mode", ALPHA_MODES)
 def test_alpha_modes(binding, mode):
     assert vis_material_values(_make(binding, "m", alpha_mode=mode))["alpha_mode"] == mode
 
 
-@pytest.mark.parametrize("binding", INSTALLED)
+@pytest.mark.parametrize("binding", [DEFAULT_BINDING])
 def test_invalid_alpha_settings(binding):
     with pytest.raises(ValueError, match="alpha_mode must be one of"):
         _make(binding, "m", alpha_mode="mask")
@@ -87,7 +85,7 @@ def test_invalid_alpha_settings(binding):
         _make(binding, "m", alpha_cutoff=0.4)
 
 
-@pytest.mark.parametrize("binding", INSTALLED)
+@pytest.mark.parametrize("binding", [DEFAULT_BINDING])
 def test_emissive(binding):
     values = vis_material_values(_make(binding, "glow", emissive=(0.5, 0.25, 0.1)))
     if _has_emissive(binding):
@@ -111,21 +109,3 @@ def test_unnamed_and_common_materials(binding):
     # read through ConvertToPbrMaterial: linear 0.2, 0.4, 0.6 as sRGB
     assert values["color"] == pytest.approx((0.4845, 0.6652, 0.7977), abs=1e-4)
     assert vis.HasPbrMaterial() is False
-
-
-@pytest.mark.skipif(len(INSTALLED) < 2, reason="needs OCP and nanocct")
-def test_both_bindings_give_the_same_values():
-    kwargs = {
-        "color": (0.1, 0.6, 0.3),
-        "alpha": 0.8,
-        "metallic": 0.4,
-        "roughness": 0.6,
-        "ior": 1.6,
-        "alpha_mode": "Blend",
-        "double_sided": True,
-    }
-    ocp, nanocct = (vis_material_values(_make(b, "same", **kwargs)) for b in INSTALLED)
-    for key in ocp:
-        if key == "emissive":
-            continue
-        assert ocp[key] == nanocct[key], key

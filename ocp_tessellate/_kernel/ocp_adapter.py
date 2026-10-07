@@ -31,7 +31,12 @@ from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING
 
 import OCP
-from OCP.BinTools import BinTools, BinTools_FormatVersion_CURRENT
+from OCP.BinTools import (
+    BinTools,
+    BinTools_FormatVersion,
+    BinTools_FormatVersion_CURRENT,
+    BinTools_FormatVersion_UPPER,
+)
 from OCP.BRep import BRep_Tool
 from OCP.BRepGProp import BRepGProp_Face
 from OCP.BRepTools import BRepTools
@@ -144,10 +149,21 @@ def curve_of(edge: TopoDS_Edge, loc: TopLoc_Location):
     return BRep_Tool.Curve_s(edge, loc, 0.0, 0.0)
 
 
-def bin_write(shape: TopoDS_Shape, triangles: bool, normals: bool) -> bytes:
-    """The shape in OCCT's binary BRep format, written to memory."""
+# the newest binary BRep format version this OCCT writes and reads
+bin_format_upper = int(BinTools_FormatVersion_UPPER)
+
+
+def bin_write(
+    shape: TopoDS_Shape, triangles: bool, normals: bool, version: int | None = None
+) -> bytes:
+    """The shape in OCCT's binary BRep format, written to memory: in format
+    `version` (1 .. bin_format_upper), the current one if None."""
+    if version is None:
+        format_version = BinTools_FormatVersion_CURRENT
+    else:
+        format_version = getattr(BinTools_FormatVersion, f"BinTools_FormatVersion_VERSION_{version}")
     bio = io.BytesIO()
-    BinTools.Write_s(shape, bio, triangles, normals, BinTools_FormatVersion_CURRENT)
+    BinTools.Write_s(shape, bio, triangles, normals, format_version)
     return bio.getvalue()
 
 

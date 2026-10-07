@@ -27,6 +27,8 @@ from typing import TYPE_CHECKING
 from .._kernel import adapter, kernel, kernel_of
 
 if TYPE_CHECKING:
+    from types import ModuleType
+
     from ..types import (
         TopoDS_Shape,
     )
@@ -41,7 +43,6 @@ def ocp_hash(obj):
         return ()
 
 
-# TODO replace with https://github.com/MatthiasJ1/ocp_serializer when published
 def serialize(
     shape: TopoDS_Shape | None, triangles: bool = False, normals: bool = False
 ) -> bytes | None:
@@ -53,21 +54,30 @@ def serialize(
         buffer = adapter(k).bin_write(shape, triangles, normals)
     # any failure of the in-memory path falls back to a file
     except Exception:  # noqa: BLE001
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            filename = os.path.join(tmpdirname, "shape.brep")
-            k.BinTools.BinTools.Write_s(
-                shape, filename, False, False, k.BinTools.BinTools_FormatVersion_CURRENT
-            )
-            with open(filename, "rb") as fd:
-                buffer = fd.read()
+        buffer = _write_via_file(k, shape, triangles, normals)
     return buffer
+
+
+def _write_via_file(k: ModuleType, shape: TopoDS_Shape, triangles: bool, normals: bool) -> bytes:
+    """serialize's fallback: the shape written to a temporary file in binary BRep format."""
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        filename = os.path.join(tmpdirname, "shape.brep")
+        k.BinTools.BinTools.Write_s(
+            shape, filename, triangles, normals, k.BinTools.BinTools_FormatVersion_CURRENT
+        )
+        with open(filename, "rb") as fd:
+            return fd.read()
 
 
 def deserialize(buffer: bytes | None) -> TopoDS_Shape | None:
     k = kernel()
     if buffer is None:
         return None
+    return _read(k, buffer)
 
+
+def _read(k: ModuleType, buffer: bytes) -> TopoDS_Shape:
+    """The shape in OCCT's binary BRep format `buffer`, read with binding k."""
     shape = k.TopoDS.TopoDS_Shape()
     try:
         bio = io.BytesIO(buffer)

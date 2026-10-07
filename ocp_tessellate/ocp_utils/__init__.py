@@ -50,6 +50,7 @@ from .bbox import (
     nested_bounding_box,
     np_bbox,
 )
+from .bindings import to_nanocct, to_ocp
 from .color import get_rgba, is_ocp_color, ocp_color
 from .compat import (
     occt_version,

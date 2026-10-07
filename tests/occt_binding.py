@@ -7,6 +7,7 @@ own dispatch run once per installed binding: INSTALLED.
 
 import importlib
 import importlib.util
+import os
 
 import build123d
 
@@ -14,6 +15,12 @@ import build123d
 BINDING = type(build123d.Box(1, 1, 1).wrapped).__module__.partition(".")[0]
 
 INSTALLED = [b for b in ("OCP", "nanocct") if importlib.util.find_spec(b) is not None]
+
+# the binding of what no OCCT object decides in this run: the one OCCT_BINDING
+# names, else the first installed (OCP before nanocct). Where both bindings are
+# installed, run the suite once per binding: OCCT_BINDING=OCP and =nanocct.
+_WANTED = os.environ.get("OCCT_BINDING")
+DEFAULT_BINDING = _WANTED if _WANTED is not None else INSTALLED[0]
 
 
 def root(binding: str):

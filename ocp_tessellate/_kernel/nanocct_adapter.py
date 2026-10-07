@@ -33,7 +33,12 @@ from typing import TYPE_CHECKING, cast
 
 import numpy as np
 from nanocct import AddOns, TopoDS
-from nanocct.BinTools import BinTools, BinTools_FormatVersion_CURRENT
+from nanocct.BinTools import (
+    BinTools,
+    BinTools_FormatVersion,
+    BinTools_FormatVersion_CURRENT,
+    BinTools_FormatVersion_UPPER,
+)
 from nanocct.BRep import BRep_Tool
 from nanocct.BRepTools import BRepTools
 from nanocct.gp import gp_Pnt, gp_TrsfForm, gp_Vec
@@ -123,9 +128,20 @@ def curve_of(edge: TopoDS_Edge, loc: TopLoc_Location):
     return curve
 
 
-def bin_write(shape: TopoDS_Shape, triangles: bool, normals: bool) -> bytes:
-    """The shape in OCCT's binary BRep format, written to memory."""
-    return BinTools.Write_s(shape, triangles, normals, BinTools_FormatVersion_CURRENT)
+# the newest binary BRep format version this OCCT writes and reads
+bin_format_upper = int(BinTools_FormatVersion_UPPER)
+
+
+def bin_write(
+    shape: TopoDS_Shape, triangles: bool, normals: bool, version: int | None = None
+) -> bytes:
+    """The shape in OCCT's binary BRep format, written to memory: in format
+    `version` (1 .. bin_format_upper), the current one if None."""
+    if version is None:
+        format_version = BinTools_FormatVersion_CURRENT
+    else:
+        format_version = getattr(BinTools_FormatVersion, f"BinTools_FormatVersion_VERSION_{version}")
+    return BinTools.Write_s(shape, triangles, normals, format_version)
 
 
 def find_attribute(label, attribute_class):

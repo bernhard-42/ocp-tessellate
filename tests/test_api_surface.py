@@ -12,8 +12,7 @@ What counts as the surface of a module:
 Not part of it: imported modules, third-party functions and classes (numpy,
 cachetools, typing, ...), typing constructs, the names `stepreader` gets from
 `from build123d import *`, and helpers of the private package
-ocp_tessellate._kernel (kernel_of, kernel, ...) that modules import - except the
-names in KERNEL_API, which the kernel defines for the public API.
+ocp_tessellate._kernel (kernel_of, kernel, ...) that modules import.
 
 Allowed differences to the snapshot:
 - the names in DELIBERATE_REMOVALS are gone
@@ -83,17 +82,13 @@ _VIEWER_HELPERS = {
     "vis_material_values",
     "ALPHA_MODES",
     "VisMaterialValues",
+    # converters between the bindings
+    "to_nanocct",
+    "to_ocp",
 }
 DELIBERATE_ADDITIONS: dict[str, set[str]] = {
-    # the process-wide binding setting (4.0.0)
-    "ocp_tessellate": {"prefer_nanocct"},
     "ocp_tessellate.ocp_utils": _VIEWER_HELPERS,
     "ocp_tessellate.convert": _VIEWER_HELPERS,
-}
-
-# public names that ocp_tessellate._kernel defines: the setting lives there
-KERNEL_API: dict[str, set[str]] = {
-    "ocp_tessellate": {"prefer_nanocct"},
 }
 
 # kinds of entries that are gone everywhere: the bindings are hidden (4.0.0)
@@ -167,13 +162,11 @@ def _is_private(module_name):
     return module_name == PRIVATE_PREFIX or module_name.startswith(PRIVATE_PREFIX + ".")
 
 
-def _describe(obj, foreign_ids, public_kernel_name=False):
+def _describe(obj, foreign_ids):
     """Return the description of a module attribute, or None if not part of the surface."""
     if inspect.ismodule(obj) or id(obj) in foreign_ids:
         return None
-    if public_kernel_name is True:
-        pass
-    elif inspect.isclass(obj) or inspect.isroutine(obj):
+    if inspect.isclass(obj) or inspect.isroutine(obj):
         if _is_private(getattr(obj, "__module__", None)):
             return None
     elif _is_private(type(obj).__module__):
@@ -230,14 +223,13 @@ def collect_surface():
     for module_name in MODULES:
         module = importlib.import_module(module_name)
         excluded = _foreign_star_names(module_name)
-        kernel_api = KERNEL_API.get(module_name, set())
         entries = {}
         for name in sorted(dir(module)):
             if name.startswith("_") or name in excluded:
                 continue
             if _is_language_plumbing(name, getattr(module, name)):
                 continue
-            description = _describe(getattr(module, name), foreign_ids, name in kernel_api)
+            description = _describe(getattr(module, name), foreign_ids)
             if description is not None:
                 entries[name] = description
         surface[module_name] = entries

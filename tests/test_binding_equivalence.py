@@ -18,15 +18,13 @@ import numpy as np
 import pytest
 from occt_binding import INSTALLED, occt, root
 
-from ocp_tessellate import prefer_nanocct
 from ocp_tessellate._kernel import binding_of, kernel_of
 from ocp_tessellate.ocp_utils import (
-    deserialize,
     downcast,
     get_edges,
     get_faces,
     make_compound,
-    serialize,
+    to_nanocct,
 )
 from ocp_tessellate.tessellator import discretize_edge, tessellate
 
@@ -93,13 +91,8 @@ def _same_mesh_in_both(name):
     occt("BRepMesh", "BRepMesh_IncrementalMesh", "OCP")(
         ocp_shape, QUALITY, False, ANGULAR_TOLERANCE, True
     )
-    buffer = serialize(ocp_shape, triangles=True)
-    # deserialize gets no OCCT object: the preference decides its binding
-    prefer_nanocct(True)
-    try:
-        nanocct_shape = deserialize(buffer)
-    finally:
-        prefer_nanocct(False)
+    # the mesh travels with the shape (BinTools, triangulations included)
+    nanocct_shape = to_nanocct(ocp_shape)
     assert binding_of(nanocct_shape) is root("nanocct")
     return {"OCP": ocp_shape, "nanocct": nanocct_shape}
 

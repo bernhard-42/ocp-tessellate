@@ -1,15 +1,15 @@
-"""StepReader and import_step_as_single_compound, once per installed binding.
+"""StepReader and import_step_as_single_compound, in the run's binding.
 
 The STEP file is written with build123d (in its binding, BINDING) and read
-with each installed binding: StepReader gets no OCCT object, so
-prefer_nanocct decides which binding it reads with.
+with the run's binding: StepReader gets no OCCT object, so OCCT_BINDING
+decides which binding it reads with (run the suite once per binding where both
+are installed).
 """
 
 import build123d as bd
 import pytest
-from occt_binding import BINDING, INSTALLED, root
+from occt_binding import BINDING, DEFAULT_BINDING, root
 
-from ocp_tessellate import prefer_nanocct
 from ocp_tessellate._kernel import binding_of
 from ocp_tessellate.stepreader import StepReader, import_step_as_single_compound
 
@@ -33,7 +33,6 @@ def step_file(tmp_path_factory):
 
 
 def _read(binding, path):
-    prefer_nanocct(binding == "nanocct")
     reader = StepReader()
     reader.load(path)
     return reader
@@ -59,7 +58,7 @@ def _summary(objs):
     return result
 
 
-@pytest.mark.parametrize("binding", INSTALLED)
+@pytest.mark.parametrize("binding", [DEFAULT_BINDING])
 def test_names_colors_locations(binding, step_file):
     reader = _read(binding, step_file)
     assert reader.assemblies is not None
@@ -82,7 +81,7 @@ def test_names_colors_locations(binding, step_file):
         assert binding_of(leaf["shape"]) is root(binding)
 
 
-@pytest.mark.parametrize("binding", INSTALLED)
+@pytest.mark.parametrize("binding", [DEFAULT_BINDING])
 def test_to_build123d(binding, step_file):
     reader = _read(binding, step_file)
     if binding == BINDING:
@@ -91,22 +90,11 @@ def test_to_build123d(binding, step_file):
         assert binding_of(assembly.wrapped) is root(binding)
     else:
         # build123d wraps the other binding: the reader says what to do
-        with pytest.raises(TypeError, match="prefer_nanocct"):
+        with pytest.raises(TypeError, match=f"OCCT_BINDING={BINDING}"):
             reader.to_build123d()
 
 
-@pytest.mark.parametrize("binding", INSTALLED)
+@pytest.mark.parametrize("binding", [DEFAULT_BINDING])
 def test_import_step_as_single_compound(binding, step_file):
-    prefer_nanocct(binding == "nanocct")
     shape = import_step_as_single_compound(step_file)
     assert binding_of(shape) is root(binding)
-
-
-@pytest.mark.skipif(len(INSTALLED) < 2, reason="needs OCP and nanocct")
-def test_both_bindings_read_the_same(step_file):
-    ocp, nanocct = (_summary(_read(b, step_file).assemblies) for b in INSTALLED)
-
-    def without_binding(summary):
-        return [(n, t, c, None, None if s is None else without_binding(s)) for n, t, c, _b, s in summary]
-
-    assert without_binding(ocp) == without_binding(nanocct)

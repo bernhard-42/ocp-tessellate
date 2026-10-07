@@ -25,7 +25,8 @@ package structure, which both bindings share:
     poly = k.BRep.BRep_Tool.Triangulation_s(face, k.TopLoc.TopLoc_Location())
 
 - `kernel()`: the binding for what no OCCT object decides - the only one
-  installed, else OCP unless `prefer_nanocct(True)` was called.
+  installed, else the one the environment variable OCCT_BINDING names (OCP if
+  it is unset).
 - `kernel_of(obj)`: the binding of the OCCT object obj, `kernel()` for anything
   else (tuples, None).
 - `kernel_of_all(objs)`: the one binding of the OCCT objects in a sequence, for
@@ -33,8 +34,8 @@ package structure, which both bindings share:
   none; a TypeError for objects of two bindings.
 - `binding_of(obj)`: the binding of obj, None if it is not an OCCT object (for
   predicates).
-- `prefer_nanocct(flag)`: the one public setting, as
-  `ocp_tessellate.prefer_nanocct`; process-wide.
+- `binding(name)`: the binding module "OCP" or "nanocct" by name, for the
+  converters between the bindings (ocp_utils.to_ocp / to_nanocct).
 - `adapter(k)`: what differs between the bindings and OCP versions - downcasts,
   collection classes, calling conventions, the tessellation loops - from
   `ocp_adapter.py` or `nanocct_adapter.py`.
@@ -47,8 +48,10 @@ binding at top level, so a name missing in one version fails loudly instead of
 looking like a binding that is not installed.
 """
 
+import os
 from collections.abc import Sequence
 from types import ModuleType
+from typing import Literal
 
 # the top-level package of an OCCT class -> its binding
 _BY_PACKAGE: dict[str, ModuleType] = {}
@@ -91,31 +94,40 @@ if HAS_OCP is False and HAS_NANOCCT is False:
 # the installed bindings, OCP first
 KERNELS: tuple[ModuleType, ...] = tuple(_BY_PACKAGE.values())
 
-# set by prefer_nanocct; read only here, in kernel()
-_PREFER_NANOCCT = False
+# The environment variable OCCT_BINDING ("OCP" or "nanocct") names the binding of
+# what no OCCT object decides, read once at import and fixed for the process, so
+# all threads agree. The ecosystem's other libraries (ocpsvg) read the same
+# variable at import, so one switch configures them all; there is no setter,
+# because ocpsvg could not follow one.
+_BINDINGS = ("OCP", "nanocct")
 
 
-def prefer_nanocct(flag: bool) -> None:
-    """Use nanocct where no OCCT object decides the binding.
+def _initial_preference() -> Literal["OCP", "nanocct"]:
+    """The binding OCCT_BINDING names, OCP if it is unset."""
+    wanted = os.environ.get("OCCT_BINDING")
+    if wanted is None:
+        return "OCP"
+    if wanted == "OCP":
+        if HAS_OCP is False:
+            raise ImportError("OCCT_BINDING=OCP, but OCP is not installed")
+        return "OCP"
+    if wanted == "nanocct":
+        if HAS_NANOCCT is False:
+            raise ImportError("OCCT_BINDING=nanocct, but nanocct is not installed")
+        return "nanocct"
+    raise ImportError(f"OCCT_BINDING must be one of {_BINDINGS}, not {wanted!r}")
 
-    It matters only when OCP and nanocct are both installed: OCCT objects
-    always keep their own binding, and with one binding installed there is
-    nothing to prefer. The setting is process-wide.
-    """
-    global _PREFER_NANOCCT
-    if not isinstance(flag, bool):
-        raise TypeError(f"prefer_nanocct takes True or False, not {flag!r}")
-    if flag is True and HAS_NANOCCT is False:
-        raise ImportError("prefer_nanocct(True), but nanocct is not installed")
-    _PREFER_NANOCCT = flag
+
+# the binding of what no OCCT object decides, fixed at import; read only by kernel()
+_PREFERRED: Literal["OCP", "nanocct"] = _initial_preference()
 
 
 def kernel() -> ModuleType:
     """The binding for what no OCCT object decides.
 
-    The only binding installed, else OCP unless prefer_nanocct(True) was called.
+    The only binding installed, else the one OCCT_BINDING names (OCP if unset).
     """
-    if HAS_OCP is False or _PREFER_NANOCCT is True:
+    if HAS_OCP is False or _PREFERRED == "nanocct":
         return nanocct
     return OCP
 
@@ -154,6 +166,17 @@ def kernel_of_all(objs: Sequence[object]) -> ModuleType:
     if len(found) == 1:
         return found.pop()
     return kernel()
+
+
+def binding(name: str) -> ModuleType:
+    """The binding module named `name` ("OCP" or "nanocct"); an ImportError if it
+    is not installed."""
+    if name not in _BINDINGS:
+        raise ValueError(f"the binding is one of {_BINDINGS}, not {name!r}")
+    found = _BY_PACKAGE.get(name)
+    if found is None:
+        raise ImportError(f"{name} is not installed")
+    return found
 
 
 def adapter(k: ModuleType) -> ModuleType:

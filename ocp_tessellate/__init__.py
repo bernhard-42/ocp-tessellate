@@ -14,7 +14,6 @@
 # limitations under the License.
 #
 
-from ._kernel import prefer_nanocct
 from ._version import __version__ as ot_version, __version_info__ as ot_version_info
 from .cad_objects import (
     ImageFace,
@@ -55,7 +54,6 @@ __all__ = [
     "occt_version",
     "ot_version",
     "ot_version_info",
-    "prefer_nanocct",
     "reset_defaults",
     "set_defaults",
     "versions",
