@@ -53,7 +53,7 @@ class Hinge(Compound):
                 height=length,
                 align=(Align.CENTER, Align.CENTER, Align.MIN),
             )
-            with BuildPart(pin.part.faces().sort_by(Axis.Z)[-1]) as pin_head:
+            with BuildPart(pin.part.faces().sort_by(Axis.Z)[-1]):
                 Cylinder(
                     radius=barrel_diameter / 2,
                     height=pin_diameter,
@@ -95,9 +95,11 @@ class Hinge(Compound):
             add(hinge_profile.part, rotation=(90, 0, 0), mode=Mode.INTERSECT)
 
             # Create holes for fasteners
-            with Locations(leaf_builder.part.faces().filter_by(Axis.Y)[-1]):
-                with GridLocations(0, length / 3, 1, 3):
-                    holes = CounterSinkHole(3 * MM, 5 * MM)
+            with (
+                Locations(leaf_builder.part.faces().filter_by(Axis.Y)[-1]),
+                GridLocations(0, length / 3, 1, 3),
+            ):
+                holes = CounterSinkHole(3 * MM, 5 * MM)
             # Add the hinge pin to the external leaf
             if not inner:
                 with Locations(pin_center.locations[0]):
@@ -170,9 +172,8 @@ with BuildPart() as box_builder:
     bbox = box.bounding_box()
     with Locations(
         Plane(origin=(bbox.min.X, 0, bbox.max.Z - 30 * MM), z_dir=(-1, 0, 0))
-    ):
-        with GridLocations(0, 40 * MM, 1, 3):
-            Hole(3 * MM, 1 * CM)
+    ), GridLocations(0, 40 * MM, 1, 3):
+        Hole(3 * MM, 1 * CM)
     RigidJoint(
         "hinge_attachment",
         joint_location=Location((-15 * CM, 0, 4 * CM), (180, 90, 0)),
@@ -183,9 +184,8 @@ box.label = "box"
 
 with BuildPart() as lid_builder:
     Box(30 * CM, 30 * CM, 1 * CM, align=(Align.MIN, Align.CENTER, Align.MIN))
-    with Locations((2 * CM, 0, 0)):
-        with GridLocations(0, 40 * MM, 1, 3):
-            Hole(3 * MM, 1 * CM)
+    with Locations((2 * CM, 0, 0)), GridLocations(0, 40 * MM, 1, 3):
+        Hole(3 * MM, 1 * CM)
     RigidJoint(
         "hinge_attachment",
         joint_location=Location((0, 0, 0), (0, 0, 180)),

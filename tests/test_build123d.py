@@ -1,5 +1,4 @@
 # %%
-from numpy.ma.testutils import assert_array_equal
 import unittest
 
 import build123d as bd
@@ -44,9 +43,8 @@ with BuildSketch(Plane.YZ) as bs:
     Rectangle(1, 1)
 
 if HAS_BUILDSHEET:
-    with BuildSheet(Plane.YZ, thickness=0.1) as bsh:
-        with BuildSketch():
-            Rectangle(1, 1)
+    with BuildSheet(Plane.YZ, thickness=0.1) as bsh, BuildSketch():
+        Rectangle(1, 1)
 else:
     bsh = None
 
@@ -294,7 +292,6 @@ class TestsConvert(MyUnitTest):
         """Test that the name is set correctly for a part"""
         c = OcpConverter()
         g = c.to_ocp(bp, names=["bp"])
-        i = c.instances
         if hasattr(bp, "part_local"):
             self.assertEqual(g.length, 2)
             self.assertEqual(g.name, "bp")
@@ -334,9 +331,8 @@ class TestsConvert(MyUnitTest):
     def test_buildsheet_two_placements(self):
         """Test that a sheet with several placements is one face object"""
         c = OcpConverter(show_locals=False)
-        with BuildSheet(Plane.XY, Plane.YZ, thickness=0.1) as multi:
-            with BuildSketch():
-                Rectangle(1, 1)
+        with BuildSheet(Plane.XY, Plane.YZ, thickness=0.1) as multi, BuildSketch():
+            Rectangle(1, 1)
         g = c.to_ocp(multi)
         i = c.instances
         self.assertEqual(g.length, 1)
@@ -622,7 +618,6 @@ class TestsConvert(MyUnitTest):
         for o in g.objects:
             self.assertEqual(o.color.web_color, "#ba55d3")
 
-    #
 
     def test_show_solid_colors_names(self):
         c = OcpConverter()
@@ -786,7 +781,6 @@ class TestsConvert(MyUnitTest):
             self.assertEqual(o.color.web_color, colormap[ind][1])
             self.assertEqual(o.name, f"MyVertex_{ind}")
 
-    #
 
     def test_show_mixed_builder_shape(self):
         c = OcpConverter()
@@ -804,7 +798,6 @@ class TestsConvert(MyUnitTest):
         self.assertEqual(o.name, "Solid")
         self.assertEqual(o.kind, "solid")
 
-    #
 
     def test_show_plane(self):
         c = OcpConverter()
@@ -1310,7 +1303,7 @@ class TestConvertMixedCompounds(MyUnitTest):
         i = c.instances
         o = g.objects[0]
         self.assertTrue(is_topods_compound(i[o.ref]["obj"]))
-        self.assertEqual(o.name, f"Solid")
+        self.assertEqual(o.name, "Solid")
         self.assertEqual(o.kind, "solid")
 
 
@@ -1354,7 +1347,6 @@ class TestCompund(MyUnitTest):
     def test_compound_wire(self):
         c = OcpConverter()
         g = c.to_ocp(Compound(b2.wires()))
-        i = c.instances
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.name, "Wire")
@@ -1367,7 +1359,6 @@ class TestCompund(MyUnitTest):
     def test_compound_edge(self):
         c = OcpConverter()
         g = c.to_ocp(Compound(b2.edges()))
-        i = c.instances
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.name, "Edge")
@@ -1377,10 +1368,9 @@ class TestCompund(MyUnitTest):
         self.assertEqual(len(o.obj), 24)
         self.assertTrue(is_topods_edge(o.obj[0]))
 
-    def test_compound_solid(self):
+    def test_compound_vertex(self):
         c = OcpConverter()
         g = c.to_ocp(Compound(b2.vertices()))
-        i = c.instances
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.name, "Vertex")

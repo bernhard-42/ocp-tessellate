@@ -1,18 +1,26 @@
 """Typing-only conformance checks: real classes must satisfy the protocols."""
 
-from build123d import BuildLine, BuildPart, BuildSheet, BuildSketch, Compound, Vector
-from build123d import ShapeList, LocationList, GroupBy
+from build123d import (
+    BuildLine,
+    BuildPart,
+    BuildSheet,
+    BuildSketch,
+    Compound,
+    GroupBy,
+    LocationList,
+    ShapeList,
+    Vector,
+)
 from cadquery import Assembly, Sketch, Workplane
 
 from ocp_tessellate.types import (
-    Build123dBuilder,
     Build123dGroupBy,
     Build123dLineBuilder,
     Build123dLocationList,
     Build123dPartBuilder,
     Build123dShape,
-    Build123dSheetBuilder,
     Build123dShapeList,
+    Build123dSheetBuilder,
     Build123dSketchBuilder,
     Build123dVector,
     CadqueryAssembly,

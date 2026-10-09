@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ocp-tessellate"
-version = "3.5.3"
+version = "3.6.0"
 authors = [{ name = "Bernhard Walter", email = "b_walter@arcor.de" }]
 description = "Tessellate OCP (https://github.com/cadquery/OCP) objects to use with threejs"
 readme = "README.md"
@@ -49,12 +49,22 @@ dev = ["questionary~=1.10.0", "bump-my-version", "black", "twine", "pytest"]
 
 # ty settings
 
+[tool.ty.analysis]
+# nanocct is optional: the nanocct kernel (ocp_tessellate/_kernel/nanocct.py)
+# is type checked where it is installed, and its imports are allowed to be
+# unresolved where it is not
+allowed-unresolved-imports = ["nanocct", "nanocct.**"]
+
 [tool.ty.rules]
-# suppressions for optional imports (cadquery, ocp_addons) are unused in the
+# suppressions for optional imports (cadquery) are unused in the
 # dev environment where everything is installed - do not fail on them
 unused-ignore-comment = "ignore"
 
 # black settings
+
+[tool.ruff.lint.isort]
+# keep `from x import (a as b, c as d)` in one statement (types.py, the adapters)
+combine-as-imports = true
 
 [tool.black]
 target-version = ["py310", "py311", "py312", "py313"]
@@ -63,7 +73,7 @@ line-length = 88
 # bump-my-version settings
 
 [tool.bumpversion]
-current_version = "3.5.3"
+current_version = "3.6.0"
 commit = false
 tag = false
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)(?P<release>\\d*)(?P<build>\\d*)"

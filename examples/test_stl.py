@@ -4,8 +4,6 @@ import os
 from build123d import *
 from ocp_viewer_core.viewer import *
 
-# enable_native_tessellator()
-
 b = Box(1, 1, 1)
 c = fillet(b.edges(), 0.3)
 show(c)

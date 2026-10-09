@@ -1,14 +1,13 @@
 # %%
-from math import cos, sin
 from collections import OrderedDict as odict
+from math import cos, sin
 
 import cadquery as cq
+import numpy as np
 from cadquery_massembly import MAssembly
 from ocp_viewer_core.viewer import *
 
 from ocp_tessellate.utils import Color
-
-import numpy as np
 
 set_defaults(axes=True, axes0=True, helper_scale=4)
 

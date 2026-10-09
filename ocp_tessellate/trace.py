@@ -22,7 +22,8 @@ def dump_vertex(id, v):
 class Trace:
     def __init__(self, filename):
         if DEBUG:
-            self.file = open(filename, "a")
+            # open for the lifetime of the trace, closed by close()
+            self.file = open(filename, "a")  # noqa: SIM115
 
     def face(self, id, f):
         if DEBUG:

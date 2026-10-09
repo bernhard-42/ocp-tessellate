@@ -16,30 +16,28 @@
 
 """Tessellator class"""
 
+from __future__ import annotations
+
 import os
 import sys
-from typing import Iterable, Sequence
+from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING
 
-from OCP.TopoDS import TopoDS_Edge, TopoDS_Shape, TopoDS_Vertex
+from ._kernel import adapter, kernel_of
+
+if TYPE_CHECKING:
+    from .types import (
+        TopoDS_Edge,
+        TopoDS_Shape,
+        TopoDS_Vertex,
+    )
 import numpy as np
 from cachetools import LRUCache, cached
-from OCP.BRep import BRep_Tool
-from OCP.BRepAdaptor import BRepAdaptor_Curve
-from OCP.BRepGProp import BRepGProp_Face
-from OCP.BRepTools import BRepTools
-from OCP.BRepMesh import BRepMesh_IncrementalMesh
-from OCP.GCPnts import (
-    GCPnts_QuasiUniformDeflection,
-    GCPnts_UniformDeflection,
-)
 
 # pylint: disable=no-name-in-module,import-error
-from OCP.gp import gp_Pnt, gp_Vec
-from OCP.TopAbs import TopAbs_Orientation, TopAbs_SOLID
-from OCP.TopExp import TopExp_Explorer
-from OCP.TopLoc import TopLoc_Location
 from numpy.typing import NDArray
 
+from . import trace as trace_module
 from .ocp_utils import (
     get_edge_type,
     get_edges,
@@ -49,42 +47,21 @@ from .ocp_utils import (
     get_vertices,
     is_degenerated_edge,
     is_line,
+    is_topods_shape as _is_topods_shape,
     make_compound,
 )
 from .trace import Trace
 from .types import (
     ConvertedVertices,
+    Coords,
     DiscretizedEdges,
     EdgeMapper,
     FaceMapper,
-    Coords,
-    TesselatorProtocol,
     Tessellation,
-    TriangleIndices,
+    TriangleIndices,  # noqa: F401 - public via tessellator (tests/api_surface.json)
     VertexMapper,
 )
 from .utils import Timer, round_sig
-
-try:
-    # optional dependency, ImportError is handled below
-    from ocp_addons.tessellator import tessellate as tessellate_c  # pyright: ignore[reportMissingImports] # ty: ignore[unresolved-import]
-
-    def enable_native_tessellator():
-        os.environ["NATIVE_TESSELLATOR"] = "1"
-
-    def disable_native_tessellator():
-        os.environ["NATIVE_TESSELLATOR"] = "0"
-
-    def is_native_tessellator_enabled():
-        return os.environ.get("NATIVE_TESSELLATOR") == "1"
-
-    if os.environ.get("NATIVE_TESSELLATOR") is None:
-        enable_native_tessellator()
-
-    NATIVE = True
-
-except ImportError:
-    NATIVE = False
 
 LOG_FILE = "ocp_tessellate.log"
 
@@ -183,25 +160,35 @@ def vertex_mapper(vertices: Iterable[TopoDS_Vertex], id: str) -> VertexMapper:
 class Tessellator:
     def __init__(self, shape_id: str):
         self.shape_id = shape_id
-        self.triangles: list[int] = []  # flat triangle indices
+        # flat buffers: lists filled by the OCP kernel, numpy arrays by the
+        # nanocct kernel; the getters convert either
+        self.triangles: list[int] | NDArray[np.int64] = []  # flat triangle indices
         self.triangles_per_face: list[int] = []
-        self.vertices: list[float] = []  # flat triangle vertex coordinates
-        self.normals: list[float] = []  # flat normal coordinates
-        self.uvs: list[float] = []
+        self.vertices: list[float] | NDArray[np.float64] = []  # flat triangle vertex coordinates
+        self.normals: list[float] | NDArray[np.float64] = []  # flat normal coordinates
+        self.uvs: list[float] | NDArray[np.float64] = []
         # point pairs, flattened by compute_edges and paired by
-        # _compute_missing_edges - np.asarray handles both
-        self.edges: list[Coords | tuple[NDArray[np.float32], NDArray[np.float32]]] = []
+        # _compute_missing_edges - get_edges ravels both to the same flat array
+        self.edges: (
+            list[Coords | tuple[NDArray[np.float32], NDArray[np.float32]]]
+            | NDArray[np.float64]
+        ) = []
         self.segments_per_edge: list[int] = []
 
         self.obj_vertices: list[float] = []  # flat object vertex coordinates
         self.face_types: list[int] = []
         self.edge_types: list[int] = []
+        # (vertex offset, vertex count, triangle offset, triangle count) of every
+        # face whose triangulation has no UV nodes, so its normals cannot be read
+        # off the surface and have to be interpolated from its triangles
+        self.faces_without_normals: list[tuple[int, int, int, int]] = []
 
         self.shape: TopoDS_Shape | None = None
 
     def number_solids(self, shape: TopoDS_Shape) -> int:
+        k = kernel_of(shape)
         count = 0
-        e = TopExp_Explorer(shape, TopAbs_SOLID)
+        e = k.TopExp.TopExp_Explorer(shape, k.TopAbs.TopAbs_SOLID)
         while e.More():
             count += 1
             e.Next()
@@ -219,6 +206,7 @@ class Tessellator:
         compute_uvs: bool = False,
         normalize_uvs: bool = True,
     ):
+        k = kernel_of(shape)
         self.shape = shape
         self.compute_uvs = compute_uvs
         self.normalize_uvs = normalize_uvs
@@ -241,7 +229,7 @@ class Tessellator:
             # https://dev.opencascade.org/node/81262#comment-21130
             # BRepTools.Clean_s(shape)
             # print(quality, False, angular_tolerance, True)
-            BRepMesh_IncrementalMesh(shape, quality, False, angular_tolerance, True)
+            k.BRepMesh.BRepMesh_IncrementalMesh(shape, quality, False, angular_tolerance, True)
 
         trace = Trace(LOG_FILE)
 
@@ -264,160 +252,47 @@ class Tessellator:
 
     def tessellate(self, trace: Trace):
         assert self.shape is not None, "compute() sets the shape"
-        # global buffers
-        p_buf = gp_Pnt()
-        n_buf = gp_Vec()
-        loc_buf = TopLoc_Location()
-
-        offset = -1
-
-        # every line below is selected for performance. Do not introduce functions to "beautify" the code
-        for ind, face in enumerate(get_faces(self.shape)):
-            trace.face(f"{self.shape_id}/faces/faces_{ind}", face)
-            if face.Orientation() == TopAbs_Orientation.TopAbs_REVERSED:
-                i1, i2 = 2, 1
-            else:
-                i1, i2 = 1, 2
-
-            internal = face.Orientation() == TopAbs_Orientation.TopAbs_INTERNAL
-
-            poly = BRep_Tool.Triangulation_s(face, loc_buf)
-            if poly is not None:
-                # face_types must only grow for faces that produced a
-                # triangulation, or it desynchronizes from triangles_per_face
-                self.face_types.append(get_face_type(face))
-
-                Trsf = loc_buf.Transformation()
-
-                # add vertices
-                flat: list[float] = []
-                for i in range(1, poly.NbNodes() + 1):
-                    flat.extend(poly.Node(i).Transformed(Trsf).Coord())
-                self.vertices.extend(flat)
-
-                # add triangles
-                flat: list[int] = []
-                for i in range(1, poly.NbTriangles() + 1):
-                    coord: TriangleIndices = poly.Triangle(i).Get()
-                    flat.extend((
-                        coord[0] + offset,
-                        coord[i1] + offset,
-                        coord[i2] + offset,
-                    ))
-                self.triangles.extend(flat)
-                self.triangles_per_face.append(poly.NbTriangles())
-
-                # add normals (and UVs if requested)
-                if poly.HasUVNodes():
-                    prop = BRepGProp_Face(face)
-                    normals_flat: list[float] = []
-
-                    # Parametric bounds of the face. The tessellation can store a
-                    # node's UV one ULP outside these bounds at a parametric
-                    # singularity (e.g. a sphere pole), and BRepGProp_Face.Normal
-                    # evaluated just across the singularity returns an inward-
-                    # flipped normal (visible as a dark spot at the pole for radii
-                    # like 3, 6, 12, 24 ...). Clamp the UV used for the normal to
-                    # the face domain to keep the evaluation on the correct side.
-                    u_min, u_max, v_min, v_max = BRepTools.UVBounds_s(face)
-
-                    if self.compute_uvs:
-                        uvs_flat: list[float] = []
-
-                        if self.normalize_uvs:
-                            # Compute physical scale per parameter unit at face center
-                            # to preserve aspect ratio and consistent tile size across faces.
-                            # Normalize against shape bounding box so 1 UV unit = bbox_max_dim.
-                            u_mid = (u_min + u_max) / 2
-                            v_mid = (v_min + v_max) / 2
-                            surf = BRep_Tool.Surface_s(face)
-                            d1_p = gp_Pnt()
-                            d1_u = gp_Vec()
-                            d1_v = gp_Vec()
-                            surf.D1(u_mid, v_mid, d1_p, d1_u, d1_v)
-                            scale_u = d1_u.Magnitude()  # physical length per unit of u
-                            scale_v = d1_v.Magnitude()  # physical length per unit of v
-
-                            for i in range(1, poly.NbNodes() + 1):
-                                u, v = poly.UVNode(i).Coord()
-                                un = min(max(u, u_min), u_max)
-                                vn = min(max(v, v_min), v_max)
-                                prop.Normal(un, vn, p_buf, n_buf)
-                                if n_buf.SquareMagnitude() > 0:
-                                    n_buf.Normalize()
-                                normals_flat.extend(
-                                    n_buf.Reversed().Coord()
-                                    if internal
-                                    else n_buf.Coord()
-                                )
-                                uvs_flat.append(
-                                    (u - u_min) * scale_u / self.bbox_max_dim
-                                    if scale_u > 1e-10
-                                    else 0.5
-                                )
-                                uvs_flat.append(
-                                    (v - v_min) * scale_v / self.bbox_max_dim
-                                    if scale_v > 1e-10
-                                    else 0.5
-                                )
-                        else:
-                            # Use raw parametric UVs, matching OCCT's RWGltf_CafWriter
-                            # V is flipped (1-v) per glTF convention (top-left origin)
-                            for i in range(1, poly.NbNodes() + 1):
-                                u, v = poly.UVNode(i).Coord()
-                                un = min(max(u, u_min), u_max)
-                                vn = min(max(v, v_min), v_max)
-                                prop.Normal(un, vn, p_buf, n_buf)
-                                if n_buf.SquareMagnitude() > 0:
-                                    n_buf.Normalize()
-                                normals_flat.extend(
-                                    n_buf.Reversed().Coord()
-                                    if internal
-                                    else n_buf.Coord()
-                                )
-                                uvs_flat.append(u)
-                                uvs_flat.append(1.0 - v)
-                        self.uvs.extend(uvs_flat)
-                    else:
-                        for i in range(1, poly.NbNodes() + 1):
-                            u, v = poly.UVNode(i).Coord()
-                            un = min(max(u, u_min), u_max)
-                            vn = min(max(v, v_min), v_max)
-                            prop.Normal(un, vn, p_buf, n_buf)
-                            if n_buf.SquareMagnitude() > 0:
-                                n_buf.Normalize()
-                            normals_flat.extend(
-                                n_buf.Reversed().Coord() if internal else n_buf.Coord()
-                            )
-
-                    self.normals.extend(normals_flat)
-
-                offset += poly.NbNodes()
-            else:
-                print(f"face {ind} ignored")
+        # the per-face loops are binding-specific and live in the kernel
+        adapter(kernel_of(self.shape)).tessellate_faces(
+            self, get_faces(self.shape), get_face_type, trace
+        )
 
     def _compute_missing_normals(self) -> NDArray[np.float32]:
+        """
+        Interpolate the normals of every face that has no UV nodes from its own
+        triangles, leaving the faces that do have them untouched. A face owns a
+        contiguous block of vertices and no triangle spans two faces, so doing
+        this per face gives the same result as doing it for the whole shape when
+        no face has UV nodes - and the right one when only some do.
+        """
         vertices = np.asarray(self.vertices).reshape(-1, 3)
         triangles = np.asarray(self.triangles).reshape(-1, 3)
-        normals = np.zeros(len(self.vertices), dtype=np.float32).reshape(-1, 3)
-        for triangle in triangles:
-            c = vertices[triangle]
-            v1 = c[2] - c[1]
-            v2 = c[0] - c[1]
-            n = np.cross(v1, v2)
+        normals = np.asarray(self.normals, dtype=np.float32).reshape(-1, 3)
 
-            # extrpolate vertex normal by blending all face normals of a vertex
-            for i in triangle:
-                normals[i] += n
+        for v_offset, v_count, t_offset, t_count in self.faces_without_normals:
+            block = slice(v_offset, v_offset + v_count)
+            normals[block] = 0.0
 
-        # and normalize later
-        for i in range(len(normals)):
-            norm = np.linalg.norm(normals[i])
-            normals[i] /= norm
-        normals = normals.ravel()
-        return normals
+            for triangle in triangles[t_offset : t_offset + t_count]:
+                c = vertices[triangle]
+                v1 = c[2] - c[1]
+                v2 = c[0] - c[1]
+                n = np.cross(v1, v2)
+
+                # extrpolate vertex normal by blending all face normals of a vertex
+                for i in triangle:
+                    normals[i] += n
+
+            # and normalize later
+            for i in range(v_offset, v_offset + v_count):
+                norm = np.linalg.norm(normals[i])
+                normals[i] /= norm
+
+        return normals.ravel()
 
     def _compute_missing_edges(self):
+        # only called when no edge was found, so edges is still the empty list
+        assert isinstance(self.edges, list)
         vertices = np.asarray(self.vertices).reshape(-1, 3)
         triangles = np.asarray(self.triangles).reshape(-1, 3)
         for triangle in triangles:
@@ -426,38 +301,10 @@ class Tessellator:
 
     def compute_edges(self, trace: Trace):
         assert self.shape is not None, "compute() sets the shape"
-        for ind, (edge, face) in enumerate(get_edges(self.shape, True)):
-            trace.edge(f"{self.shape_id}/edges/edges_{ind}", edge)
-
-            edges: list[Coords] = []  # point pairs, flattened
-            loc = TopLoc_Location()
-            triangle = BRep_Tool.Triangulation_s(face, loc)
-            poly = BRep_Tool.PolygonOnTriangulation_s(edge, triangle, loc)
-
-            if poly is None:
-                continue
-
-            # edge_types must only grow for edges that produced a polygon,
-            # or it desynchronizes from segments_per_edge
-            self.edge_types.append(get_edge_type(edge))
-
-            if hasattr(poly, "Node"):  # OCCT > 7.5
-                nrange = range(1, poly.NbNodes() + 1)
-                index = poly.Node
-            else:  # OCCT == 7.5
-                indices = poly.Nodes()
-                nrange = range(indices.Lower(), indices.Upper() + 1)
-                index = indices.Value
-
-            transf = loc.Transformation()
-            v1: Coords | None = None
-            for j in nrange:
-                v2: Coords = triangle.Node(index(j)).Transformed(transf).Coord()
-                if v1 is not None:
-                    edges.extend((v1, v2))
-                v1 = v2
-            self.edges.extend(edges)
-            self.segments_per_edge.append(len(edges) // 2)
+        # the per-edge loops are binding-specific and live in the kernel
+        adapter(kernel_of(self.shape)).compute_edges(
+            self, get_edges(self.shape, True), get_edge_type, trace, trace_module.DEBUG
+        )
 
         if len(self.edges) == 0:
             self._compute_missing_edges()
@@ -481,82 +328,22 @@ class Tessellator:
         return np.asarray(self.uvs, dtype=np.float32)
 
     def get_normals(self) -> NDArray[np.float32]:
-        if len(self.normals) == 0:
+        if len(self.faces_without_normals) > 0:
             return self._compute_missing_normals()
         return np.asarray(self.normals, dtype=np.float32)
 
     def get_edges(self) -> NDArray[np.float32]:
-        return np.asarray(self.edges, dtype=np.float32)
+        # compute_edges collects single points and _compute_missing_edges point
+        # pairs, so np.asarray yields (N, 3) for the one and (N, 2, 3) for the
+        # other. Ravel to the flat array every other producer of edge segments
+        # returns - discretize_edges and bbox_edges
+        return np.asarray(self.edges, dtype=np.float32).ravel()
 
     def get_segments_per_edge(self) -> NDArray[np.int32]:
         return np.asarray(self.segments_per_edge, dtype=np.int32)
 
     def get_obj_vertices(self) -> NDArray[np.float32]:
         return np.asarray(self.obj_vertices, dtype=np.float32)
-
-
-class NativeTessellator:
-    def __init__(self, shape_id):
-        self.shape_id = shape_id
-        self.mesh = None
-
-    def compute(
-        self,
-        shape,
-        quality,
-        angular_tolerance,
-        compute_faces=True,
-        compute_edges=True,
-        debug=False,
-        deviation=0.1,
-        compute_uvs=False,
-        normalize_uvs=True,  # accepted for interface parity, the native tessellator has no UV support
-    ):
-        self.mesh = tessellate_c(
-            shape,
-            quality,
-            angular_tolerance,
-            compute_faces,
-            compute_edges,
-            True,
-            2 if debug else 0,
-            debug,
-        )
-
-    @property
-    def _computed_mesh(self):
-        assert self.mesh is not None, "compute() not called"
-        return self.mesh
-
-    def get_vertices(self) -> NDArray[np.float32]:
-        return self._computed_mesh.vertices
-
-    def get_triangles(self) -> NDArray[np.int32]:
-        return self._computed_mesh.triangles
-
-    def get_triangles_per_face(self) -> NDArray[np.int32]:
-        return self._computed_mesh.triangles_per_face
-
-    def get_face_types(self) -> NDArray[np.int32]:
-        return self._computed_mesh.face_types
-
-    def get_edge_types(self) -> NDArray[np.int32]:
-        return self._computed_mesh.edge_types
-
-    def get_normals(self) -> NDArray[np.float32]:
-        return self._computed_mesh.normals
-
-    def get_edges(self) -> NDArray[np.float32]:
-        return self._computed_mesh.segments
-
-    def get_segments_per_edge(self) -> NDArray[np.int32]:
-        return self._computed_mesh.segments_per_edge
-
-    def get_uvs(self) -> NDArray[np.float32]:
-        return np.array([], dtype=np.float32)
-
-    def get_obj_vertices(self):
-        return self._computed_mesh.obj_vertices
 
 
 def compute_quality(bb, deviation: float = 0.1) -> float:
@@ -568,18 +355,6 @@ def compute_quality(bb, deviation: float = 0.1) -> float:
         3,
     )
     return quality
-
-
-def _get_tesselator(progress, shape_id: str) -> TesselatorProtocol:
-    if NATIVE and is_native_tessellator_enabled():
-        if progress is not None:
-            progress.update("*")
-        tess = NativeTessellator(shape_id)
-    else:
-        if progress is not None:
-            progress.update("+")
-        tess = Tessellator(shape_id)
-    return tess
 
 
 # cache key: (cache_key, deviation, angular_tolerance, compute_edges, compute_faces, compute_uvs)
@@ -599,13 +374,15 @@ def tessellate(
     compute_uvs: bool = False,
     normalize_uvs: bool = True,
 ) -> Tessellation:
-    if not isinstance(shape, TopoDS_Shape):
+    if not _is_topods_shape(shape):
         if len(shape) == 1:
             shape = shape[0]
         else:
             raise RuntimeError("Only single shapes are supported")
 
-    tess = _get_tesselator(progress, shape_id)
+    if progress is not None:
+        progress.update("+")
+    tess = Tessellator(shape_id)
     tess.compute(
         shape,
         quality,
@@ -649,12 +426,13 @@ def discretize_edge(
     Returns:
         A list of pairs of points representing the discretized edge. Shape (N, 2, 3)
     """
-    curve_adaptator = BRepAdaptor_Curve(edge)
+    k = kernel_of(edge)
+    curve_adaptator = k.BRepAdaptor.BRepAdaptor_Curve(edge)
 
     if quasi:
-        discretizer = GCPnts_QuasiUniformDeflection()
+        discretizer = k.GCPnts.GCPnts_QuasiUniformDeflection()
     else:
-        discretizer = GCPnts_UniformDeflection()
+        discretizer = k.GCPnts.GCPnts_UniformDeflection()
     discretizer.Initialize(
         curve_adaptator,
         deflection,
@@ -668,7 +446,7 @@ def discretize_edge(
         return np.empty((0, 2, 3), dtype=np.float32)
 
     points: list[Coords] = [
-        curve_adaptator.Value(discretizer.Parameter(i)).Coord()
+        adapter(k).coord(curve_adaptator.Value(discretizer.Parameter(i)))
         for i in range(1, discretizer.NbPoints() + 1)
     ]
 

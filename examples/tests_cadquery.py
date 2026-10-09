@@ -2,7 +2,6 @@
 import cadquery as cq
 from ocp_viewer_core.viewer import show
 
-
 # %%
 # BASIC TESTS
 

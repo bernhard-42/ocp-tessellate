@@ -1,9 +1,19 @@
+from __future__ import annotations
+
 import base64
-from typing import Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import imagesize
-from OCP.TopLoc import TopLoc_Location
-from OCP.TopoDS import TopoDS_Shape
+
+from ._kernel import kernel_of, kernel_of_all
+from .ocp_utils.location import _tq_to_loc
+
+if TYPE_CHECKING:
+    from .types import (
+        TopLoc_Location,
+        TopoDS_Shape,
+    )
 
 from ocp_tessellate.defaults import get_default
 from ocp_tessellate.ocp_utils import (
@@ -12,15 +22,16 @@ from ocp_tessellate.ocp_utils import (
     axis_to_vecs,
     copy_location,
     copy_topods_shape,
-    identity_location,
+    identity_location,  # noqa: F401 - public via cad_objects (tests/api_surface.json)
+    is_identity,
+    is_topods_shape as _is_topods_shape,
     line,
     loc_to_tq,
     loc_to_vecs,
     make_compound,
     mul_locations,
     rect,
-    tq_to_loc,
-    is_identity,
+    tq_to_loc,  # noqa: F401 - public via cad_objects (tests/api_surface.json)
 )
 from ocp_tessellate.types import ConvertedVertices, DiscretizedEdges, Instance
 from ocp_tessellate.utils import Color, make_unique
@@ -31,14 +42,15 @@ EMPTY = 3
 
 PROTOCOL_VERSION = 3
 
-# Callbacks provided by tessellate_group to discretize edge and vertex leaves
-# during collect
-EdgeDiscretizer = Callable[
-    [list[TopoDS_Shape], str, str], tuple[DiscretizedEdges, BoundingBox]
-]
-VertexConverter = Callable[
-    [list[TopoDS_Shape], str, str], tuple[ConvertedVertices, BoundingBox]
-]
+if TYPE_CHECKING:
+    # Callbacks provided by tessellate_group to discretize edge and vertex leaves
+    # during collect
+    EdgeDiscretizer = Callable[
+        [list[TopoDS_Shape], str, str], tuple[DiscretizedEdges, BoundingBox]
+    ]
+    VertexConverter = Callable[
+        [list[TopoDS_Shape], str, str], tuple[ConvertedVertices, BoundingBox]
+    ]
 
 
 class OcpObject:
@@ -104,7 +116,7 @@ class OcpObject:
     def __repr__(self):
         return self.dump()
 
-    def copy(self) -> "OcpObject":
+    def copy(self) -> OcpObject:
         if self.obj is None:
             obj = None
         elif isinstance(self.obj, list):
@@ -154,7 +166,7 @@ class OcpObject:
         elif self.loc is None:
             combined_loc = loc
         else:
-            combined_loc = loc * self.loc
+            combined_loc = mul_locations(loc, self.loc)
 
         if self.kind == "imageface":
             image = {"data": self.image, "format": self.image_type}
@@ -168,7 +180,7 @@ class OcpObject:
             assert isinstance(self.color, Color), (
                 f"'{self.name}' has no resolved color"
             )
-            return dict(id=self.id, shape=instances[self.ref], loc=combined_loc), {
+            return {"id": self.id, "shape": instances[self.ref], "loc": combined_loc}, {
                 "id": self.id,
                 "type": "shapes",
                 "subtype": self.kind,
@@ -192,7 +204,7 @@ class OcpObject:
             assert self.color is not None, f"'{self.name}' has no color"
             convert = convert_vertices if self.kind == "vertex" else discretize_edges
             assert convert is not None, f"no converter for kind {self.kind}"
-            objs = [self.obj] if isinstance(self.obj, TopoDS_Shape) else self.obj
+            objs = [self.obj] if _is_topods_shape(self.obj) else self.obj
             self.obj = objs
             values, bb = convert(objs, self.name, self.id)
 
@@ -202,7 +214,7 @@ class OcpObject:
                 color = [c.web_color for c in self.color]
 
             result = (
-                dict(id=self.id, shape=self.obj, loc=None),
+                {"id": self.id, "shape": self.obj, "loc": None},
                 {
                     "id": self.id,
                     "type": "edges" if self.kind == "edge" else "vertices",
@@ -228,7 +240,7 @@ class OcpObject:
 class OcpGroup:
     def __init__(
         self,
-        objs: "list[OcpObject | OcpGroup] | None" = None,
+        objs: list[OcpObject | OcpGroup] | None = None,
         name: str | None = "Group",
         loc: TopLoc_Location | None = None,
     ):
@@ -256,11 +268,11 @@ class OcpGroup:
     def length(self) -> int:
         return len(self.objects)
 
-    def add(self, *objs: "OcpObject | OcpGroup") -> None:
+    def add(self, *objs: OcpObject | OcpGroup) -> None:
         for obj in objs:
             self.objects.append(obj)
 
-    def make_unique_names(self, python_enumeration: bool = False) -> "OcpGroup":
+    def make_unique_names(self, python_enumeration: bool = False) -> OcpGroup:
         if self.length > 1:
             names = make_unique([obj.name for obj in self.objects], python_enumeration)
             for obj, name in zip(self.objects, names):
@@ -269,7 +281,7 @@ class OcpGroup:
                     obj.name = name
         return self
 
-    def cleanup(self) -> "OcpObject | OcpGroup":
+    def cleanup(self) -> OcpObject | OcpGroup:
         if self.length == 1:
             result = self.objects[0]
             result.loc = mul_locations(self.loc, result.loc)
@@ -317,7 +329,7 @@ class OcpGroup:
         elif self.loc is None:
             combined_loc = loc
         else:
-            combined_loc = loc * self.loc
+            combined_loc = mul_locations(loc, self.loc)
 
         result = {
             "version": PROTOCOL_VERSION,
@@ -370,7 +382,8 @@ class OcpWrapper:
         self.kind = kind
         self.name = name
         self.color = color
-        self.loc = identity_location() if loc is None else loc
+        # an identity location of the objects' binding
+        self.loc = kernel_of_all(objs).TopLoc.TopLoc_Location() if loc is None else loc
         self.width = width
         self.show_edges = show_edges
         self.show_faces = show_faces
@@ -400,22 +413,23 @@ class CoordAxis(OcpWrapper):
         if color is None:
             color = Color("black")
         o, x, y, z = axis_to_vecs(origin, z_dir)
-        edge = line(o, o + size * z)
+        # vectors of axis_to_vecs: one binding at runtime (kernel_of / kernel_of_all); the OCP | nanocct unions cannot say so (known limit, ty in a venv with both bindings)
+        edge = line(o, o + size * z)  # ty: ignore[unsupported-operator]
         f = 0.7
         dz = size * f * z
         dx = size * ((1 - f) / 4) * x
         dy = size * ((1 - f) / 4) * y
         a = [
-            line(o + size * z, o + dz - dx),
-            line(o + size * z, o + dz + dx),
-            line(o + size * z, o + dz - dy),
-            line(o + size * z, o + dz + dy),
-            line(o + dz - dx, o + dz + dx),
-            line(o + dz - dy, o + dz + dy),
-            line(o + dz - dy, o + dz + dx),
-            line(o + dz - dy, o + dz - dx),
-            line(o + dz + dy, o + dz + dx),
-            line(o + dz + dy, o + dz - dx),
+            line(o + size * z, o + dz - dx),  # ty: ignore[unsupported-operator]
+            line(o + size * z, o + dz + dx),  # ty: ignore[unsupported-operator]
+            line(o + size * z, o + dz - dy),  # ty: ignore[unsupported-operator]
+            line(o + size * z, o + dz + dy),  # ty: ignore[unsupported-operator]
+            line(o + dz - dx, o + dz + dx),  # ty: ignore[unsupported-operator]
+            line(o + dz - dy, o + dz + dy),  # ty: ignore[unsupported-operator]
+            line(o + dz - dy, o + dz + dx),  # ty: ignore[unsupported-operator]
+            line(o + dz - dy, o + dz - dx),  # ty: ignore[unsupported-operator]
+            line(o + dz + dy, o + dz + dx),  # ty: ignore[unsupported-operator]
+            line(o + dz + dy, o + dz - dx),  # ty: ignore[unsupported-operator]
         ]
 
         super().__init__([edge] + a, "edge", name, color, width=2)
@@ -431,9 +445,10 @@ class CoordSystem(OcpWrapper):
         size: float = 1,
     ):
         o, x, y, z = loc_to_vecs(origin, x_dir, z_dir)
-        x_edge = line(o, o + size * x)
-        y_edge = line(o, o + size * y)
-        z_edge = line(o, o + size * z)
+        # vectors of loc_to_vecs: one binding at runtime (kernel_of / kernel_of_all); the OCP | nanocct unions cannot say so (known limit, ty in a venv with both bindings)
+        x_edge = line(o, o + size * x)  # ty: ignore[unsupported-operator]
+        y_edge = line(o, o + size * y)  # ty: ignore[unsupported-operator]
+        z_edge = line(o, o + size * z)  # ty: ignore[unsupported-operator]
 
         colors = [Color("red"), Color("green"), Color("blue")]
         super().__init__([x_edge, y_edge, z_edge], "edge", name, colors, width=2)
@@ -460,10 +475,12 @@ class ImageFace(OcpWrapper):
         xs = x * scale[0]
         ys = y * scale[1]
 
-        plane = rect(ws, hs)
         loc = location.wrapped if hasattr(location, "wrapped") else location
-        o = tq_to_loc((ws / 2 - xs, hs / 2 - ys, 0), (0, 0, 0, 1))
-        loc = loc * o if loc is not None else o
+        # the face in the binding of the location, kernel() without one
+        k = kernel_of(loc)
+        plane = rect(ws, hs, k.gp.gp_Ax3())
+        o = _tq_to_loc(k, (ws / 2 - xs, hs / 2 - ys, 0), (0, 0, 0, 1))
+        loc = mul_locations(loc, o)
 
         super().__init__(
             [plane], "imageface", name, Color("white"), show_edges=True, loc=loc

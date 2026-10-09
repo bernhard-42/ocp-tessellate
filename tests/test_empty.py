@@ -3,17 +3,21 @@ import tempfile
 import unittest
 
 from build123d import *
-from OCP.gp import gp_Pnt
-from OCP.BRep import BRep_Builder
-from OCP.BRepBuilderAPI import (
-    BRepBuilderAPI_MakeEdge,
-    BRepBuilderAPI_MakeFace,
-    BRepBuilderAPI_MakePolygon,
-)
-from OCP.TopoDS import TopoDS_Compound, TopoDS_Face
+from occt_binding import occt
 
 from ocp_tessellate.convert import OcpConverter, tessellate_group
 from ocp_tessellate.ocp_utils import *
+
+# raw OCCT objects of build123d's binding: they are combined with build123d
+# objects below. After the star import, which brings the default kernel's
+# classes (OCP's when both bindings are installed).
+gp_Pnt = occt("gp", "gp_Pnt")
+BRep_Builder = occt("BRep", "BRep_Builder")
+BRepBuilderAPI_MakeEdge = occt("BRepBuilderAPI", "BRepBuilderAPI_MakeEdge")
+BRepBuilderAPI_MakeFace = occt("BRepBuilderAPI", "BRepBuilderAPI_MakeFace")
+BRepBuilderAPI_MakePolygon = occt("BRepBuilderAPI", "BRepBuilderAPI_MakePolygon")
+TopoDS_Compound = occt("TopoDS", "TopoDS_Compound")
+TopoDS_Face = occt("TopoDS", "TopoDS_Face")
 
 
 def _degenerate_face():
@@ -55,7 +59,6 @@ class TestsEmpty(MyUnitTest):
         """Test that an dict is converted correctly"""
         c = OcpConverter()
         g = c.to_ocp({}, names=["z"])
-        i = c.instances
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.name, "z (empty)")
@@ -69,7 +72,6 @@ class TestsEmpty(MyUnitTest):
         """Test that an empty list is converted correctly"""
         c = OcpConverter()
         g = c.to_ocp([], names=["z"])
-        i = c.instances
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.name, "z (empty)")
@@ -83,7 +85,6 @@ class TestsEmpty(MyUnitTest):
         """Test that an empty Compound is converted correctly"""
         c = OcpConverter()
         g = c.to_ocp(Compound([]), names=["z"])
-        i = c.instances
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.name, "z (empty)")
@@ -206,7 +207,7 @@ class TestsDegenerateArtifacts(MyUnitTest):
     def test_degenerated_edge_alone(self):
         c = OcpConverter()
         g = c.to_ocp(self._edge_without_geometry(), names=["e"])
-        meshed, shapes, _ = tessellate_group(g, c.instances)
+        _meshed, shapes, _ = tessellate_group(g, c.instances)
         # dropped and replaced by the empty placeholder vertex
         self.assertEqual(len(shapes["parts"]), 1)
         self.assertEqual(shapes["parts"][0]["type"], "vertices")
@@ -217,7 +218,7 @@ class TestsDegenerateArtifacts(MyUnitTest):
         comp = self._compound([good1, self._edge_without_geometry(), good2])
         c = OcpConverter()
         g = c.to_ocp(comp, names=["edges"])
-        meshed, shapes, _ = tessellate_group(g, c.instances)
+        _meshed, shapes, _ = tessellate_group(g, c.instances)
         sh = shapes["parts"][0]["shape"]
         # only the two healthy edges survive, parallel arrays stay in sync
         self.assertEqual(len(sh["segments_per_edge"]), 2)
@@ -235,7 +236,7 @@ class TestsDegenerateArtifacts(MyUnitTest):
         comp = self._compound([self._zero_area_face(), Face.make_rect(1, 1).wrapped])
         c = OcpConverter()
         g = c.to_ocp(comp, names=["faces"])
-        meshed, shapes, _ = tessellate_group(g, c.instances)
+        meshed, _shapes, _ = tessellate_group(g, c.instances)
         mesh = meshed[0]
         # the skipped face contributes to neither array
         self.assertEqual(len(mesh["face_types"]), len(mesh["triangles_per_face"]))

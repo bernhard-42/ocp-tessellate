@@ -14,8 +14,8 @@
 # limitations under the License.
 #
 
-from collections import namedtuple
 import re
+from collections import namedtuple
 
 VersionInfo = namedtuple("VersionInfo", ["major", "minor", "patch", "release", "build"])
 
@@ -31,5 +31,5 @@ def get_version(version):
     return VersionInfo(major, minor, patch, release, build)
 
 
-__version__ = "3.5.3"  # DO NOT EDIT THIS DIRECTLY!  It is managed by bumpversion
+__version__ = "3.6.0"  # DO NOT EDIT THIS DIRECTLY!  It is managed by bumpversion
 __version_info__ = get_version(__version__)

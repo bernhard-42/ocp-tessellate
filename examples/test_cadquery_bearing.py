@@ -43,7 +43,7 @@ show(ball, inner, outer)
 ## Assembly
 
 number_balls = 6
-balls = ["ball_%d" % i for i in range(number_balls)]
+balls = [f"ball_{i}" for i in range(number_balls)]
 
 
 def create_bearing():
@@ -76,7 +76,7 @@ for i in range(number_balls):
     )  # the default Mate is sufficient
     bearing.mate(
         "inner@faces@<Z",
-        name="inner_%d" % i,
+        name=f"inner_{i}",
         transforms=odict(rz=i * 60, tx=r5, tz=-ball_diam / 2),
     )
 
@@ -86,6 +86,6 @@ show(bearing, render_mates=True)
 bearing.assemble("inner", "outer")
 
 for i in range(number_balls):
-    bearing.assemble(balls[i], "inner_%d" % i)
+    bearing.assemble(balls[i], f"inner_{i}")
 
 show(bearing, render_mates=True)

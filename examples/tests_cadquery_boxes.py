@@ -1,12 +1,10 @@
 # %%
 from collections import OrderedDict as odict
 
-import numpy as np
-
 import cadquery as cq
+import numpy as np
 from cadquery_massembly import MAssembly
-from ocp_viewer_core.viewer import show, Animation
-
+from ocp_viewer_core.viewer import Animation, show
 
 # %%
 # MAssembly Test

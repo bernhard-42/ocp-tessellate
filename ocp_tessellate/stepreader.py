@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import os
 import time
 import unicodedata
 from copy import copy as shallow_copy
-from typing import Union
+from typing import TYPE_CHECKING
 
 from typing_extensions import TypedDict
 
@@ -28,36 +30,21 @@ try:
 except ImportError:
     pass
 
-import OCP
-from OCP.IFSelect import IFSelect_RetDone
-from OCP.Quantity import Quantity_ColorRGBA
-from OCP.STEPCAFControl import STEPCAFControl_Reader
-from OCP.STEPControl import STEPControl_Reader
-from OCP.TCollection import TCollection_AsciiString, TCollection_ExtendedString
-from OCP.TDataStd import TDataStd_Name
-from OCP.TDF import TDF_ChildIterator, TDF_Label
-from OCP.TDocStd import TDocStd_Document
-from OCP.TopAbs import TopAbs_COMPOUND, TopAbs_COMPSOLID, TopAbs_FACE, TopAbs_SOLID
-from OCP.TopExp import TopExp_Explorer
-from OCP.TopLoc import TopLoc_Location
-from OCP.TopoDS import TopoDS_Shape
-from OCP.XCAFDoc import (
-    XCAFDoc_ColorCurv,
-    XCAFDoc_ColorGen,
-    XCAFDoc_ColorSurf,
-    XCAFDoc_ColorTool,
-    XCAFDoc_DocumentTool,
-    XCAFDoc_ShapeTool,
-)
+from ._kernel import adapter, binding_of, kernel
 
-if OCP.__version__.startswith("7"):
-    from OCP.TDF import TDF_LabelSequence
-else:
-    from OCP.collections import Sequence_TDF_Label as TDF_LabelSequence
+if TYPE_CHECKING:
+    from .types import (
+        Quantity_ColorRGBA,
+        TopLoc_Location,
+        TopoDS_Shape,
+        XCAFDoc_ColorTool,
+        XCAFDoc_ShapeTool,
+    )
+
 
 # from ocp_tessellate.ocp_utils import deserialize, loc_to_tq, serialize, tq_to_loc
-from ocp_tessellate.utils import warn
 from ocp_tessellate.ocp_utils import make_compound
+from ocp_tessellate.utils import warn
 
 DEFAULT_COLOR = (0.8, 0.8, 0.8, 1)
 
@@ -66,10 +53,10 @@ RGBA = tuple[float, float, float, float]
 
 class AssemblyObject(TypedDict):
     name: str
-    loc: Union[TopLoc_Location, None]
-    color: Union[RGBA, None]
-    shape: Union[TopoDS_Shape, None]
-    shapes: Union["list[AssemblyObject]", None]
+    loc: TopLoc_Location | None
+    color: RGBA | None
+    shape: TopoDS_Shape | None
+    shapes: list[AssemblyObject] | None
 
 
 def clean_string(s):
@@ -88,17 +75,18 @@ class StepReader:
         self.analyse_faces = analyse_faces
         self.split_compounds = split_compounds
         self.use_colors = use_colors
-        self.shape_tool: Union[XCAFDoc_ShapeTool, None] = None
-        self.color_tool: Union[XCAFDoc_ColorTool, None] = None
-        self.assemblies: Union[list[AssemblyObject], None] = None
+        self._kernel = kernel()
+        self.shape_tool: XCAFDoc_ShapeTool | None = None
+        self.color_tool: XCAFDoc_ColorTool | None = None
+        self.assemblies: list[AssemblyObject] | None = None
 
     def _create_assembly_object(
         self,
         name: str,
-        loc: Union[TopLoc_Location, None] = None,
-        color: Union[RGBA, None] = None,
-        shape: Union[TopoDS_Shape, None] = None,
-        children: Union["list[AssemblyObject]", None] = None,
+        loc: TopLoc_Location | None = None,
+        color: RGBA | None = None,
+        shape: TopoDS_Shape | None = None,
+        children: list[AssemblyObject] | None = None,
     ) -> AssemblyObject:
         """
         Create a new object
@@ -123,12 +111,12 @@ class StepReader:
         :param label: TDF_label of a STEP file
         :return: str
         """
-        t = TDataStd_Name()
-        if label.FindAttribute(TDataStd_Name.GetID_s(), t):
-            name = TCollection_AsciiString(t.Get()).ToCString()
-            return clean_string(name)
-        else:
+        k = self._kernel
+        attribute = adapter(k).find_attribute(label, k.TDataStd.TDataStd_Name)
+        if attribute is None:
             return "Component"
+        name = k.TCollection.TCollection_AsciiString(attribute.Get()).ToCString()
+        return clean_string(name)
 
     def get_color(self, shape):
         """
@@ -141,17 +129,19 @@ class StepReader:
         :return: str
         """
 
+        k = self._kernel
+
         def to_list(c: Quantity_ColorRGBA) -> RGBA:
             return (c.GetRGB().Red(), c.GetRGB().Green(), c.GetRGB().Blue(), c.Alpha())
 
-        def get_col(obj) -> Union[RGBA, None]:
+        def get_col(obj) -> RGBA | None:
             color_tool = self.color_tool
             assert color_tool is not None, "load() first"
-            col = Quantity_ColorRGBA()
+            col = k.Quantity.Quantity_ColorRGBA()
             if (
-                color_tool.GetColor(obj, XCAFDoc_ColorGen, col)
-                or color_tool.GetColor(obj, XCAFDoc_ColorSurf, col)
-                or color_tool.GetColor(obj, XCAFDoc_ColorCurv, col)
+                color_tool.GetColor(obj, k.XCAFDoc.XCAFDoc_ColorGen, col)
+                or color_tool.GetColor(obj, k.XCAFDoc.XCAFDoc_ColorSurf, col)
+                or color_tool.GetColor(obj, k.XCAFDoc.XCAFDoc_ColorCurv, col)
             ):
                 return to_list(col)
             return None
@@ -164,7 +154,7 @@ class StepReader:
         colors = []
         if self.analyse_faces:
             # Find all face colors
-            exp = TopExp_Explorer(shape, TopAbs_FACE)
+            exp = k.TopExp.TopExp_Explorer(shape, k.TopAbs.TopAbs_FACE)
             while exp.More():
                 color = get_col(exp.Current())
                 if color is not None:
@@ -205,20 +195,21 @@ class StepReader:
         :param loc: object location (TopLoc_Location)
         :return: list of TopAbs_SOLID
         """
-        it = TDF_ChildIterator()
+        k = self._kernel
+        it = k.TDF.TDF_ChildIterator()
         it.Initialize(label)
         i = 0
         shapes = []
         while it.More():
             shape = self.get_shape(it.Value())
-            if shape.ShapeType() == TopAbs_SOLID:
+            if shape.ShapeType() == k.TopAbs.TopAbs_SOLID:
                 s_name = f"{name}_{i + 1}"
                 color = self.get_color(shape)
                 sub_shape = self._create_assembly_object(s_name, loc, color, shape)
                 shapes.append(sub_shape)
                 i += 1
 
-            elif shape.ShapeType() == TopAbs_COMPSOLID:
+            elif shape.ShapeType() == k.TopAbs.TopAbs_COMPSOLID:
                 warn(f"Nested compsolids not supported yet: {name}")
 
             it.Next()
@@ -232,9 +223,11 @@ class StepReader:
         :param loc: object location (TopLoc_Location)
         :return: list of AssemblyObjects
         """
+        # every label belongs to the document load() read in self._kernel
+        k = self._kernel
         shape_tool = self.shape_tool
         assert shape_tool is not None, "load() first"
-        labels = TDF_LabelSequence()
+        labels = adapter(k).TDF_LabelSequence()
         if label is None:
             # Get all non referenced top level labels
             shape_tool.GetFreeShapes(labels)
@@ -248,7 +241,7 @@ class StepReader:
             sub_label = labels.Value(i + 1)
 
             if shape_tool.IsReference_s(sub_label):
-                ref_label = TDF_Label()
+                ref_label = k.TDF.TDF_Label()
                 shape_tool.GetReferredShape_s(sub_label, ref_label)
             else:
                 ref_label = sub_label
@@ -267,10 +260,10 @@ class StepReader:
 
             elif (
                 self.split_compounds
-                and shape.ShapeType() in [TopAbs_COMPOUND, TopAbs_COMPSOLID]
+                and shape.ShapeType() in [k.TopAbs.TopAbs_COMPOUND, k.TopAbs.TopAbs_COMPSOLID]
                 and ref_label.HasChild()
             ):
-                sub_shapes = self.get_shape_details(ref_label, name, TopLoc_Location())
+                sub_shapes = self.get_shape_details(ref_label, name, k.TopLoc.TopLoc_Location())
                 if len(sub_shapes) == 0:
                     sub_shape["shape"] = shape
                     sub_shape["color"] = self.get_color(shape)
@@ -304,6 +297,7 @@ class StepReader:
         :param cache_name: name of the binary cache object
         :param clear_cache: clear cache before loading to force analysis of STEP file
         """
+        k = self._kernel
         start = time.time()
         if cache_name is not None:
             cache_filename = f"{cache_name}.jq"
@@ -324,13 +318,13 @@ class StepReader:
         print("Reading STEP file ... ", flush=True, end="")
         time.sleep(0.01)  # ensure output is shown
 
-        fmt = TCollection_ExtendedString("CadQuery-XCAF")
-        doc = TDocStd_Document(fmt)
+        fmt = k.TCollection.TCollection_ExtendedString("CadQuery-XCAF")
+        doc = k.TDocStd.TDocStd_Document(fmt)
 
-        self.shape_tool = XCAFDoc_DocumentTool.ShapeTool_s(doc.Main())
-        self.color_tool = XCAFDoc_DocumentTool.ColorTool_s(doc.Main())
+        self.shape_tool = k.XCAFDoc.XCAFDoc_DocumentTool.ShapeTool_s(doc.Main())
+        self.color_tool = k.XCAFDoc.XCAFDoc_DocumentTool.ColorTool_s(doc.Main())
 
-        reader = STEPCAFControl_Reader()
+        reader = k.STEPCAFControl.STEPCAFControl_Reader()
         reader.SetNameMode(True)
         reader.SetColorMode(True)
         reader.SetLayerMode(True)
@@ -359,10 +353,10 @@ class StepReader:
         def to_workplane(obj):
             return cq.Workplane(obj=cq.Solid(obj))
 
-        def to_loc(loc: Union[TopLoc_Location, None]) -> "cq.Location":
+        def to_loc(loc: TopLoc_Location | None) -> cq.Location:
             return cq.Location() if loc is None else cq.Location(loc)
 
-        def walk(objs: "list[AssemblyObject]", name=None, loc=None):
+        def walk(objs: list[AssemblyObject], name=None, loc=None):
             a = cq.Assembly(name=name, loc=loc)
             names = {}
             for obj in objs:
@@ -422,11 +416,22 @@ class StepReader:
         Convert internal AssemblyObjects format to build123d Assemblies
         :return: buiild123d assembly
         """
+        # build123d wraps the objects of one binding: the one the STEP file must
+        # have been read with
+        build123d_binding = binding_of(Location().wrapped)
+        if build123d_binding is not self._kernel:
+            assert build123d_binding is not None, "build123d wraps OCP or nanocct objects"
+            raise TypeError(
+                f"the STEP file was read with {self._kernel.__name__}, but build123d "
+                f"uses {build123d_binding.__name__}: start Python with "
+                f"OCCT_BINDING={build123d_binding.__name__}"
+            )
 
-        def to_loc(loc: Union[TopLoc_Location, None]) -> "Location":
-            return Location() if loc is None else Location(loc)
+        def to_loc(loc: TopLoc_Location | None) -> Location:
+            # the binding is checked above; the union does not narrow (known limit)
+            return Location() if loc is None else Location(loc)  # ty: ignore[no-matching-overload]
 
-        def walk(objs: "list[AssemblyObject]", label=None, loc=None):
+        def walk(objs: list[AssemblyObject], label=None, loc=None):
             a = []
             names = {}
             for obj in objs:
@@ -484,9 +489,10 @@ class StepReader:
 
 
 def import_step_as_single_compound(file_name):
-    reader = STEPControl_Reader()
+    k = kernel()
+    reader = k.STEPControl.STEPControl_Reader()
     read_status = reader.ReadFile(file_name)
-    if read_status != IFSelect_RetDone:
+    if read_status != k.IFSelect.IFSelect_RetDone:
         raise ValueError(f"STEP File {file_name} could not be loaded")
     for i in range(reader.NbRootsForTransfer()):
         reader.TransferRoot(i + 1)

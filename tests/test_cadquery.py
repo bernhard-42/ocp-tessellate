@@ -79,7 +79,6 @@ class TestWorkplane(MyUnitTest):
         result = cq.Workplane().box(1, 1, 1).cut(cq.Workplane().box(2, 2, 0.2)).wires()
         c = OcpConverter()
         g = c.to_ocp(result, names=["Wires"], colors=["cyan"])
-        i = c.instances
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.name, "Wires")
@@ -94,7 +93,6 @@ class TestWorkplane(MyUnitTest):
         result = cq.Workplane().box(1, 1, 1).cut(cq.Workplane().box(2, 2, 0.2)).edges()
         c = OcpConverter()
         g = c.to_ocp(result, names=["Edges"], colors=["cyan"])
-        i = c.instances
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.name, "Edges")
@@ -111,7 +109,6 @@ class TestWorkplane(MyUnitTest):
         )
         c = OcpConverter()
         g = c.to_ocp(result, names=["Vertex"], colors=["cyan"])
-        i = c.instances
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.name, "Vertex")
@@ -149,7 +146,6 @@ class TestWorkplane(MyUnitTest):
             names=[f"edge{i}" for i in range(24)],
             colors=[c[0] for c in colormap[:24]],
         )
-        i = c.instances
         self.assertEqual(g.length, 24)
         for ind in range(12):
             o = g.objects[ind]
@@ -170,7 +166,6 @@ class TestWorkplane(MyUnitTest):
             names=[f"vertex{i}" for i in range(16)],
             colors=[c[0] for c in colormap[:16]],
         )
-        i = c.instances
         self.assertEqual(g.length, 16)
         for ind in range(12):
             o = g.objects[ind]
@@ -369,7 +364,7 @@ class TestTessellator(MyUnitTest):
             .consolidateWires()
         )
         g, i = to_ocpgroup(result)
-        r = tessellate_group(g, i)
+        tessellate_group(g, i)
         self.assertEqual(g.length, 1)
         o = g.objects[0]
         self.assertEqual(o.kind, "edge")

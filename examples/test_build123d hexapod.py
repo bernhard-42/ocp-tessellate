@@ -1,9 +1,10 @@
 # %%
+from typing import ClassVar
+
 import numpy as np
+from bd_animation import AnimationGroup, clone, normalize_track
 from build123d import *
 from ocp_viewer_core.viewer import *
-
-from bd_animation import AnimationGroup, clone, normalize_track
 
 set_defaults(render_joints=True, helper_scale=8)
 thickness = 2
@@ -20,7 +21,7 @@ tol = 0.05
 class Base(Part):
     hinge_x1, hinge_x2 = 0.63, 0.87
 
-    hinges_holes = {
+    hinges_holes: ClassVar[dict[str, Location]] = {
         "right_front": Location((-hinge_x1 * width, -hinge_x1 * length), (0, 0, 195)),
         "right_middle": Location((-hinge_x2 * width, 0), (0, 0, 180)),
         "right_back": Location((-hinge_x1 * width, hinge_x1 * length), (0, 0, 165)),
@@ -29,7 +30,7 @@ class Base(Part):
         "left_back": Location((hinge_x1 * width, hinge_x1 * length), (0, 0, 15)),
     }
 
-    stand_holes = {
+    stand_holes: ClassVar[dict[str, Location]] = {
         "front_stand": Location((0, -0.8 * length), (0, 0, 180)),
         "back_stand": Location((0, 0.75 * length), (0, 0, 0)),
     }
@@ -273,7 +274,7 @@ def horizontal(end, reverse):
 
 animation = Animation(hexapod)
 
-for name in Base.hinges_holes.keys():
+for name in Base.hinges_holes:
     times, values = horizontal(4, "middle" not in name)
     animation.add_track(
         f"/hexapod/{name}_leg", "rz", times, normalize_track(values), render_joints
