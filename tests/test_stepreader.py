@@ -2,16 +2,19 @@
 
 The STEP file is written with build123d (in its binding, BINDING) and read
 with the run's binding: StepReader gets no OCCT object, so OCCT_BINDING
-decides which binding it reads with (run the suite once per binding where both
-are installed).
+decides which binding it reads with (where both are installed, run the suite
+once per binding build123d accepts).
 """
 
 import build123d as bd
 import pytest
-from occt_binding import BINDING, DEFAULT_BINDING, root
+from occt_binding import DEFAULT_BINDING, build123d_binding, root
 
 from ocp_tessellate._kernel import binding_of
 from ocp_tessellate.stepreader import StepReader, import_step_as_single_compound
+
+# the binding build123d writes the STEP file in
+BINDING = build123d_binding()
 
 
 @pytest.fixture(scope="module")
