@@ -1731,6 +1731,7 @@ class OcpConverter:
                 and not is_vertex(cad_obj)
                 and (
                     (is_wrapped(cad_obj) and cad_obj.wrapped is None)
+                    or (hasattr(cad_obj, "is_empty") and cad_obj.is_empty)
                     or (
                         isinstance(cad_obj, Iterable)
                         and (len(list(cad_obj)) == 0 or is_empty_compound(cad_obj))
