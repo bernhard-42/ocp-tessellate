@@ -12,8 +12,9 @@ SKIP_NO_BUILDSHEET = unittest.skipUnless(
     HAS_BUILDSHEET, "BuildSheet is not available in this build123d version"
 )
 
-from ocp_tessellate.convert import OcpConverter, OcpGroup
+from ocp_tessellate.convert import OcpConverter, OcpGroup, to_ocpgroup
 from ocp_tessellate.ocp_utils import *
+from ocp_tessellate.utils import make_unique
 
 
 class MyUnitTest(unittest.TestCase):
@@ -1888,3 +1889,69 @@ class TestsBuildPartJoints(MyUnitTest):
         else:
             self.assertEqual(g.length, 1)
             self.assertEqual(g.objects[0].name, "p")
+
+
+class TestPythonEnumeration(MyUnitTest):
+    """Numbering of repeated names, vscode-ocp-cad-viewer issue 242"""
+
+    spheres = [Pos(2 * i) * Sphere(1) for i in range(5)]
+
+    def test_make_unique_default(self):
+        """The default keeps the first occurrence and counts repetitions from 2"""
+        self.assertEqual(
+            make_unique(["a", None, "a", "b", "a"]),
+            ["a", None, "a(2)", "b", "a(3)"],
+        )
+
+    def test_make_unique_python_enumeration(self):
+        """Every occurrence of a repeated name is counted from 0, single names stay"""
+        self.assertEqual(
+            make_unique(["a", None, "a", "b", "a"], python_enumeration=True),
+            ["a(0)", None, "a(1)", "b", "a(2)"],
+        )
+
+    def test_list_default(self):
+        """A list of solids keeps the 1-based scheme by default"""
+        g = OcpConverter().to_ocp(self.spheres)
+        self.assertEqual(
+            [o.name for o in g.objects],
+            ["Solid", "Solid(2)", "Solid(3)", "Solid(4)", "Solid(5)"],
+        )
+
+    def test_list_python_enumeration(self):
+        """A list of solids is numbered from 0 like its Python indices"""
+        g = OcpConverter(python_enumeration=True).to_ocp(self.spheres)
+        self.assertEqual(
+            [o.name for o in g.objects],
+            ["Solid(0)", "Solid(1)", "Solid(2)", "Solid(3)", "Solid(4)"],
+        )
+
+    def test_mixed_list_python_enumeration(self):
+        """The counter is per name, not the list position"""
+        g = OcpConverter(python_enumeration=True).to_ocp(
+            [Sphere(1), Rectangle(1, 1), Sphere(1)]
+        )
+        self.assertEqual([o.name for o in g.objects], ["Solid(0)", "Face", "Solid(1)"])
+
+    def test_groupby_python_enumeration(self):
+        """Nested groups are numbered from 0 too"""
+        g = OcpConverter(python_enumeration=True).to_ocp(b.edges().group_by(Axis.Z))
+        self.assertEqual(
+            [o.name for o in g.objects],
+            ["ShapeList(0)", "ShapeList(1)", "ShapeList(2)"],
+        )
+
+    def test_names_python_enumeration(self):
+        """Repeated names passed via names= are numbered from 0"""
+        g = OcpConverter(python_enumeration=True).to_ocp(
+            Box(1, 1, 1), Box(1, 1, 1), Box(1, 1, 1), names=["b", "b", "c"]
+        )
+        self.assertEqual([o.name for o in g.objects], ["b(0)", "b(1)", "c"])
+
+    def test_to_ocpgroup_python_enumeration(self):
+        """to_ocpgroup passes the flag to the converter"""
+        g, _ = to_ocpgroup(self.spheres, python_enumeration=True)
+        self.assertEqual(
+            [o.name for o in g.objects],
+            ["Solid(0)", "Solid(1)", "Solid(2)", "Solid(3)", "Solid(4)"],
+        )

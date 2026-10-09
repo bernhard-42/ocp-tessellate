@@ -222,10 +222,13 @@ class OcpConverter:
         render_mates=False,
         show_parent=False,
         show_locals=True,
+        python_enumeration: bool = False,
         debug: bool = False,
     ):
         """The initializer of the OcpConverter.
         @param progress: The progress class to provide updates during the conversion
+        @param python_enumeration: Number repeated names from 0 for every occurrence,
+            a(0), a(1), ..., instead of a, a(2), ...
         """
         self.instances: List[Instance] = []
         self.ocp = None
@@ -235,6 +238,7 @@ class OcpConverter:
         self.render_mates = render_mates
         self.show_parent = show_parent
         self.show_locals = show_locals
+        self.python_enumeration = python_enumeration
         self.debug = debug
         self.default_color = get_default("default_color")
         # Precedence for the three colors below: an explicit argument to
@@ -550,7 +554,7 @@ class OcpConverter:
                     ocp_obj.add(c_result.helpers)
                     c_result.helpers = None
 
-        return ocp_obj.make_unique_names()
+        return ocp_obj.make_unique_names(self.python_enumeration)
 
     def handle_list_tuple(
         self,
@@ -757,7 +761,7 @@ class OcpConverter:
                     joint.loc = location.Inverted() * joint.loc
             ocp_obj.helpers = joints
 
-        return ocp_obj.make_unique_names()
+        return ocp_obj.make_unique_names(self.python_enumeration)
 
     def handle_cadquery_assembly(
         self,
@@ -898,7 +902,7 @@ class OcpConverter:
         group = OcpGroup(name=get_name(cad_obj, obj_name, "LocationList"))
         for loc in cad_obj:
             group.add(self.handle_locations_planes(loc, "Location", level=level + 1))
-        group.make_unique_names()
+        group.make_unique_names(self.python_enumeration)
         return group
 
     def _handle_list(
@@ -1647,7 +1651,7 @@ class OcpConverter:
         elif isinstance(names, (tuple, list)):
             if len(names) != len(cad_objs):
                 raise ValueError("Length of names does not match the number of objects")
-            names = make_unique(names)
+            names = make_unique(names, self.python_enumeration)
         else:
             raise ValueError(f"Invalid type {type(names)} for names")
 
@@ -1914,7 +1918,7 @@ class OcpConverter:
                     group.add(ocp_obj.helpers)
                     ocp_obj.helpers = None
 
-        group.make_unique_names()
+        group.make_unique_names(self.python_enumeration)
 
         if group.length == 1 and isinstance(group.objects[0], OcpGroup):
             cleaned = group.cleanup()
@@ -1945,6 +1949,7 @@ def to_ocpgroup(
     default_vertexcolor: Union[ColorLike, None] = None,
     show_parent: bool = False,
     show_locals: bool = True,
+    python_enumeration: bool = False,
     loc: Union[TopLoc_Location, None] = None,
     progress: Union[Progress, None] = None,
     debug: bool = False,
@@ -1967,6 +1972,8 @@ def to_ocpgroup(
     @param default_vertexcolor: Color of a vertex shown on its own
     @param show_parent: The flag to show the parent
     @param show_locals: The flag to render the part/sheet/sketch/line based on XY plane
+    @param python_enumeration: Number repeated names from 0 for every occurrence,
+        a(0), a(1), ..., instead of a, a(2), ...
     @param loc: The location of the objects
     @param progress: The progress bar
 
@@ -1979,6 +1986,7 @@ def to_ocpgroup(
         render_mates=render_mates,
         show_parent=show_parent,
         show_locals=show_locals,
+        python_enumeration=python_enumeration,
         debug=debug,
     )
     ocp_group = converter.to_ocp(

@@ -4,6 +4,7 @@ import json
 import math
 import time
 import warnings
+from collections import Counter
 
 import numpy as np
 from webcolors import hex_to_rgb, name_to_rgb, rgb_to_hex
@@ -186,7 +187,35 @@ def get_color(in_color, def_color, alpha):
     return color
 
 
-def make_unique(names: list[str | None]) -> list[str | None]:
+def make_unique(
+    names: list[str | None], python_enumeration: bool = False
+) -> list[str | None]:
+    """
+    Make repeated names unique by appending a counter.
+
+    @param names: The names, None entries are kept as None
+    @param python_enumeration: False keeps the first occurrence unchanged and
+        counts the repetitions from 2: a, a(2), a(3). True counts every
+        occurrence of a repeated name from 0: a(0), a(1), a(2). Names that occur
+        only once are unchanged in both schemes
+
+    @return: The unique names
+    """
+    if python_enumeration:
+        counts = Counter(name for name in names if name is not None)
+        seen: dict[str, int] = {}
+        unique_names: list[str | None] = []
+        for name in names:
+            if name is None:
+                unique_names.append(None)
+            elif counts[name] == 1:
+                unique_names.append(name)
+            else:
+                index = seen.get(name, 0)
+                seen[name] = index + 1
+                unique_names.append(f"{name}({index})")
+        return unique_names
+
     found = {}
     unique_names = []
     for name in names:

@@ -1,3 +1,13 @@
+## v3.6.0 (unreleased)
+
+**Features**
+
+- `python_enumeration` parameter of `OcpConverter` and `to_ocpgroup` (default `False`, vscode-ocp-cad-viewer issue 242): repeated names in a group are numbered from 0 on every occurrence, `Solid(0)`, `Solid(1)`, `Solid(2)`, instead of `Solid`, `Solid(2)`, `Solid(3)`, so a list of shapes of one type shows its Python indices. It applies wherever names are made unique: lists and tuples, unrolled compounds, assemblies, location lists and the `names` argument. The counter is per name, not the position in the list, and a name that occurs once keeps no suffix. The default keeps the former names, since assembly paths are built from them
+
+**Fixes**
+
+- An object whose `is_empty` attribute is true is converted to the `(empty)` placeholder like an empty list
+
 ## v3.5.3
 
 **Fixes**

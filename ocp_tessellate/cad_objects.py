@@ -260,9 +260,9 @@ class OcpGroup:
         for obj in objs:
             self.objects.append(obj)
 
-    def make_unique_names(self) -> "OcpGroup":
+    def make_unique_names(self, python_enumeration: bool = False) -> "OcpGroup":
         if self.length > 1:
-            names = make_unique([obj.name for obj in self.objects])
+            names = make_unique([obj.name for obj in self.objects], python_enumeration)
             for obj, name in zip(self.objects, names):
                 # make_unique maps None to None, so only named objects change
                 if name is not None:
