@@ -48,13 +48,16 @@ release:
 # the tag is not there yet - and without the push that was the previous
 # release's main, so nine releases pointed at source without their changes.
 # No `--target`: the tag exists and names the commit.
+# Only this release's tag is pushed: 16 old local tags (v1.0.0rc10 to v3.2.1)
+# differ from the ones on GitHub, whose releases are bound to the remote ones,
+# so `git push --tags` is rejected and would stop the target here.
 create-release:
 	@for f in dist/ocp_tessellate-$(CURRENT_VERSION).tar.gz \
 	         dist/ocp_tessellate-$(CURRENT_VERSION)-py3-none-any.whl; do \
 	    test -f $$f || { echo "missing $$f - run make dist first"; exit 1; }; \
 	done
-	@git push
-	@git push --tags
+	@git push origin main
+	@git push origin v$(CURRENT_VERSION)
 	@gh release create v$(CURRENT_VERSION) \
 		dist/ocp_tessellate-$(CURRENT_VERSION).tar.gz \
 		dist/ocp_tessellate-$(CURRENT_VERSION)-py3-none-any.whl \
