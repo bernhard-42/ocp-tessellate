@@ -1,10 +1,14 @@
 import unittest
 
-import cadquery as cq
+import pytest
 import webcolors
 
 from ocp_tessellate.convert import OcpConverter, tessellate_group, to_ocpgroup
 from ocp_tessellate.ocp_utils import *
+
+# Every test here builds cadquery objects: without cadquery the module is
+# skipped rather than failing to collect.
+cq = pytest.importorskip("cadquery")
 
 
 class MyUnitTest(unittest.TestCase):

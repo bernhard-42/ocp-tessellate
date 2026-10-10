@@ -1,7 +1,6 @@
 import unittest
 
 import build123d as bd
-import cadquery as cq
 import pytest
 
 from ocp_tessellate.ocp_utils import get_rgba
@@ -162,16 +161,19 @@ class TestGetRgba(unittest.TestCase):
         self.assertAlmostEqual(c.a, 0.2, 6)
 
     def test_cq_color(self):
+        cq = pytest.importorskip("cadquery")
         c = get_rgba(cq.Color(0.2, 0.3, 0.4))
         self.assertEqual(c.web_color, "#334c66")
         self.assertAlmostEqual(c.a, 1.0, 6)
 
     def test_cq_color_alpha(self):
+        cq = pytest.importorskip("cadquery")
         c = get_rgba(cq.Color(0.2, 0.3, 0.4, 0.1))
         self.assertEqual(c.web_color, "#334c66")
         self.assertAlmostEqual(c.a, 0.1, 6)
 
     def test_cq_color_extra_alpha(self):
+        cq = pytest.importorskip("cadquery")
         c = get_rgba(cq.Color(0.2, 0.3, 0.4), 0.1)
         self.assertEqual(c.web_color, "#334c66")
         self.assertAlmostEqual(c.a, 0.1, 6)
