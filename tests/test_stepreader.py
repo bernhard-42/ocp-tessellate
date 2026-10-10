@@ -1,9 +1,8 @@
 """StepReader and import_step_as_single_compound, in the run's binding.
 
 The STEP file is written with build123d (in its binding, BINDING) and read
-with the run's binding: StepReader gets no OCCT object, so OCCT_BINDING
-decides which binding it reads with (where both are installed, run the suite
-once per binding build123d accepts).
+with the default binding: StepReader gets no OCCT object, so it reads with
+nanocct where nanocct is installed, else with OCP.
 """
 
 import build123d as bd
@@ -93,7 +92,7 @@ def test_to_build123d(binding, step_file):
         assert binding_of(assembly.wrapped) is root(binding)
     else:
         # build123d wraps the other binding: the reader says what to do
-        with pytest.raises(TypeError, match=f"OCCT_BINDING={BINDING}"):
+        with pytest.raises(TypeError, match=f"but build123d uses {BINDING}"):
             reader.to_build123d()
 
 

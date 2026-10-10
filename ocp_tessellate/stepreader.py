@@ -423,8 +423,9 @@ class StepReader:
             assert build123d_binding is not None, "build123d wraps OCP or nanocct objects"
             raise TypeError(
                 f"the STEP file was read with {self._kernel.__name__}, but build123d "
-                f"uses {build123d_binding.__name__}: start Python with "
-                f"OCCT_BINDING={build123d_binding.__name__}"
+                f"uses {build123d_binding.__name__}: where nanocct is installed, "
+                f"ocp_tessellate uses nanocct, and a build123d on OCP needs an "
+                f"environment without nanocct"
             )
 
         def to_loc(loc: TopLoc_Location | None) -> Location:

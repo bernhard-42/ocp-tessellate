@@ -92,16 +92,10 @@ Nothing to configure: every call uses the installed binding.
 
 ### Both OCCT bindings installed
 
-This is an environment with cadquery-ocp 8 and nanocct, typically CadQuery on OCP next to a build123d built on nanocct. Each OCCT object belongs to one binding, and objects of the two bindings cannot be combined.
+This is an environment with cadquery-ocp 8 and nanocct. Installing nanocct is a statement: where it is installed, nanocct is the binding, here and in the other libraries of the ecosystem (ocpsvg, ocp_gordon), so that a build123d built on nanocct and the libraries it imports share one binding. Who wants OCP does not install nanocct. Each OCCT object still belongs to one binding, and objects of the two bindings cannot be combined.
 
 - **A call that gets an OCCT object uses that object's binding.** A CadQuery (OCP) shape is tessellated with OCP, a build123d-on-nanocct shape with nanocct, also side by side in one scene. A call that gets objects of both bindings to combine raises a `TypeError`.
-- **A call or constructor that gets no OCCT object** - only tuples, numbers, `None`, an empty list or a file name, e.g. `tq_to_loc`, `vertex((x, y, z))`, `deserialize`, `StepReader`, `ImageFace` without a location - creates its objects in the binding the environment variable `OCCT_BINDING` names: `OCP` (the default when it is unset) or `nanocct`. The variable is read once, at import, and holds for the whole process and all its threads:
-
-  ```bash
-  OCCT_BINDING=nanocct python my_model.py
-  ```
-
-  Set it to the binding of the library whose objects you work with: `nanocct` for build123d-on-nanocct, `OCP` for CadQuery. Another value, or a binding that is not installed, raises an `ImportError` at import. Other libraries of the ecosystem are meant to read the same variable, so that one switch configures them all (for ocpsvg this is a proposal, not yet in a release).
+- **A call or constructor that gets no OCCT object** - only tuples, numbers, `None`, an empty list or a file name, e.g. `tq_to_loc`, `vertex((x, y, z))`, `deserialize`, `StepReader`, `ImageFace` without a location - creates its objects with nanocct.
 - **To use an object in the other binding**, convert it: `ocp_utils.to_ocp(obj)` and `ocp_utils.to_nanocct(obj)` make the object of the other binding and return an object of the target binding as it is. They convert shapes (with their triangulation, in the newest binary BRep format version both bindings know, so an older OCCT reads what a newer one writes), points, vectors, directions, transformations, locations, axes, planes and colors; other types raise a `TypeError`. The results are copies: shapes converted one by one no longer share sub-shapes, while a compound converted as a whole keeps its sharing.
 
 ## Test coverage
@@ -109,12 +103,12 @@ This is an environment with cadquery-ocp 8 and nanocct, typically CadQuery on OC
 The suite runs in each of the three installations, OCP only, nanocct only and both, and what it skips depends on the installation, not on failures:
 
 - OCP only (OCP 7.9 or 8.0) and nanocct only: every test that needs both bindings in one process is skipped - the equivalence of the two kernels on the same mesh (`tests/test_binding_equivalence.py`), objects of two bindings combined or kept apart, mixed scenes, locations of two bindings (`tests/test_kernel.py`), and the comparisons of both bindings' measurements, materials and STEP reading (`tests/test_measure.py`, `tests/test_materials.py`, `tests/test_stepreader.py`).
-- Both installed: run the suite once per binding, `OCCT_BINDING=OCP pytest tests` and `OCCT_BINDING=nanocct pytest tests`. Tests that build OCCT objects explicitly run for both bindings in each run; tests of calls without an OCCT object (materials, STEP reading, locations from tuples, ...) run in the run's binding, so the two runs cover both. Only the test that needs a single installed binding is skipped.
+- Both installed: tests that build OCCT objects explicitly run for both bindings; tests of calls without an OCCT object (materials, STEP reading, locations from tuples, ...) run with nanocct, the default binding there. The OCP default is covered by the OCP-only installation and by the installation cases of `tests/test_kernel.py`, which hide a binding in a subprocess. Only the test that needs a single installed binding is skipped.
 - OCP 7.9 with build123d 0.12.0 also skips the BuildSheet tests (BuildSheet exists only in later build123d versions).
 - `tests/test_cadquery.py` and `tests/test_color.py` import CadQuery: where CadQuery is not installed (as in a nanocct-only environment without a CadQuery port) they cannot be collected and are left out with `--ignore`.
 - The emissive factor of materials exists in OCP 7.9 and nanocct but not in OCP 8; `tests/test_materials.py` checks that it reads as None there instead of skipping.
 
-The emissive difference also shows downstream: ocp-viewer-core's two emissive tests skip where the default binding is OCP 8, including an installation of both bindings run with `OCCT_BINDING=OCP` or without it.
+The emissive difference also shows downstream: ocp-viewer-core's two emissive tests skip where the default binding is OCP 8, that is in an OCP 8 installation without nanocct.
 
 ## License
 

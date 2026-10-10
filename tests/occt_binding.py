@@ -8,18 +8,13 @@ ocp_tessellate's own dispatch run once per installed binding: INSTALLED.
 import functools
 import importlib
 import importlib.util
-import os
 
 INSTALLED = [b for b in ("OCP", "nanocct") if importlib.util.find_spec(b) is not None]
 
-# the binding of what no OCCT object decides in this run: the one OCCT_BINDING
-# names, else the first installed (OCP before nanocct). Where both bindings are
-# installed and build123d is the nanocct one, it sets OCCT_BINDING=nanocct on
-# import and refuses OCCT_BINDING=OCP, so the suite runs with nanocct and the
-# OCP default is tested by the modules that do not import build123d:
-#   OCCT_BINDING=OCP python -m pytest tests/test_kernel.py tests/test_materials.py
-_WANTED = os.environ.get("OCCT_BINDING")
-DEFAULT_BINDING = _WANTED if _WANTED is not None else INSTALLED[0]
+# the binding of what no OCCT object decides: nanocct if it is installed, else
+# OCP. The OCP default is tested where nanocct is not installed, and in
+# test_kernel.py's installation cases, which hide a binding in a subprocess.
+DEFAULT_BINDING = "nanocct" if "nanocct" in INSTALLED else "OCP"
 
 
 @functools.cache
@@ -28,7 +23,7 @@ def build123d_binding() -> str:
 
     build123d is imported here and not at module level, so that the tests of
     ocp_tessellate's own dispatch, which import this module, also run where
-    build123d cannot be imported (OCCT_BINDING=OCP beside the nanocct build123d).
+    build123d is not installed.
     """
     import build123d
 

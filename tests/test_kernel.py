@@ -7,7 +7,6 @@ to be the one installed. The dispatch tests run once per installed binding.
 
 import ast
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -444,13 +443,10 @@ print(json.dumps(out))
 """
 
 
-def _probe(hidden, occt_binding=None):
-    """Run PROBE in a subprocess with `hidden` bindings and OCCT_BINDING set or unset."""
-    env = {k: v for k, v in os.environ.items() if k != "OCCT_BINDING"}
-    if occt_binding is not None:
-        env["OCCT_BINDING"] = occt_binding
+def _probe(hidden):
+    """Run PROBE in a subprocess with `hidden` bindings."""
     result = subprocess.run(
-        [sys.executable, "-c", PROBE, *hidden], capture_output=True, text=True, check=True, env=env
+        [sys.executable, "-c", PROBE, *hidden], capture_output=True, text=True, check=True
     )
     return json.loads(result.stdout.strip().splitlines()[-1])
 
@@ -463,24 +459,5 @@ def test_installation_cases(hidden):
         assert out == {"error": "ocp_tessellate needs OCP (cadquery-ocp) or nanocct"}
         return
     assert out["flags"] == ["OCP" in available, "nanocct" in available]
-    assert out["default"] == ("OCP" if "OCP" in available else "nanocct")
-
-
-@pytest.mark.parametrize("hidden", [(), ("OCP",), ("nanocct",)])
-@pytest.mark.parametrize("occt_binding", ["OCP", "nanocct"])
-def test_occt_binding_environment_variable(hidden, occt_binding):
-    """OCCT_BINDING gives the initial preference; a binding it names must be installed."""
-    out = _probe(hidden, occt_binding)
-    available = [b for b in INSTALLED if b not in hidden]
-    if len(available) == 0:
-        assert out == {"error": "ocp_tessellate needs OCP (cadquery-ocp) or nanocct"}
-    elif occt_binding not in available:
-        assert out == {"error": f"OCCT_BINDING={occt_binding}, but {occt_binding} is not installed"}
-    else:
-        # "default" is kernel() right after import
-        assert out["default"] == occt_binding
-
-
-def test_occt_binding_must_be_a_binding():
-    out = _probe((), "ocp")
-    assert out == {"error": "OCCT_BINDING must be one of ('OCP', 'nanocct'), not 'ocp'"}
+    # nanocct wherever it is installed, else OCP
+    assert out["default"] == ("nanocct" if "nanocct" in available else "OCP")
