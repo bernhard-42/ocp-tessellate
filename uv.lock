@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.11'",
@@ -733,7 +733,7 @@ wheels = [
 
 [[package]]
 name = "ocp-tessellate"
-version = "3.6.0"
+version = "3.6.1"
 source = { editable = "." }
 dependencies = [
     { name = "cachetools" },
