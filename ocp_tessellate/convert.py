@@ -837,6 +837,8 @@ class OcpConverter:
                             get_tuple(mate_def.mate.x_dir),
                             get_tuple(mate_def.mate.z_dir),
                             self.helper_scale,
+                            # the mates sit under the assembly's location
+                            like=ocp_obj.loc,
                         ).to_ocp()
                         for name, mate_def in mates_def.items()
                         if mate_def.assembly == cad_obj
@@ -1532,6 +1534,7 @@ class OcpConverter:
             coord["x_dir"],
             coord["z_dir"],
             size=self.helper_scale,
+            like=loc,
         ).to_ocp()
         return ocp_obj
 
@@ -1567,6 +1570,7 @@ class OcpConverter:
             coord["z_dir"],
             None if color is None else Color(color),
             size=self.helper_scale,
+            like=axis,
         ).to_ocp()
         return ocp_obj
 

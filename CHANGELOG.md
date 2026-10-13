@@ -1,3 +1,13 @@
+## v3.6.2 (unreleased)
+
+**Fixes**
+
+- Showing a CadQuery assembly with `render_mates=True` (cadquery-massembly's `MAssembly`) failed with `TypeError: locations of two bindings: OCP.OCP.TopLoc and nanocct.TopLoc` where nanocct is installed. ocp_tessellate draws a mate as a coordinate system it builds from plain coordinates, and those were built in the default binding, nanocct, while the assembly they sit under is OCP. `CoordSystem` and `CoordAxis` take a new optional `like=`, an OCCT object whose binding they are built in (default: nanocct where installed, else OCP, as before); the mates use the assembly's location, and a shown location or axis is drawn in its own binding. `tests/test_helper_binding.py` covers it, cadquery-massembly is not needed
+
+**Changes**
+
+- `make_vis_material(..., like=None)`: the material is built in the binding of `like`, an OCCT object of the binding it is meant for (e.g. the shape it will be attached to); without it, as before, nanocct where installed, else OCP. Without `like` a CadQuery user on OCP got a nanocct `XCAFDoc_VisMaterial` where nanocct is installed. `tests/test_materials.py` now runs every case once per installed binding
+
 ## v3.6.1 (2026-10-13)
 
 **Fixes**

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import imagesize
 
 from ._kernel import kernel_of, kernel_of_all
-from .ocp_utils.location import _tq_to_loc
+from .ocp_utils.location import _axis_to_vecs, _loc_to_vecs, _tq_to_loc
 
 if TYPE_CHECKING:
     from .types import (
@@ -19,7 +19,7 @@ from ocp_tessellate.defaults import get_default
 from ocp_tessellate.ocp_utils import (
     BoundingBox,
     VectorLike,
-    axis_to_vecs,
+    axis_to_vecs,  # noqa: F401 - public via cad_objects (tests/api_surface.json)
     copy_location,
     copy_topods_shape,
     identity_location,  # noqa: F401 - public via cad_objects (tests/api_surface.json)
@@ -27,7 +27,7 @@ from ocp_tessellate.ocp_utils import (
     is_topods_shape as _is_topods_shape,
     line,
     loc_to_tq,
-    loc_to_vecs,
+    loc_to_vecs,  # noqa: F401 - public via cad_objects (tests/api_surface.json)
     make_compound,
     mul_locations,
     rect,
@@ -409,11 +409,18 @@ class CoordAxis(OcpWrapper):
         z_dir: VectorLike,
         color: Color | None = None,
         size: float = 1,
+        like: object = None,
     ):
+        """An axis arrow, built in the binding of `like`, the OCCT object it depicts.
+
+        Without `like` (or with a non-OCCT object), nanocct where it is
+        installed, else OCP: the helper is placed under its object's location,
+        and the two must share one binding.
+        """
         if color is None:
             color = Color("black")
-        o, x, y, z = axis_to_vecs(origin, z_dir)
-        # vectors of axis_to_vecs: one binding at runtime (kernel_of / kernel_of_all); the OCP | nanocct unions cannot say so (known limit, ty in a venv with both bindings)
+        o, x, y, z = _axis_to_vecs(kernel_of(like), origin, z_dir)
+        # vectors of _axis_to_vecs: one binding at runtime (kernel_of / kernel_of_all); the OCP | nanocct unions cannot say so (known limit, ty in a venv with both bindings)
         edge = line(o, o + size * z)  # ty: ignore[unsupported-operator]
         f = 0.7
         dz = size * f * z
@@ -443,9 +450,16 @@ class CoordSystem(OcpWrapper):
         x_dir: VectorLike,
         z_dir: VectorLike,
         size: float = 1,
+        like: object = None,
     ):
-        o, x, y, z = loc_to_vecs(origin, x_dir, z_dir)
-        # vectors of loc_to_vecs: one binding at runtime (kernel_of / kernel_of_all); the OCP | nanocct unions cannot say so (known limit, ty in a venv with both bindings)
+        """A coordinate system, built in the binding of `like`, the OCCT object it depicts.
+
+        Without `like` (or with a non-OCCT object), nanocct where it is
+        installed, else OCP: the helper is placed under its object's location,
+        and the two must share one binding.
+        """
+        o, x, y, z = _loc_to_vecs(kernel_of(like), origin, x_dir, z_dir)
+        # vectors of _loc_to_vecs: one binding at runtime (kernel_of / kernel_of_all); the OCP | nanocct unions cannot say so (known limit, ty in a venv with both bindings)
         x_edge = line(o, o + size * x)  # ty: ignore[unsupported-operator]
         y_edge = line(o, o + size * y)  # ty: ignore[unsupported-operator]
         z_edge = line(o, o + size * z)  # ty: ignore[unsupported-operator]

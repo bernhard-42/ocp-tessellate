@@ -222,7 +222,13 @@ def get_location_coord(loc: TopLoc_Location) -> LocationCoord:
 def loc_to_vecs(
     origin: VectorLike, x_dir: VectorLike, z_dir: VectorLike
 ) -> tuple[gp_Vec, gp_Vec, gp_Vec, gp_Vec]:
-    k = kernel()
+    return _loc_to_vecs(kernel(), origin, x_dir, z_dir)
+
+
+def _loc_to_vecs(
+    k: ModuleType, origin: VectorLike, x_dir: VectorLike, z_dir: VectorLike
+) -> tuple[gp_Vec, gp_Vec, gp_Vec, gp_Vec]:
+    """loc_to_vecs in binding k, for vectors that go with an OCCT object."""
     ax3 = k.gp.gp_Ax3(k.gp.gp_Pnt(*origin), k.gp.gp_Dir(*z_dir), k.gp.gp_Dir(*x_dir))
     o = k.gp.gp_Vec(ax3.Location().XYZ())
     x = k.gp.gp_Vec(ax3.XDirection().XYZ())
@@ -247,7 +253,13 @@ def loc_from_gp_pln(pln: gp_Pln) -> TopLoc_Location:
 def axis_to_vecs(
     origin: VectorLike, z_dir: VectorLike
 ) -> tuple[gp_Vec, gp_Vec, gp_Vec, gp_Vec]:
-    k = kernel()
+    return _axis_to_vecs(kernel(), origin, z_dir)
+
+
+def _axis_to_vecs(
+    k: ModuleType, origin: VectorLike, z_dir: VectorLike
+) -> tuple[gp_Vec, gp_Vec, gp_Vec, gp_Vec]:
+    """axis_to_vecs in binding k, for vectors that go with an OCCT object."""
     ax3 = k.gp.gp_Ax3(k.gp.gp_Pnt(*origin), k.gp.gp_Dir(*z_dir))
     o = k.gp.gp_Vec(ax3.Location().XYZ())
     x = k.gp.gp_Vec(ax3.XDirection().XYZ())

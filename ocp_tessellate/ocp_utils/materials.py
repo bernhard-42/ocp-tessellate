@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypedDict
 
-from .._kernel import adapter, kernel, kernel_of
+from .._kernel import adapter, kernel_of
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -105,9 +105,14 @@ def make_vis_material(
     alpha_mode: str | None = None,
     alpha_cutoff: float | None = None,
     double_sided: bool = False,
+    like: object = None,
 ) -> XCAFDoc_VisMaterial:
-    """A new XCAFDoc_VisMaterial with a PBR block, in kernel() (no OCCT object
-    decides its binding).
+    """A new XCAFDoc_VisMaterial with a PBR block, in the binding of `like`.
+
+    `like` is an OCCT object - a shape, a location, ... - of the binding the
+    material is meant for, e.g. the shape it will be attached to. Without one
+    (or with a non-OCCT object) it is kernel(): nanocct where it is installed,
+    else OCP.
 
     The values are those of vis_material_values; None keeps OCCT's default (for
     color the default base color, with `alpha` applied). `emissive` is dropped
@@ -115,7 +120,7 @@ def make_vis_material(
     ALPHA_MODES, None keeps OCCT's default (BlendAuto); `alpha_cutoff` is passed
     with it when given.
     """
-    k = kernel()
+    k = kernel_of(like)
     pbr = k.XCAFDoc.XCAFDoc_VisMaterialPBR()
 
     if color is not None:

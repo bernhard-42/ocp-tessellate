@@ -17,10 +17,16 @@ def _has_emissive(binding):
 
 
 def _make(binding, *args, **kwargs):
-    """make_vis_material gets no OCCT object: it builds in the run's binding."""
-    vis = make_vis_material(*args, **kwargs)
+    """make_vis_material in `binding`, chosen by an OCCT object of it (`like`)."""
+    like = occt("TopLoc", "TopLoc_Location", binding)()
+    vis = make_vis_material(*args, like=like, **kwargs)
     assert binding_of(vis) is root(binding)
     return vis
+
+
+def test_without_like_the_default_binding_is_used():
+    """No OCCT object decides: nanocct where it is installed, else OCP."""
+    assert binding_of(make_vis_material("plain")) is root(DEFAULT_BINDING)
 
 
 @pytest.mark.parametrize("binding", INSTALLED)
@@ -28,7 +34,7 @@ def test_an_empty_material_has_no_values(binding):
     assert vis_material_values(occt("XCAFDoc", "XCAFDoc_VisMaterial", binding)()) is None
 
 
-@pytest.mark.parametrize("binding", [DEFAULT_BINDING])
+@pytest.mark.parametrize("binding", INSTALLED)
 def test_round_trip(binding):
     vis = _make(
         binding,
@@ -55,7 +61,7 @@ def test_round_trip(binding):
     assert values["double_sided"] is True
 
 
-@pytest.mark.parametrize("binding", [DEFAULT_BINDING])
+@pytest.mark.parametrize("binding", INSTALLED)
 def test_defaults(binding):
     values = vis_material_values(_make(binding, "plain"))
     assert values is not None
@@ -71,13 +77,13 @@ def test_defaults(binding):
     assert translucent["alpha"] == pytest.approx(0.25)
 
 
-@pytest.mark.parametrize("binding", [DEFAULT_BINDING])
+@pytest.mark.parametrize("binding", INSTALLED)
 @pytest.mark.parametrize("mode", ALPHA_MODES)
 def test_alpha_modes(binding, mode):
     assert vis_material_values(_make(binding, "m", alpha_mode=mode))["alpha_mode"] == mode
 
 
-@pytest.mark.parametrize("binding", [DEFAULT_BINDING])
+@pytest.mark.parametrize("binding", INSTALLED)
 def test_invalid_alpha_settings(binding):
     with pytest.raises(ValueError, match="alpha_mode must be one of"):
         _make(binding, "m", alpha_mode="mask")
@@ -85,7 +91,7 @@ def test_invalid_alpha_settings(binding):
         _make(binding, "m", alpha_cutoff=0.4)
 
 
-@pytest.mark.parametrize("binding", [DEFAULT_BINDING])
+@pytest.mark.parametrize("binding", INSTALLED)
 def test_emissive(binding):
     values = vis_material_values(_make(binding, "glow", emissive=(0.5, 0.25, 0.1)))
     if _has_emissive(binding):
