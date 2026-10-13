@@ -1224,8 +1224,8 @@ class OcpConverter:
         if is_build123d_part(cad_obj):
             part = cad_obj.part
             obj_name = get_name(cad_obj, obj_name, "Solid")
-            if part is None:
-                # nothing built yet (e.g. shown from inside the context)
+            if part is None or is_empty_compound(part):
+                # nothing built yet
                 return self.handle_empty_iterables(obj_name, level)
             part_color = get_color(part.color)
             part_color = builder_color if part_color is None else part_color
@@ -1258,7 +1258,7 @@ class OcpConverter:
             if len(list(cad_obj.sheet_local.faces())) == 0:
                 return self.handle_empty_iterables(obj_name, level)
             sheet = cad_obj.sheet
-            if sheet is None:
+            if sheet is None or is_empty_compound(sheet):
                 return self.handle_empty_iterables(obj_name, level)
             sheet_color = get_color(sheet.color)
             sheet_color = builder_color if sheet_color is None else sheet_color
@@ -1285,8 +1285,8 @@ class OcpConverter:
         elif is_build123d_sketch(cad_obj):
             sketch = cad_obj.sketch
             obj_name = get_name(cad_obj, obj_name, "Face")
-            if sketch is None:
-                # nothing built yet (e.g. shown from inside the context)
+            if sketch is None or is_empty_compound(sketch):
+                # nothing built yet
                 return self.handle_empty_iterables(obj_name, level)
             sketch_color = get_color(sketch.color)
             sketch_color = builder_color if sketch_color is None else sketch_color
@@ -1318,8 +1318,8 @@ class OcpConverter:
         elif is_build123d_line(cad_obj):
             b3d_line = cad_obj.line
             obj_name = get_name(cad_obj, obj_name, "Edge")
-            if b3d_line is None:
-                # nothing built yet (e.g. shown from inside the context)
+            if b3d_line is None or is_empty_compound(b3d_line):
+                # nothing built yet
                 return self.handle_empty_iterables(obj_name, level)
             line_color = get_color(b3d_line.color)
             line_color = builder_color if line_color is None else line_color

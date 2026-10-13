@@ -379,6 +379,45 @@ class TestsConvert(MyUnitTest):
             self.assertEqual(o.kind, "vertex")
             self.assertTrue(is_topods_vertex(o.obj))
 
+    def test_builders_empty_after_context(self):
+        """Test that a builder left empty gives one placeholder with its name, no locals"""
+        with BuildPart() as ebp:
+            pass
+        with BuildSketch() as ebs:
+            pass
+        with BuildLine() as ebl:
+            pass
+        for builder, name in ((ebp, "Solid"), (ebs, "Face"), (ebl, "Edge")):
+            for show_locals in (True, False):
+                g = OcpConverter(show_locals=show_locals).to_ocp(builder)
+                self.assertEqual([o.name for o in g.objects], [f"{name} (empty)"])
+                o = g.objects[0]
+                self.assertEqual(o.kind, "vertex")
+                self.assertTrue(is_topods_vertex(o.obj))
+                self.assertEqual(o.color.a, 0.01)
+        g = OcpConverter().to_ocp(ebp, names=["ebp"])
+        self.assertEqual([o.name for o in g.objects], ["ebp (empty)"])
+
+    def test_builder_result_empty(self):
+        """Test that the empty result of a builder gives an empty placeholder"""
+        with BuildPart() as ebp:
+            pass
+        if ebp.part is None:
+            self.skipTest("this build123d version has no result for an empty builder")
+        g = OcpConverter().to_ocp(ebp.part)
+        self.assertEqual([o.name for o in g.objects], ["Object (empty)"])
+        g = OcpConverter().to_ocp(ebp.part, names=["part"])
+        self.assertEqual([o.name for o in g.objects], ["part (empty)"])
+
+    @SKIP_NO_BUILDSHEET
+    def test_buildsheet_empty_after_context(self):
+        """Test that a sheet builder left empty gives one placeholder, no locals"""
+        with BuildSheet(thickness=0.1) as ebsh:
+            pass
+        for show_locals in (True, False):
+            g = OcpConverter(show_locals=show_locals).to_ocp(ebsh)
+            self.assertEqual([o.name for o in g.objects], ["Shell (empty)"])
+
     @SKIP_NO_BUILDSHEET
     def test_buildsheet_empty_in_context(self):
         """Test that a sheet builder without geometry yet gives an empty placeholder"""

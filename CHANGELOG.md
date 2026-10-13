@@ -1,3 +1,9 @@
+## v3.6.1 (unreleased)
+
+**Fixes**
+
+- A build123d builder without geometry (`BuildPart`, `BuildSheet`, `BuildSketch`, `BuildLine`, inside its context or left empty) showed as two objects with build123d dev versions: the main object lost its `(empty)` suffix (e.g. `part` beside `part_local (empty)`), and the `line_local` placeholder was opaque. These versions return an empty shape where build123d 0.12 returns `None`; both now give the one `(empty)` placeholder, e.g. `Solid (empty)`, as with `show_locals=False`
+
 ## v3.6.0 (2026-10-10)
 
 **Features**
