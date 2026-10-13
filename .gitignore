@@ -7,3 +7,4 @@ dist
 **/*.stl
 **/*.stp
 main.py
+.ipynb_checkpoints/
