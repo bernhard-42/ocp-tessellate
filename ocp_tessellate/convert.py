@@ -250,6 +250,21 @@ def create_cache_id(obj: ShapeLike | Sequence[ShapeLike]) -> str:
     return sha.hexdigest()
 
 
+def _without_location(obj: TopoDS_Shape) -> TopoDS_Shape:
+    """
+    The shape moved back to its own origin.
+
+    This is what OcpConverter.get_instance stores as instance and what gets
+    tessellated; the location is sent to the viewer separately. Its cache id
+    therefore does not depend on the location, so moved and rotated copies of
+    a shape share one cache entry. Locations inside the shape (e.g. of a
+    compound's children) are part of its structure and stay.
+    """
+    loc = obj.Location()
+    # the shape's own location: one binding at runtime; the OCP | nanocct unions cannot say so (known limit)
+    return downcast(obj.Moved(loc.Inverted()))  # ty: ignore[invalid-argument-type]
+
+
 class OcpConverter:
     """The class to filter obejcts and convert them to OcpObject and OcpGroup hierarchies."""
 
@@ -321,8 +336,7 @@ class OcpConverter:
 
         # Create the relocated object as a copy
         loc = obj.Location()  # Get location
-        # the shape's own location: one binding at runtime; the OCP | nanocct unions cannot say so (known limit)
-        obj2 = downcast(obj.Moved(loc.Inverted()))  # ty: ignore[invalid-argument-type]
+        obj2 = _without_location(obj)
 
         # check if the same instance is already available
         for i, instance in enumerate(self.instances):
@@ -458,7 +472,8 @@ class OcpConverter:
         if kind in ("solid", "face", "shell"):
             # solid/face/shell kinds always unify into a single shape
             assert is_topods_shape(ocp_obj), f"not unified: {ocp_obj}"
-            cache_id = create_cache_id(ocp_obj)
+            # The id of the shape at its own origin, as tessellated by get_instance
+            cache_id = create_cache_id(_without_location(ocp_obj))
             ref, loc = self.get_instance(ocp_obj, cache_id, name)
             ocp_object = OcpObject(
                 kind,
@@ -1615,7 +1630,9 @@ class OcpConverter:
         ocp_obj.name = name
         if ocp_obj.kind in ["solid", "imageface", "face", "shell"]:
             ref, loc = self.get_instance(
-                cad_obj.objs[0], create_cache_id(cad_obj.objs[0]), name
+                cad_obj.objs[0],
+                create_cache_id(_without_location(cad_obj.objs[0])),
+                name,
             )
             ocp_obj.loc = mul_locations(cad_obj.loc, loc)
             ocp_obj.ref = ref
