@@ -1,3 +1,10 @@
+## v3.6.3 (2026-10-18)
+
+**Fixes**
+
+- The tessellation cache missed for shapes it had already tessellated: the same unchanged shape shown again was tessellated up to three times before the cache hit. The cache id is a hash of the shape in OCCT's binary BRep format, which stores each sub-shape's state flags, and meshing changes the faces' `Checked` flag (`BRepTools::Update`, called by BRepMesh, sets it; storing a new triangulation clears it again). The id is now computed as if no face were checked, the flags are restored afterwards, so computing it leaves the shape unchanged. Geometrically identical shapes with a different meshing history now share one cache entry
+- Moved and rotated copies of a shape were tessellated again when shown in a later call, although the mesh is computed at the shape's own origin and its location is sent to the viewer separately. The cache id is now computed on the shape moved back to its origin, as `OcpConverter.get_instance` tessellates it, so they come from the cache. Locations inside a shape (e.g. of a compound's children) stay part of the id. The location sent to the viewer is unchanged. `tests/test_instances.py` covers both: `test_reference_cache` now expects only the modified shape to be tessellated again, `test_moved_copy_cache` checks the cache hit and the location of a moved and rotated copy
+
 ## v3.6.2 (2026-10-13)
 
 **Fixes**
