@@ -206,10 +206,35 @@ def _to_topods(o: object) -> TopoDS_Shape:
     return w
 
 
+def _serialize_unchecked(shape: TopoDS_Shape) -> bytes | None:
+    """
+    Serialize a shape as if none of its faces were checked.
+
+    The binary format stores each sub-shape's state flags, and meshing changes
+    the faces' Checked flag: BRepTools::Update (called by BRepMesh) sets it,
+    storing a new triangulation clears it again (TopoDS_TShape::Modified).
+    Without this, the same geometry gets a new cache id after every
+    tessellation, up to three for one shape, and the cache misses. The flags
+    are restored afterwards, so computing the id leaves the shape unchanged.
+
+    The flags are changed briefly on shapes that may be shared: fine as long as
+    no other thread meshes or serializes the same shape at the same time.
+    """
+    saved = [(face, face.Checked()) for face in get_faces(shape)]
+    try:
+        for face, _checked in saved:
+            face.Checked(False)
+        return serialize(shape)
+    finally:
+        for face, checked in saved:
+            face.Checked(checked)
+
+
 def create_cache_id(obj: ShapeLike | Sequence[ShapeLike]) -> str:
     """
     The TopoDS_Shape objects are serialized and hashed to create a unique id.
-    The current approach is to use the sha256 hash of the serialized object.
+    The current approach is to use the sha256 hash of the serialized object,
+    independent of the faces' Checked flags (see _serialize_unchecked).
 
     @param obj: A shape (raw or wrapped) or a list/tuple of them
 
@@ -218,7 +243,7 @@ def create_cache_id(obj: ShapeLike | Sequence[ShapeLike]) -> str:
     sha = sha256()
     objs = [obj] if not isinstance(obj, (tuple, list)) else list(obj)
     for o in objs:
-        data = serialize(_to_topods(o))
+        data = _serialize_unchecked(_to_topods(o))
         assert data is not None, "serialization failed"
         sha.update(data)
 
