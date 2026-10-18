@@ -355,9 +355,7 @@ class OcpConverter:
 
         return ref, loc
 
-    def trim_infinite_objs(
-        self, obj: TopoDS_Shape, name: str
-    ) -> TopoDS_Shape | None:
+    def trim_infinite_objs(self, obj: TopoDS_Shape, name: str) -> TopoDS_Shape | None:
         # Degenerate OCCT artifacts (edges without geometry, faces without a
         # surface) are dropped by returning None; they would make the
         # length/area calls below raise. Zero-area faces with a valid surface
@@ -985,9 +983,7 @@ class OcpConverter:
         # unwrap everything else
         else:
             unwrapped = unwrap(cad_obj)
-            assert not is_topods_shape(unwrapped), (
-                "a list input unwraps to a list"
-            )
+            assert not is_topods_shape(unwrapped), "a list input unwraps to a list"
             objs = unwrapped
             typ = get_type(objs[0])
 
@@ -1641,9 +1637,7 @@ class OcpConverter:
 
     # ================================ Empty objects ================================ #
 
-    def handle_empty_iterables(
-        self, obj_name: str | None, level: int
-    ) -> OcpObject:
+    def handle_empty_iterables(self, obj_name: str | None, level: int) -> OcpObject:
         """
         Handle empty objects.
 
