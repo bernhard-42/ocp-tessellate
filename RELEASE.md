@@ -5,57 +5,54 @@
 1. Clean environment
 
     ```bash
-    make clean    # delete all temp files
-    make prepare  # commit deletions
+    make clean    # delete build, dist, egg-info and __pycache__
     ```
 
-2. Bump version of jupyter_cadquery
+    `make prepare` runs `make clean` and commits everything (`git add .`) as "cleanup before release"; only use it when that is what you want.
 
-    - A new release candidate with rc0
+2. Bump the version of ocp_tessellate
 
-        ```bash
-        make bump part=major|minor|patch
-        ```
+    ```bash
+    make bump part=major|minor|patch
+    ```
 
-    - A new build
+    or set a version explicitly:
 
-        ```bash
-        make bump part=build
-        ```
+    ```bash
+    make bump version=major.minor.patch
+    ```
 
-    - A new release
+    `part` wins when both are given. The version is `major.minor.patch` only (`serialize` in `[tool.bumpversion]`), so release candidates and `part=build|release` are not supported. The bump changes `pyproject.toml` and `ocp_tessellate/_version.py`.
 
-        ```bash
-        make bump part=release
-        ```
+3. Add the changes to `CHANGELOG.md`
 
-    - A new release without release candidate
+    A new section at the top, `## vX.Y.Z (YYYY-MM-DD)`, with **Fixes**, **Features**, **Changes** or **Removals** as needed.
 
-        ```bash
-        make bump part=major|minor|patch version=major.minor.patch
-        ```
-
-3. Create distribution
+4. Create the distribution
 
     ```bash
     make dist
+    make check_dist   # twine check
     ```
 
-4. Create and tag release
+5. Commit and tag the release
 
     ```bash
     make release
     ```
 
-5. Deploy to pypi
+    Commits all changes (`git add .`) as "Latest release: X.Y.Z" and creates the annotated tag `vX.Y.Z`. Nothing is pushed.
+
+6. Deploy to PyPI
 
     ```bash
     make upload
     ```
 
-6. Push repo and tag
+7. Push the repo and the tag, create the GitHub release
 
     ```bash
-    git push
-    git push origin --tags
+    make create-release
     ```
+
+    Checks that both files of this version are in `dist/`, pushes `main`, pushes only the tag of this release and creates the GitHub release with the wheel and the sdist. Do not use `git push --tags`: 16 old local tags (v1.0.0rc10 to v3.2.1) differ from the ones on GitHub, so the push is rejected. The push has to come before `gh release create`, otherwise GitHub creates the tag itself on the previous state of `main` (see the comment in the `Makefile`).
