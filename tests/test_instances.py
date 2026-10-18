@@ -47,6 +47,20 @@ class ProgressCache:
         self.run += 1
 
 
+class ProgressSequence:
+    """Assert the exact sequence of progress marks, e.g. ["c", "+", "c"]."""
+
+    def __init__(self, expected, test):
+        self.expected = expected
+        self.marks = []
+        self.test = test
+
+    def update(self, mark):
+        print(mark, end="", flush=True)
+        self.marks.append(mark)
+        self.test.assertEqual(self.marks, self.expected[: len(self.marks)])
+
+
 class MyUnitTest(unittest.TestCase):
     def _assertTupleAlmostEquals(self, expected, actual, places, msg=None):
         for i, j in zip(actual, expected):
@@ -95,4 +109,40 @@ class TestInstances(MyUnitTest):
         )
         i = c.instances
         self.assertEqual(len(i), 4)
-        _ = tessellate_group(g, i, progress=ProgressCache(3, self))
+        # Only the modified b2 is tessellated again; s, b and s2 come from the
+        # cache, as tessellating them in the first round must not change their
+        # cache ids
+        progress = ProgressSequence(["c", "c", "+", "c"], self)
+        _ = tessellate_group(g, i, progress=progress)
+        self.assertEqual(progress.marks, ["c", "c", "+", "c"])
+
+    def test_moved_copy_cache(self):
+        # The mesh is computed at the shape's own origin and its location is
+        # sent separately, so a moved or rotated copy reuses the cached mesh -
+        # and must keep its own location
+        b = Box(1, 2, 3) - Cylinder(0.3, 3)
+        c = OcpConverter()
+        g = c.to_ocp(b)
+        _ = tessellate_group(g, c.instances, progress=ProgressSequence(["+"], self))
+
+        moved = Rot(0, 0, 30) * Pos(10, 20, 30) * b
+        c = OcpConverter()
+        g = c.to_ocp(moved)
+        progress = ProgressSequence(["c"], self)
+        _ = tessellate_group(g, c.instances, progress=progress)
+        self.assertEqual(progress.marks, ["c"])
+
+        def leaf(group):
+            while not hasattr(group, "ref"):
+                group = group.objects[0]
+            return group
+
+        expected = moved.wrapped.Location().Transformation()
+        actual = leaf(g).loc.Transformation()
+        self._assertTupleAlmostEquals(
+            expected.TranslationPart().Coord(), actual.TranslationPart().Coord(), 9
+        )
+        eq, aq = expected.GetRotation(), actual.GetRotation()
+        self._assertTupleAlmostEquals(
+            (eq.X(), eq.Y(), eq.Z(), eq.W()), (aq.X(), aq.Y(), aq.Z(), aq.W()), 9
+        )
