@@ -1,3 +1,10 @@
+## v3.6.4 (unreleased)
+
+**Fixes**
+
+- A shape with a face that cannot be meshed (e.g. a self-intersecting polygon) got ids in the viewer that named other faces and edges than in a backend that numbers `get_faces` / `get_edges`: the tessellation skipped the face and the edges without a polygon, so every later index shifted. Clicking a visible face or edge could report another one. The tessellation now keeps one entry per face and edge of the maps: a face without triangulation gets `0` triangles, an edge without face, triangulation or polygon `0` segments, both with their real `face_types` / `edge_types` entry (`GeomAbs_OtherCurve` for an edge without any curve). The same holds for the edges-only path (wires and loose edges) for degenerated edges and edges that cannot be discretized. Shapes whose faces all mesh get exactly the former ids. With nanocct the face placeholders are in, the edge placeholders follow with the next nanocct release (its `EdgeSegments` still drops such edges); `tests/test_numbering.py` covers it
+- The messages about ignored faces and edges went to stdout, which corrupts a stdio protocol such as an MCP server; they go to stderr now
+
 ## v3.6.3 (2026-10-18)
 
 **Fixes**

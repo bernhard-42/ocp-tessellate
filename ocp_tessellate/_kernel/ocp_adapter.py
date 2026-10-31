@@ -27,6 +27,7 @@ and the tessellation loops.
 """
 
 import io
+import sys
 from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING
 
@@ -237,12 +238,11 @@ def tessellate_faces(
 
         internal = face.Orientation() == TopAbs_Orientation.TopAbs_INTERNAL
 
+        # one entry per face, a placeholder for a face without triangulation
+        tess.face_types.append(face_type(face))
+
         poly = BRep_Tool.Triangulation_s(face, loc_buf)
         if poly is not None:
-            # face_types must only grow for faces that produced a
-            # triangulation, or it desynchronizes from triangles_per_face
-            tess.face_types.append(face_type(face))
-
             Trsf = loc_buf.Transformation()
 
             # add vertices
@@ -360,38 +360,47 @@ def tessellate_faces(
 
             offset += poly.NbNodes()
         else:
-            print(f"face {ind} ignored")
+            print(f"face {ind} ignored", file=sys.stderr)
+            tess.triangles_per_face.append(0)
 
 
 def compute_edges(
     tess: "Tessellator",
-    edges_with_faces: Iterable[tuple[TopoDS_Edge, TopoDS_Face]],
+    edges_with_faces: Iterable[tuple[TopoDS_Edge, TopoDS_Face | None]],
     edge_type: Callable[[TopoDS_Edge], int],
+    faceless_edge_type: Callable[[TopoDS_Edge], int],
     trace: "Trace",
     debug: bool,
 ) -> None:
     """Fill the edge segments of `tess` from the polygons on triangulation of its edges.
 
     The OCP part of Tessellator.compute_edges: one Python loop per edge over
-    the nodes of its polygon on the triangulation of its first face. Every
-    edge is traced, so `debug` is not needed.
+    the nodes of its polygon on the triangulation of its first face. An edge
+    without face, triangulation or polygon gets a placeholder (no segments),
+    so that the entries follow the edge map. Every edge is traced, so `debug`
+    is not needed.
     """
     # the OCP kernel fills the buffers as lists (the nanocct kernel as arrays)
     assert isinstance(tess.edges, list)
     for ind, (edge, face) in enumerate(edges_with_faces):
         trace.edge(f"{tess.shape_id}/edges/edges_{ind}", edge)
 
+        if face is None:
+            tess.edge_types.append(faceless_edge_type(edge))
+            tess.segments_per_edge.append(0)
+            continue
+
         edges: list[tuple[float, float, float]] = []  # point pairs, flattened
         loc = TopLoc_Location()
         triangle = BRep_Tool.Triangulation_s(face, loc)
-        poly = BRep_Tool.PolygonOnTriangulation_s(edge, triangle, loc)
+        poly = None
+        if triangle is not None:
+            poly = BRep_Tool.PolygonOnTriangulation_s(edge, triangle, loc)
 
-        if poly is None:
-            continue
-
-        # edge_types must only grow for edges that produced a polygon,
-        # or it desynchronizes from segments_per_edge
         tess.edge_types.append(edge_type(edge))
+        if poly is None:
+            tess.segments_per_edge.append(0)
+            continue
 
         if hasattr(poly, "Node"):  # OCCT > 7.5
             nrange = range(1, poly.NbNodes() + 1)

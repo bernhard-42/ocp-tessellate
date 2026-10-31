@@ -238,7 +238,8 @@ class TestsDegenerateArtifacts(MyUnitTest):
         g = c.to_ocp(comp, names=["faces"])
         meshed, _shapes, _ = tessellate_group(g, c.instances)
         mesh = meshed[0]
-        # the skipped face contributes to neither array
+        # the unmeshed face keeps its index with no triangles
         self.assertEqual(len(mesh["face_types"]), len(mesh["triangles_per_face"]))
-        self.assertEqual(len(mesh["face_types"]), 1)
+        self.assertEqual(len(mesh["face_types"]), 2)
+        self.assertEqual(mesh["triangles_per_face"][0], 0)
         self.assertEqual(len(mesh["edge_types"]), len(mesh["segments_per_edge"]))

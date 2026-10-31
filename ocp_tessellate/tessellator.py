@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import os
 import sys
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from typing import TYPE_CHECKING
 
 from ._kernel import adapter, kernel_of
@@ -28,6 +28,7 @@ from ._kernel import adapter, kernel_of
 if TYPE_CHECKING:
     from .types import (
         TopoDS_Edge,
+        TopoDS_Face,
         TopoDS_Shape,
         TopoDS_Vertex,
     )
@@ -39,6 +40,7 @@ from numpy.typing import NDArray
 
 from . import trace as trace_module
 from .ocp_utils import (
+    extent_or_size as _extent_or_size,
     get_edge_type,
     get_edges,
     get_face_type,
@@ -303,7 +305,12 @@ class Tessellator:
         assert self.shape is not None, "compute() sets the shape"
         # the per-edge loops are binding-specific and live in the kernel
         adapter(kernel_of(self.shape)).compute_edges(
-            self, get_edges(self.shape, True), get_edge_type, trace, trace_module.DEBUG
+            self,
+            _edges_with_first_face(self.shape),
+            get_edge_type,
+            _faceless_edge_type,
+            trace,
+            trace_module.DEBUG,
         )
 
         if len(self.edges) == 0:
@@ -344,6 +351,36 @@ class Tessellator:
 
     def get_obj_vertices(self) -> NDArray[np.float32]:
         return np.asarray(self.obj_vertices, dtype=np.float32)
+
+
+def _edges_with_first_face(
+    shape: TopoDS_Shape,
+) -> Iterator[tuple[TopoDS_Edge, TopoDS_Face | None]]:
+    """Every edge of the edge map with its first face, None for an edge without face."""
+    k = kernel_of(shape)
+    edge_map = adapter(k).TopTools_IndexedMapOfShape()
+    k.TopExp.TopExp.MapShapes_s(shape, k.TopAbs.TopAbs_EDGE, edge_map)
+    face_map = adapter(k).TopTools_IndexedDataMapOfShapeListOfShape()
+    k.TopExp.TopExp.MapShapesAndAncestors_s(
+        shape, k.TopAbs.TopAbs_EDGE, k.TopAbs.TopAbs_FACE, face_map
+    )
+    for i in range(1, _extent_or_size(edge_map) + 1):
+        edge = adapter(k).downcast_edge(edge_map.FindKey(i))
+        face = None
+        if face_map.Contains(edge):
+            face_list = face_map.FindFromKey(edge)
+            if _extent_or_size(face_list) > 0:
+                face = adapter(k).downcast_face(face_list.First())
+        yield edge, face
+
+
+def _faceless_edge_type(edge: TopoDS_Edge) -> int:
+    """GeomAbs_CurveType of an edge without face, GeomAbs_OtherCurve without curve."""
+    if is_degenerated_edge(edge):
+        # BRepAdaptor_Curve raises on an edge without geometry
+        t = kernel_of(edge).GeomAbs.GeomAbs_CurveType.GeomAbs_OtherCurve
+        return t if isinstance(t, int) else t.value
+    return get_edge_type(edge)
 
 
 def compute_quality(bb, deviation: float = 0.1) -> float:
@@ -473,7 +510,10 @@ def discretize_edges(
         if is_degenerated_edge(edge):
             # get_edge_type and discretize_edge would raise on an edge
             # without geometry
-            print(f"edge {ind} ignored (degenerated)")
+            print(f"edge {ind} ignored (degenerated)", file=sys.stderr)
+            # placeholder: keeps the edge numbering of get_edges
+            edge_types.append(_faceless_edge_type(edge))
+            segments_per_edge.append(0)
             continue
 
         d = discretize_edge(edge, deflection)
@@ -484,7 +524,10 @@ def discretize_edges(
             d = discretize_edge(edge, deflection=deflection / 10, quasi=False)
 
         if len(d) == 0:
-            print(f"edge {ind} ignored (could not be discretized)")
+            print(f"edge {ind} ignored (could not be discretized)", file=sys.stderr)
+            # placeholder: keeps the edge numbering of get_edges
+            edge_types.append(get_edge_type(edge))
+            segments_per_edge.append(0)
             continue
 
         edge_types.append(get_edge_type(edge))

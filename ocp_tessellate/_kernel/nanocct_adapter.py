@@ -28,6 +28,7 @@ views of the triangulation and on nanocct's C++ helpers (nanocct.AddOns).
 """
 
 import importlib.metadata
+import sys
 from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, cast
 
@@ -205,12 +206,11 @@ def tessellate_faces(
         orientation = face.Orientation()
         internal = orientation == TopAbs_Orientation.TopAbs_INTERNAL
 
+        # one entry per face, a placeholder for a face without triangulation
+        tess.face_types.append(face_type(face))
+
         poly = BRep_Tool.Triangulation_s(face, loc_buf)
         if poly is not None:
-            # face_types must only grow for faces that produced a
-            # triangulation, or it desynchronizes from triangles_per_face
-            tess.face_types.append(face_type(face))
-
             # vertices: one view, transformed only when the face is located
             nodes = np.asarray(poly.InternalNodes())
             trsf = loc_buf.Transformation()
@@ -284,7 +284,8 @@ def tessellate_faces(
             offset += poly.NbNodes()
             n_triangles += poly.NbTriangles()
         else:
-            print(f"face {ind} ignored")
+            print(f"face {ind} ignored", file=sys.stderr)
+            tess.triangles_per_face.append(0)
 
     # the flat buffers the getters read (np.asarray(..., dtype=np.float32) etc.),
     # kept as float64 / int64 until then
@@ -299,19 +300,21 @@ def tessellate_faces(
 
 def compute_edges(
     tess: "Tessellator",
-    edges_with_faces: Iterable[tuple[TopoDS_Edge, TopoDS_Face]],
+    edges_with_faces: Iterable[tuple[TopoDS_Edge, TopoDS_Face | None]],
     edge_type: Callable[[TopoDS_Edge], int],
+    faceless_edge_type: Callable[[TopoDS_Edge], int],
     trace: "Trace",
     debug: bool,
 ) -> None:
     """Fill the edge segments of `tess` from the polygons on triangulation of its edges.
 
     The nanocct part of Tessellator.compute_edges: one C++ call for the whole
-    shape (nanocct.AddOns.Tessellator.EdgeSegments) with the same edge map, the
-    same first ancestor face and the same skips (no face, no triangulation, no
-    polygon on it) as the OCP loop, so the point pairs, the segment counts and
-    the GeomAbs_CurveType of each kept edge line up as there. `edges_with_faces`
-    is walked only for the trace, and `edge_type` is not needed.
+    shape (nanocct.AddOns.Tessellator.EdgeSegments) with the same edge map and
+    the same first ancestor face as the OCP loop, so the point pairs, the
+    segment counts and the GeomAbs_CurveType of each kept edge line up as there.
+    Unlike the OCP loop, EdgeSegments drops an edge without face, triangulation
+    or polygon instead of keeping a placeholder. `edges_with_faces` is walked
+    only for the trace, and `edge_type` and `faceless_edge_type` are not needed.
     """
     assert tess.shape is not None, "compute() sets the shape"
     if debug is True:
