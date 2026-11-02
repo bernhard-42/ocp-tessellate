@@ -39,6 +39,7 @@ SNAPSHOT = Path(__file__).with_name("api_surface.json")
 MODULES = [
     "ocp_tessellate",
     "ocp_tessellate.cad_objects",
+    "ocp_tessellate.plugin",
     "ocp_tessellate.convert",
     "ocp_tessellate.defaults",
     "ocp_tessellate.ocp_utils",
@@ -88,7 +89,30 @@ _VIEWER_HELPERS = {
 }
 DELIBERATE_ADDITIONS: dict[str, set[str]] = {
     "ocp_tessellate.ocp_utils": _VIEWER_HELPERS,
-    "ocp_tessellate.convert": _VIEWER_HELPERS,
+    # objects of another kernel with their own tessellator (branch smlib): the
+    # plugin module is new, so everything public in it is an addition
+    "ocp_tessellate.plugin": {
+        "OcpExternalObject",
+        "external_tessellate",
+        "external_edges",
+        "external_scene",
+        "external_coord_system",
+        "external_coord_axis",
+        "SURFACE_TYPES",
+        "CURVE_TYPES",
+        # imported names the module exposes (the type checker's and numpy's are plumbing)
+        "OcpObject",
+        "BoundingBox",
+        "Color",
+        "ExternalInstance",
+        "ConvertedVertices",
+        "DiscretizedEdges",
+        "SELECTED",
+        "copy_location",
+    },
+    "ocp_tessellate.convert": _VIEWER_HELPERS
+    | {"OcpExternalObject", "ExternalInstance"},
+    "ocp_tessellate.types": {"ExternalInstance"},
 }
 
 # kinds of entries that are gone everywhere: the bindings are hidden (3.6.0)
@@ -103,6 +127,7 @@ OPTIONAL = {
 FOREIGN_STAR_IMPORTS = {
     "ocp_tessellate.stepreader": "build123d",
 }
+
 
 def _top_package(module_name):
     if module_name is None:
@@ -136,7 +161,10 @@ def _members(cls):
         if name.startswith("_") and name != "__init__":
             continue
         if isinstance(value, (staticmethod, classmethod)):
-            members[name] = {"kind": type(value).__name__, "params": _params(value.__func__)}
+            members[name] = {
+                "kind": type(value).__name__,
+                "params": _params(value.__func__),
+            }
         elif isinstance(value, property):
             members[name] = {"kind": "property"}
         elif inspect.isfunction(value):
@@ -239,17 +267,25 @@ def collect_surface():
 def _compare_params(where, expected, actual, problems):
     if expected == actual:
         return
-    problems.append(f"{where}: parameters changed\n    was {expected}\n    now {actual}")
+    problems.append(
+        f"{where}: parameters changed\n    was {expected}\n    now {actual}"
+    )
 
 
 def _compare_entry(where, expected, actual, problems):
     if expected["kind"] != actual["kind"]:
-        problems.append(f"{where}: kind changed from {expected['kind']} to {actual['kind']}")
+        problems.append(
+            f"{where}: kind changed from {expected['kind']} to {actual['kind']}"
+        )
         return
     if "type" in expected and expected["type"] != actual.get("type"):
-        problems.append(f"{where}: type changed from {expected['type']} to {actual.get('type')}")
+        problems.append(
+            f"{where}: type changed from {expected['type']} to {actual.get('type')}"
+        )
     if "bases" in expected and expected["bases"] != actual.get("bases"):
-        problems.append(f"{where}: bases changed from {expected['bases']} to {actual.get('bases')}")
+        problems.append(
+            f"{where}: bases changed from {expected['bases']} to {actual.get('bases')}"
+        )
     if "params" in expected:
         _compare_params(where, expected["params"], actual.get("params"), problems)
     if "members" in expected:
@@ -258,7 +294,9 @@ def _compare_entry(where, expected, actual, problems):
             if name not in actual_members:
                 problems.append(f"{where}.{name}: removed")
             else:
-                _compare_entry(f"{where}.{name}", member, actual_members[name], problems)
+                _compare_entry(
+                    f"{where}.{name}", member, actual_members[name], problems
+                )
         for name in sorted(set(actual_members) - set(expected["members"])):
             problems.append(f"{where}.{name}: added")
 
@@ -302,7 +340,9 @@ def test_api_surface():
 
 if __name__ == "__main__":
     if sys.argv[1:] == ["--update"]:
-        SNAPSHOT.write_text(json.dumps(collect_surface(), indent=1, sort_keys=True) + "\n")
+        SNAPSHOT.write_text(
+            json.dumps(collect_surface(), indent=1, sort_keys=True) + "\n"
+        )
         print(f"wrote {SNAPSHOT}")
     else:
         print(__doc__)

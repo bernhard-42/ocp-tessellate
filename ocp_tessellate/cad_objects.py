@@ -11,6 +11,8 @@ from .ocp_utils.location import _axis_to_vecs, _loc_to_vecs, _tq_to_loc
 
 if TYPE_CHECKING:
     from .types import (
+        ColorLike,
+        ExternalInstance,
         TopLoc_Location,
         TopoDS_Shape,
     )
@@ -33,7 +35,11 @@ from ocp_tessellate.ocp_utils import (
     rect,
     tq_to_loc,  # noqa: F401 - public via cad_objects (tests/api_surface.json)
 )
-from ocp_tessellate.types import ConvertedVertices, DiscretizedEdges, Instance
+from ocp_tessellate.types import (
+    ConvertedVertices,
+    DiscretizedEdges,
+    Instance,
+)
 from ocp_tessellate.utils import Color, make_unique
 
 UNSELECTED = 0
@@ -69,7 +75,7 @@ class OcpObject:
         cache_id: str | None = None,
         name: str = "Object",
         loc: TopLoc_Location | None = None,
-        color: Color | list[Color] | tuple[Color, ...] | None = None,
+        color: Color | ColorLike | list[Color] | tuple[Color, ...] | None = None,
         width: float | None = None,
         show_faces: bool = True,
         show_edges: bool = True,
@@ -151,7 +157,7 @@ class OcpObject:
     def collect(
         self,
         path: str,
-        instances: list[Instance],
+        instances: list[Instance | ExternalInstance],
         loc: TopLoc_Location | None,
         discretize_edges: EdgeDiscretizer | None,
         convert_vertices: VertexConverter | None,
@@ -315,7 +321,7 @@ class OcpGroup:
     def collect(
         self,
         path: str,
-        instances: list[Instance],
+        instances: list[Instance | ExternalInstance],
         loc: TopLoc_Location | None = None,
         discretize_edges: EdgeDiscretizer | None = None,
         convert_vertices: VertexConverter | None = None,
@@ -346,12 +352,13 @@ class OcpGroup:
                 self.id, instances, combined_loc, discretize_edges, convert_vertices
             )
             result["parts"].append(mesh)
-            map["parts"].append(mapping)
+            if mapping is not None:  # an OcpExternalObject has none
+                map["parts"].append(mapping)
         return map, result
 
 
 class OcpInstancesGroup:
-    def __init__(self, instances: list[Instance], ocpgrp: OcpGroup):
+    def __init__(self, instances: list[Instance | ExternalInstance], ocpgrp: OcpGroup):
         self.ocpgrp = ocpgrp
         self.instances = instances
 

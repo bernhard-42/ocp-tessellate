@@ -240,6 +240,14 @@ def nested_bounding_box(objs):
         elif isinstance(objs, dict):
             for obj in objs.values():
                 total.update(bb(obj, total))
+        elif hasattr(objs, "objects"):
+            # a prebuilt OcpGroup (by duck typing: cad_objects imports this module)
+            for obj in objs.objects:
+                total.update(bb(obj, total))
+        elif isinstance(getattr(objs, "bounding_box", None), BoundingBox):
+            # an OcpExternalObject that is an instance; its leaves have no box
+            # before they are discretized and add nothing
+            total.update(objs.bounding_box)
         else:
             # anything without a bounding box (not wrapped, not a shape, an OCCT
             # failure) adds nothing to the total

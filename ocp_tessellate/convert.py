@@ -18,6 +18,7 @@ from ocp_tessellate.cad_objects import (
 )
 from ocp_tessellate.defaults import get_default, preset
 from ocp_tessellate.ocp_utils import *
+from ocp_tessellate.plugin import OcpExternalObject
 from ocp_tessellate.tessellator import (
     compute_quality,
     convert_vertices,
@@ -34,6 +35,7 @@ from ocp_tessellate.types import (
     CadquerySketch,
     CadqueryWorkplane,
     ColorLike,
+    ExternalInstance,
     Instance,
     Wrapped,
 )
@@ -284,7 +286,7 @@ class OcpConverter:
         @param python_enumeration: Number repeated names from 0 for every occurrence,
             a(0), a(1), ..., instead of a, a(2), ...
         """
-        self.instances: list[Instance] = []
+        self.instances: list[Instance | ExternalInstance] = []
         self.ocp = None
         self.progress = progress
         self.helper_scale = helper_scale
@@ -338,8 +340,11 @@ class OcpConverter:
         loc = obj.Location()  # Get location
         obj2 = _without_location(obj)
 
-        # check if the same instance is already available
+        # check if the same instance is already available (external instances
+        # are objects of another kernel and never shared)
         for i, instance in enumerate(self.instances):
+            if isinstance(instance["obj"], OcpExternalObject):
+                continue
             if instance["obj"].TShape() == obj2.TShape():
                 ref = i
 
@@ -354,6 +359,25 @@ class OcpConverter:
             self.instances.append({"obj": obj2, "cache_id": cache_id, "name": name})
 
         return ref, loc
+
+    def _register_prebuilt(self, obj: OcpObject | OcpGroup) -> None:
+        """Take a prebuilt object or group into this conversion: every external
+        solid, face or shell gets its instance (ref), every object without a
+        color the default color of its kind."""
+        if isinstance(obj, OcpGroup):
+            for child in obj.objects:
+                self._register_prebuilt(child)
+            return
+        if isinstance(obj, OcpExternalObject):
+            obj.helper_scale = self.helper_scale
+            if obj.is_instance:
+                obj.ref = len(self.instances)
+                self.instances.append(obj.instance())
+        if obj.color is None:
+            color = self.get_color_for_object(obj, kind=obj.kind)
+            # the triple is for coordinate systems only, which are never prebuilt
+            assert isinstance(color, Color), f"'{obj.name}' has no single color"
+            obj.color = color
 
     def trim_infinite_objs(self, obj: TopoDS_Shape, name: str) -> TopoDS_Shape | None:
         # Degenerate OCCT artifacts (edges without geometry, faces without a
@@ -1869,6 +1893,14 @@ class OcpConverter:
                 cad_obj.apply_offset(len(self.instances))
                 ocp_obj = cad_obj.ocpgrp
                 self.instances += cad_obj.instances
+                self._register_prebuilt(ocp_obj)
+
+            # a prebuilt OcpObject or OcpGroup, e.g. of OcpExternalObjects
+            elif isinstance(cad_obj, (OcpObject, OcpGroup)):
+                if obj_name is not None:
+                    cad_obj.name = obj_name
+                self._register_prebuilt(cad_obj)
+                ocp_obj = cad_obj
 
             # OcpWrapper (ImageFace, CoordSystem, CoordAxis, etc.)
             elif isinstance(cad_obj, OcpWrapper):
@@ -2010,7 +2042,7 @@ def to_ocpgroup(
     loc: TopLoc_Location | None = None,
     progress: Progress | None = None,
     debug: bool = False,
-) -> tuple[OcpGroup, list[Instance]]:
+) -> tuple[OcpGroup, list[Instance | ExternalInstance]]:
     """
     Central converter routine to convert a list of objects to an OcpGroup hierarchy.
 
@@ -2068,7 +2100,7 @@ def to_ocpgroup(
 
 def tessellate_group(
     group: OcpGroup,
-    instances: list[Instance],
+    instances: list[Instance | ExternalInstance],
     kwargs: dict | None = None,
     progress: Progress | None = None,
     timeit: bool = False,
@@ -2154,6 +2186,14 @@ def tessellate_group(
             deviation = preset("deviation", kwargs.get("deviation"))
             edge_accuracy = preset("edge_accuracy", kwargs.get("edge_accuracy"))
 
+            if isinstance(obj, OcpExternalObject):
+                assert obj.discretize_edges is not None
+                return obj.discretize_edges(
+                    deviation=deviation,
+                    edge_accuracy=edge_accuracy,
+                    helper_scale=obj.helper_scale,
+                )
+
             bb = bounding_box(obj)
             quality = compute_quality(bb, deviation=deviation)
             deflection = quality / 10 if edge_accuracy is None else edge_accuracy
@@ -2166,6 +2206,9 @@ def tessellate_group(
         return disc_edges, bb
 
     def _convert_vertices(obj, _name, id_):
+        if isinstance(obj, OcpExternalObject):
+            return obj.vertices()
+
         bb = bounding_box(obj)
         vertices = convert_vertices(obj, id_)
 
@@ -2201,10 +2244,15 @@ def tessellate_group(
     for i, instance in enumerate(instances):
         with Timer(timeit, f"instance({i})", "compute quality:", 2) as t:
             shape = instance["obj"]
-            # A first rough estimate of the bounding box.
-            # Will be too large, but is sufficient for computing the quality
-            # location is not relevant here
-            bb = bounding_box(shape, loc=None, optimal=False)
+            # an OcpExternalObject brings its tessellator and bounding box
+            external = shape if isinstance(shape, OcpExternalObject) else None
+            if external is None:
+                # A first rough estimate of the bounding box.
+                # Will be too large, but is sufficient for computing the quality
+                # location is not relevant here
+                bb = bounding_box(shape, loc=None, optimal=False)
+            else:
+                bb = external.bounding_box
             quality = compute_quality(bb, deviation=deviation)
             t.info = str(bb)
 
@@ -2213,19 +2261,29 @@ def tessellate_group(
         with Timer(
             timeit, f"instance({i}):{instance['name']}", "tessellate:     ", 2
         ) as t:
-            mesh = tessellate(
-                shape,
-                instance["cache_id"],
-                deviation=deviation,
-                quality=quality,
-                angular_tolerance=angular_tolerance,
-                debug=timeit,
-                compute_edges=render_edges,
-                progress=None if timeit else progress,
-                shape_id="n/a",
-                compute_uvs=(i in material_refs),
-                normalize_uvs=material_refs.get(i, True),
-            )
+            if external is None:
+                mesh = tessellate(
+                    shape,
+                    instance["cache_id"],
+                    deviation=deviation,
+                    quality=quality,
+                    angular_tolerance=angular_tolerance,
+                    debug=timeit,
+                    compute_edges=render_edges,
+                    progress=None if timeit else progress,
+                    shape_id="n/a",
+                    compute_uvs=(i in material_refs),
+                    normalize_uvs=material_refs.get(i, True),
+                )
+            else:
+                assert external.tessellate is not None
+                mesh = external.tessellate(
+                    deviation=deviation,
+                    quality=quality,
+                    angular_tolerance=angular_tolerance,
+                    compute_edges=render_edges,
+                    progress=None if timeit else progress,
+                )
             if len(mesh["vertices"]) == 0:
                 t.info = f"instance {i} ignored (empty mesh)"
             else:
@@ -2292,7 +2350,7 @@ def to_assembly(
     show_locals: bool = True,
     loc: TopLoc_Location | None = None,
     progress: Progress | None = None,
-) -> tuple[OcpGroup, list[Instance]]:
+) -> tuple[OcpGroup, list[Instance | ExternalInstance]]:
     """
     Compatibility wrapper for the converter routine to convert a list of
     objects to an OcpGroup hierarchy.

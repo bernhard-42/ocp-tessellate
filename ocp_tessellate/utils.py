@@ -11,6 +11,10 @@ from webcolors import hex_to_rgb, name_to_rgb, rgb_to_hex
 
 
 def round_sig(x, sig):
+    """x rounded to sig significant digits; 0 stays 0 (a flat bounding box has a
+    zero extent, and compute_quality rounds its extents)."""
+    if x == 0:
+        return 0.0
     return round(x, sig - math.floor(math.log10(abs(x))) - 1)
 
 
