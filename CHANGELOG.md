@@ -1,4 +1,9 @@
-## v3.6.4 (unreleased)
+## v3.7.0 (unreleased)
+
+**Features**
+
+- Objects of kernels other than OCCT, through the new `ocp_tessellate.plugin` module (`docs/ExternalKernel.md`): an `OcpExternalObject` brings what meshes it, a body its `tessellate`, `bounding_box` and `cache_id`, an edge its `discretize_edges`, a vertex its `points`, and goes through the regular pipeline like an OCCT object: `to_ocp` registers prebuilt objects and groups and fills the default colors, `tessellate_group` calls the object's own tessellator with the viewer's deviation and angular tolerance and its discretizer with the helper scale. `collect` gives a solid, face or shell with a `kernel` tag an entry in the measurement backend's model, `{"id", "shape": {"kernel": tag, "obj": body}, "loc"}`, placed by the groups above it as an OCCT instance is, which ocp-viewer-core's backend hands to the plugin registered under the tag; an object without a tag has no entry. A kernel plugin builds its objects with `external_tessellate` (through the tessellation cache when a cache id is given, tagged for the backend with `kernel=`), `external_edges`, `external_scene`, `external_coord_system` and `external_coord_axis` (the points of `CoordSystem` and `CoordAxis`, without OCCT), and names the face and edge type codes with `SURFACE_TYPES` and `CURVE_TYPES`, read from the binding's `GeomAbs`. The first plugin is [ocp-viewer-smlibpy](https://github.com/bernhard-42/ocp-viewer-smlibpy) for SMLib
+- `round_sig(0)` is `0`, so `compute_quality` takes a flat bounding box (a planar face of an external kernel); `nested_bounding_box` sees prebuilt groups and external instances, so relative `helper_scale` values work for them
 
 **Fixes**
 
