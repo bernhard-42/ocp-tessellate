@@ -2,9 +2,10 @@
 
 A solid, face or shell brings its own `tessellate` and `bounding_box` and is
 meshed by them with the viewer's deviation and angular tolerance; an edge or
-vertex brings `points`. None of them has an entry in the mapping, the
-measurement backend's model, which holds OCCT shapes only. The OCCT objects of
-the same scene are unchanged.
+vertex brings `points`. A solid, face or shell with a kernel tag has an entry in
+the mapping, the measurement backend's model, that carries its body; without a
+tag, and for edges and vertices, there is none. The OCCT objects of the same
+scene are unchanged.
 """
 
 import importlib
@@ -15,7 +16,7 @@ from occt_binding import DEFAULT_BINDING, occt
 
 from ocp_tessellate.cad_objects import CoordAxis, CoordSystem, OcpGroup
 from ocp_tessellate.convert import tessellate_group, to_ocpgroup
-from ocp_tessellate.ocp_utils import BoundingBox
+from ocp_tessellate.ocp_utils import BoundingBox, loc_to_tq, tq_to_loc
 from ocp_tessellate.plugin import (
     CURVE_TYPES,
     SURFACE_TYPES,
@@ -143,6 +144,69 @@ def test_external_objects_have_no_entry_in_the_backends_model():
     assert mapping["parts"] == []
 
 
+def tagged_body(name="body", kernel="toy", body=("the", "kernel's", "body")):
+    return OcpExternalObject(
+        "solid",
+        name,
+        tessellate=lambda **kwargs: dict(TRIANGLE),
+        bounding_box=bbox((0, 0, 0), (1, 1, 0)),
+        cache_id=f"tagged-{name}",
+        kernel=kernel,
+        body=body,
+    )
+
+
+def test_a_body_with_a_kernel_tag_has_an_entry_that_carries_it():
+    body = object()
+    scene = OcpGroup([tagged_body(body=body)], name="external")
+    part_group, instances = to_ocpgroup(scene)
+    _, _, mapping = tessellate_group(part_group, instances, {})
+    # a single group is the root
+    [entry] = mapping["parts"]
+    assert entry["id"] == "/external/body"
+    assert entry["shape"]["kernel"] == "toy" and entry["shape"]["obj"] is body
+    assert entry["loc"] is None
+
+
+def test_the_entry_is_placed_by_the_groups_above_it():
+    t, q = (1.0, 2.0, 3.0), (0.0, 0.0, 0.0, 1.0)
+    scene = OcpGroup([tagged_body()], name="moved", loc=tq_to_loc(t, q))
+    part_group, instances = to_ocpgroup(scene)
+    _, _, mapping = tessellate_group(part_group, instances, {})
+    [entry] = mapping["parts"]
+    translation, rotation = loc_to_tq(entry["loc"])
+    assert np.allclose(translation, t) and np.allclose(rotation, q)
+
+
+def test_a_tagged_body_beside_an_untagged_one_and_an_occt_box():
+    scene, _ = sample_objects()
+    box = BRepPrimAPI_MakeBox(1, 2, 3).Shape()
+    part_group, instances = to_ocpgroup(scene, tagged_body(), box, names=[None, "body", "box"])
+    _, _, mapping = tessellate_group(part_group, instances, {})
+
+    def leaves(m):
+        if "parts" in m:
+            return [x for p in m["parts"] for x in leaves(p)]
+        return [m["id"]]
+
+    assert leaves(mapping) == ["/Group/body", "/Group/box"]
+
+
+def test_only_a_solid_face_or_shell_carries_a_kernel_tag():
+    with pytest.raises(ValueError, match="needs its body"):
+        tagged_body(body=None)
+    with pytest.raises(ValueError, match="not a edge"):
+        OcpExternalObject("edge", "e", discretize_edges=lambda **kwargs: None, kernel="toy")
+
+
+def test_external_tessellate_tags_the_body_it_is_given():
+    body = object()
+    obj = external_tessellate("solid", "b", body, lambda *a: dict(TRIANGLE), bbox((0, 0, 0), (1, 1, 1)), kernel="toy")
+    assert obj.kernel == "toy" and obj.body is body
+    untagged = external_tessellate("solid", "b", body, lambda *a: dict(TRIANGLE), bbox((0, 0, 0), (1, 1, 1)))
+    assert untagged.kernel is None and untagged.body is None
+
+
 def test_a_mixed_scene_keeps_the_occt_objects_in_the_model():
     scene, _ = sample_objects()
     box = BRepPrimAPI_MakeBox(1, 2, 3).Shape()
@@ -191,6 +255,8 @@ def test_a_copy_keeps_the_callables_and_the_ref():
     assert face.copy().tessellate is face.tessellate and face.copy().ref == face.ref
     assert leaf.copy().discretize_edges is leaf.discretize_edges
     assert scene.objects[2].copy().points.tolist() == [[2, 2, 2]]
+    tagged = tagged_body()
+    assert tagged.copy().kernel == "toy" and tagged.copy().body is tagged.body
 
 
 def test_an_external_object_needs_what_its_kind_is_meshed_with():

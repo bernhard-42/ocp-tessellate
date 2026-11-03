@@ -345,9 +345,9 @@ class Instance(TypedDict):
 class ExternalInstance(TypedDict):
     """
     The instance of an OcpExternalObject (cad_objects), an object of another
-    kernel: registered by OcpConverter.to_ocp, meshed by the object's own
-    `tessellate` in tessellate_group, and absent from the measurement backend's
-    model.
+    kernel: registered by OcpConverter.to_ocp and meshed by the object's own
+    `tessellate` in tessellate_group. The measurement backend's model holds the
+    object's body only when it carries a kernel tag (OcpExternalObject.collect).
     """
 
     obj: OcpExternalObject

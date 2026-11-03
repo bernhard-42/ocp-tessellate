@@ -352,7 +352,7 @@ class OcpGroup:
                 self.id, instances, combined_loc, discretize_edges, convert_vertices
             )
             result["parts"].append(mesh)
-            if mapping is not None:  # an OcpExternalObject has none
+            if mapping is not None:  # an OcpExternalObject without a kernel tag has none
                 map["parts"].append(mapping)
         return map, result
 

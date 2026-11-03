@@ -19,7 +19,11 @@ from cachetools import cached
 
 from ocp_tessellate._kernel import kernel
 from ocp_tessellate.cad_objects import SELECTED, OcpObject
-from ocp_tessellate.ocp_utils import BoundingBox, copy_location
+from ocp_tessellate.ocp_utils import (
+    BoundingBox,
+    copy_location,
+    mul_locations as _mul_locations,
+)
 from ocp_tessellate.tessellator import (
     cache as _tessellation_cache,
     make_key as _make_key,
@@ -52,8 +56,13 @@ class OcpExternalObject(OcpObject):
     (DiscretizedEdges, BoundingBox)`; a vertex brings its `points`, the
     coordinates (n, 3). OcpConverter.to_ocp registers the instance of a solid,
     face or shell (its `ref`), sets `helper_scale`, and gives an object without
-    a color the default of its kind. Such an object has no entry in the
-    measurement backend's model. See docs/ExternalKernel.md.
+    a color the default of its kind.
+
+    A solid, face or shell with a `kernel` tag and its `body` has an entry in the
+    measurement backend's model, `{"id", "shape": {"kernel": kernel, "obj": body},
+    "loc"}`: ocp_viewer_core's backend hands it to the plugin registered under
+    the tag, which serializes the body before the model is sent and measures it
+    there. Without a tag the object has no entry. See docs/ExternalKernel.md.
     """
 
     def __init__(
@@ -71,10 +80,16 @@ class OcpExternalObject(OcpObject):
         show_faces: bool = True,
         show_edges: bool = True,
         material: str | None = None,
+        kernel: str | None = None,
+        body: object = None,
     ):
         if kind in ("solid", "face", "shell"):
             if tessellate is None or bounding_box is None or cache_id is None:
                 raise ValueError(f"an external {kind} needs tessellate, bounding_box and cache_id")
+            if kernel is not None and body is None:
+                raise ValueError(f"an external {kind} with the kernel tag '{kernel}' needs its body")
+        elif kernel is not None:
+            raise ValueError(f"only a solid, face or shell is measured by its kernel, not a {kind}")
         elif kind == "edge":
             if discretize_edges is None:
                 raise ValueError("an external edge needs discretize_edges")
@@ -105,6 +120,9 @@ class OcpExternalObject(OcpObject):
         self.discretize_edges = discretize_edges
         self.points = None if points is None else np.asarray(points, dtype=np.float32).reshape(-1, 3)
         self.helper_scale: float = 1.0  # set by OcpConverter.to_ocp
+        # the measurement backend's entry: the plugin's kernel tag and the body it measures
+        self.kernel = kernel
+        self.body = body
 
     @property
     def is_instance(self) -> bool:
@@ -134,6 +152,8 @@ class OcpExternalObject(OcpObject):
             show_faces=self.state_faces == SELECTED,
             show_edges=self.state_edges == SELECTED,
             material=self.material,
+            kernel=self.kernel,
+            body=self.body,
         )
         result.ref = self.ref
         result.loc = copy_location(self.loc)
@@ -147,8 +167,18 @@ class OcpExternalObject(OcpObject):
         if self.is_instance and mesh["loc"] is None:
             # at the origin: an identity, which the viewer applies to a shape
             mesh["loc"] = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
-        # no entry in the backend's model: it holds OCCT shapes
-        return None, mesh
+        if self.kernel is None:
+            # no entry in the backend's model: nothing would measure it
+            return None, mesh
+        # the backend's entry, placed as an OCCT instance is (OcpObject.collect):
+        # by the locations of the groups above and the object's own
+        if loc is None:
+            combined_loc = self.loc
+        elif self.loc is None:
+            combined_loc = loc
+        else:
+            combined_loc = _mul_locations(loc, self.loc)
+        return {"id": self.id, "shape": {"kernel": self.kernel, "obj": self.body}, "loc": combined_loc}, mesh
 
 
 def _geomabs_values(enum, names):
@@ -238,7 +268,7 @@ def _tessellate_external(
 
 
 def external_tessellate(
-    kind, name, body, tessellate, bounding_box, cache_id=None, color=None, alpha=None
+    kind, name, body, tessellate, bounding_box, cache_id=None, color=None, alpha=None, kernel=None
 ) -> OcpExternalObject:
     """A solid, face or shell of another kernel as an OcpExternalObject: `body` is
     the kernel's object, `tessellate(body, quality, angular_tolerance,
@@ -246,7 +276,8 @@ def external_tessellate(
     BoundingBox. With a `cache_id`, a string that identifies the geometry, the
     tessellation goes through the OCCT tessellator's cache; without one it is
     computed at every show. The color is `color`, else the body's own `color`
-    attribute, else the host's default of the kind."""
+    attribute, else the host's default of the kind. With a `kernel` tag the body
+    is measured by the backend plugin registered under it (ocp_viewer_core)."""
 
     def tessellate_body(deviation, quality, angular_tolerance, compute_edges=True, progress=None):
         if cache_id is None:
@@ -262,6 +293,8 @@ def external_tessellate(
         kind, name, tessellate=tessellate_body, bounding_box=bounding_box,
         cache_id=cache_id if cache_id is not None else f"uncached-{id(body)}",
         color=_external_color(body, color, alpha),
+        kernel=kernel,
+        body=None if kernel is None else body,
     )
 
 
