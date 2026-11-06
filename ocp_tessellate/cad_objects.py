@@ -265,7 +265,7 @@ class OcpObject:
                 color = [c.web_color for c in self.color]
 
             result = (
-                {"id": self.id, "shape": _backend_shape(self.obj), "loc": None},
+                {"id": self.id, "shape": _backend_shape(self.obj), "loc": _plain(combined_loc)},
                 {
                     "id": self.id,
                     "type": "edges" if self.kind == "edge" else "vertices",

@@ -4,7 +4,7 @@ import enum
 import json
 from collections.abc import Iterable, Sequence
 from hashlib import sha256
-from itertools import repeat
+from itertools import product, repeat
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -294,6 +294,20 @@ def _instance_box(shape: object, cache_id: str | None) -> BoundingBox:
         if cache_id is not None:
             _kernel_boxes[cache_id] = box
     return box
+
+
+def _grown_by(bbox: dict[str, float] | None, other: dict[str, float]) -> dict[str, float]:
+    """A scene box, grown to hold `other`."""
+    if bbox is None:
+        return other
+    return {
+        "xmin": min(bbox["xmin"], other["xmin"]),
+        "xmax": max(bbox["xmax"], other["xmax"]),
+        "ymin": min(bbox["ymin"], other["ymin"]),
+        "ymax": max(bbox["ymax"], other["ymax"]),
+        "zmin": min(bbox["zmin"], other["zmin"]),
+        "zmax": max(bbox["zmax"], other["zmax"]),
+    }
 
 
 class OcpConverter:
@@ -2307,41 +2321,45 @@ def tessellate_group(
         for shape in shapes["parts"]:
             new_loc = loc.mul(None if shape["loc"] is None else Placement(*shape["loc"]))
             if shape.get("parts") is None:
-                bb: dict[str, float]
+                # The viewer draws every object at the accumulated location
                 if shape["type"] == "shapes":
-                    # Solids, shells and faces are instances and need to calculate
-                    # the bounding box at the accumulated location
+                    # Solids, shells and faces are instances: their mesh
                     ind = shape["shape"]["ref"]
-                    vertices = meshed_instances[ind]["vertices"]
-                    if len(vertices) == 0:
+                    points = meshed_instances[ind]["vertices"]
+                    if len(points) == 0:
                         continue
-                    npb = np_bbox(vertices, *new_loc)
-                    assert npb is not None, "np_bbox of non-empty vertices"
-                    bb = {
-                        "xmin": npb["xmin"],
-                        "xmax": npb["xmax"],
-                        "ymin": npb["ymin"],
-                        "ymax": npb["ymax"],
-                        "zmin": npb["zmin"],
-                        "zmax": npb["zmax"],
-                    }
                 else:
-                    # wires, edges, vertices already have a bounding box
-                    bb = shape["bb"].to_dict()
+                    # Wires, edges, vertices have a bounding box in their own
+                    # coordinates: its corners, so a rotation can only enlarge it
+                    own = shape["bb"]
                     # delete the BoundingBox object, it can't be serialized
                     del shape["bb"]
+                    if new_loc.is_identity():
+                        # where it is drawn already
+                        bbox = _grown_by(bbox, own.to_dict())
+                        continue
+                    points = np.array(
+                        list(
+                            product(
+                                (own.xmin, own.xmax),
+                                (own.ymin, own.ymax),
+                                (own.zmin, own.zmax),
+                            )
+                        ),
+                        dtype=np.float64,
+                    )
+                npb = np_bbox(points, *new_loc)
+                assert npb is not None, "np_bbox of non-empty points"
+                bb: dict[str, float] = {
+                    "xmin": npb["xmin"],
+                    "xmax": npb["xmax"],
+                    "ymin": npb["ymin"],
+                    "ymax": npb["ymax"],
+                    "zmin": npb["zmin"],
+                    "zmax": npb["zmax"],
+                }
 
-                if bbox is None:
-                    bbox = bb
-                else:
-                    bbox = {
-                        "xmin": min(bbox["xmin"], bb["xmin"]),
-                        "xmax": max(bbox["xmax"], bb["xmax"]),
-                        "ymin": min(bbox["ymin"], bb["ymin"]),
-                        "ymax": max(bbox["ymax"], bb["ymax"]),
-                        "zmin": min(bbox["zmin"], bb["zmin"]),
-                        "zmax": max(bbox["zmax"], bb["zmax"]),
-                    }
+                bbox = _grown_by(bbox, bb)
             else:
                 bbox = get_bb_max(shape, meshed_instances, new_loc, bbox)
 
