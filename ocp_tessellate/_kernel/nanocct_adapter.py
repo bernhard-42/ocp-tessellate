@@ -28,7 +28,6 @@ views of the triangulation and on nanocct's C++ helpers (nanocct.AddOns).
 """
 
 import importlib.metadata
-import sys
 from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, cast
 
@@ -284,7 +283,7 @@ def tessellate_faces(
             offset += poly.NbNodes()
             n_triangles += poly.NbTriangles()
         else:
-            print(f"face {ind} ignored", file=sys.stderr)
+            print(f"face {ind} ignored")
             tess.triangles_per_face.append(0)
 
     # the flat buffers the getters read (np.asarray(..., dtype=np.float32) etc.),

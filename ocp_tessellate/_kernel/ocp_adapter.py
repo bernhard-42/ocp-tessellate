@@ -27,7 +27,6 @@ and the tessellation loops.
 """
 
 import io
-import sys
 from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING
 
@@ -360,7 +359,7 @@ def tessellate_faces(
 
             offset += poly.NbNodes()
         else:
-            print(f"face {ind} ignored", file=sys.stderr)
+            print(f"face {ind} ignored")
             tess.triangles_per_face.append(0)
 
 

@@ -176,8 +176,11 @@ def test_degenerated_edge_keeps_its_index_in_the_edges_only_path(binding):
 
 
 @pytest.mark.parametrize("binding", INSTALLED)
-def test_nothing_on_stdout(binding, capsys):
+def test_what_was_ignored_is_said_on_stdout_for_it_is_no_error(binding, capsys):
     _tessellate(_shell(binding, [_face(binding, BOW_TIE), _face(binding, SQUARE)]))
     discretize_edges([_no_geometry_edge(binding)], 0.1)
 
-    assert capsys.readouterr().out == ""
+    out, err = capsys.readouterr()
+    assert "face 0 ignored" in out
+    assert "edge 0 ignored" in out
+    assert err == ""

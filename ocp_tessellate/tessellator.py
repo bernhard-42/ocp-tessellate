@@ -510,7 +510,7 @@ def discretize_edges(
         if is_degenerated_edge(edge):
             # get_edge_type and discretize_edge would raise on an edge
             # without geometry
-            print(f"edge {ind} ignored (degenerated)", file=sys.stderr)
+            print(f"edge {ind} ignored (degenerated)")
             # placeholder: keeps the edge numbering of get_edges
             edge_types.append(_faceless_edge_type(edge))
             segments_per_edge.append(0)
@@ -524,7 +524,7 @@ def discretize_edges(
             d = discretize_edge(edge, deflection=deflection / 10, quasi=False)
 
         if len(d) == 0:
-            print(f"edge {ind} ignored (could not be discretized)", file=sys.stderr)
+            print(f"edge {ind} ignored (could not be discretized)")
             # placeholder: keeps the edge numbering of get_edges
             edge_types.append(get_edge_type(edge))
             segments_per_edge.append(0)
