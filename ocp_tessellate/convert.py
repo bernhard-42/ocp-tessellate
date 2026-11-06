@@ -330,7 +330,9 @@ class OcpConverter:
             a(0), a(1), ..., instead of a, a(2), ...
         """
         self.instances: list[Instance] = []
-        # where a kernel plugin's shape already is in `instances`: by its object and its cache id
+        # where a shape already is in `instances`: OCCT's by TShape, a kernel plugin's by
+        # its object and its cache id
+        self._occt_refs: dict[object, int] = {}
         self._kernel_refs: dict[object, int] = {}
         self.ocp = None
         self.progress = progress
@@ -385,21 +387,15 @@ class OcpConverter:
 
         # check if the same instance is already available (a kernel plugin's shapes
         # are shared in _kernel_instance)
-        ref = None
-        for i, instance in enumerate(self.instances):
-            shape = instance["obj"]
-            if is_topods_shape(shape) and shape.TShape() == obj2.TShape():
-                ref = i
-
-                if self.progress is not None:
-                    self.progress.update("-")
-
-                break
-
+        tshape = obj2.TShape()
+        ref = self._occt_refs.get(tshape)
         if ref is None:
             # append the new instance
             ref = len(self.instances)
             self.instances.append({"obj": obj2, "cache_id": cache_id, "name": name})
+            self._occt_refs[tshape] = ref
+        elif self.progress is not None:
+            self.progress.update("-")
 
         return ref, loc
 
@@ -407,6 +403,7 @@ class OcpConverter:
         """Where a shape is that came into `instances` from elsewhere; the first one wins."""
         shape = instance["obj"]
         if is_topods_shape(shape):
+            self._occt_refs.setdefault(shape.TShape(), ref)
             return
         self._kernel_refs.setdefault(id(shape), ref)
         if instance["cache_id"] is not None:

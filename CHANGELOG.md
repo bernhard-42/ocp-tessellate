@@ -11,6 +11,7 @@
 **Changes**
 
 - `to_ocp`, and with it a host's `show`, raises a `TypeError` for an object passed directly that nothing can draw, which used to draw nothing without a word: `show cannot draw an object of type my_module.Foo; if it belongs to another kernel, is its plugin installed?`. Inside a list, tuple or dict it is still left out, `show_all` still leaves it out of a scope, and numbers and strings stay silent
+- `to_ocpgroup` finds the instance of an OCCT shape through a dict of its `TShape` instead of a loop over all instances, so the time no longer grows with the square of the number of shapes
 
 **Fixes**
 
