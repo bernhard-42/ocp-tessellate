@@ -138,7 +138,7 @@ class TestsConvert(MyUnitTest):
             self.assertIsNone(o.obj)
             self.assertTrue(is_topods_solid(i[o.ref]["obj"]))
             self.assertEqual(
-                tuple(o.loc.Transformation().TranslationPart().Coord()), (0.5, 0.5, 0.5)
+                o.loc.origin, (0.5, 0.5, 0.5)
             )
             o = g.objects[1]
             self.assertEqual(o.name, "part_local")
@@ -147,7 +147,7 @@ class TestsConvert(MyUnitTest):
             self.assertIsNone(o.obj)
             self.assertTrue(is_topods_compound(i[o.ref]["obj"]))
             self.assertEqual(
-                tuple(o.loc.Transformation().TranslationPart().Coord()), (0, 0, 0)
+                o.loc.origin, (0, 0, 0)
             )
         else:
             self.assertEqual(g.length, 1)
@@ -355,7 +355,7 @@ class TestsConvert(MyUnitTest):
             self.assertIsNotNone(o.ref)
             self.assertIsNone(o.obj)
             self.assertTrue(is_topods_face(i[o.ref]["obj"]))
-            loc = loc_to_tq(o.loc)
+            loc = o.loc
             self._assertTupleAlmostEquals(loc[0], (0, 0, 0), 6)
             if n == "sheet":
                 self._assertTupleAlmostEquals(loc[1], (0.5, 0.5, 0.5, 0.5), 6)
@@ -455,7 +455,7 @@ class TestsConvert(MyUnitTest):
             self.assertIsNotNone(o.ref)
             self.assertIsNone(o.obj)
             self.assertTrue(is_topods_face(i[o.ref]["obj"]))
-            loc = loc_to_tq(o.loc)
+            loc = o.loc
             self._assertTupleAlmostEquals(loc[0], (0, 0, 0), 6)
             if n == "sketch":
                 self._assertTupleAlmostEquals(loc[1], (0.5, 0.5, 0.5, 0.5), 6)

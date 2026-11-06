@@ -1,5 +1,7 @@
 """Typing-only conformance checks: real classes must satisfy the protocols."""
 
+from collections.abc import Sequence
+
 from build123d import (
     BuildLine,
     BuildPart,
@@ -13,6 +15,8 @@ from build123d import (
 )
 from cadquery import Assembly, Sketch, Workplane
 
+from ocp_tessellate.ocp_utils import BoundingBox
+from ocp_tessellate.plugin import OcpObject, ShowProtocol, TessellationProtocol
 from ocp_tessellate.types import (
     Build123dGroupBy,
     Build123dLineBuilder,
@@ -75,3 +79,59 @@ def assembly_conforms(x: Assembly) -> CadqueryAssembly:
 
 def cq_sketch_conforms(x: Sketch) -> CadquerySketch:
     return x
+
+
+# ---------------------------------------------------------------------------
+# A kernel plugin names its types, and may then narrow what the protocols take
+# ---------------------------------------------------------------------------
+
+
+class _Body: ...
+
+
+class _Edge: ...
+
+
+class _Vertex: ...
+
+
+class _Tessellation(TessellationProtocol[_Body, _Edge, _Vertex]):
+    def tessellate(
+        self,
+        shape: _Body,
+        deviation: float,
+        quality: float,
+        angular_tolerance: float,
+        compute_edges: bool = True,
+        compute_uvs: bool = False,
+        normalize_uvs: bool = True,
+        shape_id: str = "",
+        debug: bool = False,
+    ):
+        raise NotImplementedError
+
+    def discretize_edges(self, edges: Sequence[_Edge], deflection: float = 0.1, shape_id: str = ""):
+        raise NotImplementedError
+
+    def convert_vertices(self, vertices: Sequence[_Vertex], shape_id: str = ""):
+        raise NotImplementedError
+
+    def bounding_box(self, shape: _Body | _Edge | _Vertex | Sequence[_Edge | _Vertex]) -> BoundingBox:
+        raise NotImplementedError
+
+    def cache_id(self, shape: _Body) -> str:
+        raise NotImplementedError
+
+
+class _Show(ShowProtocol[_Body | _Edge]):
+    def is_object(self, obj: object) -> bool:
+        return isinstance(obj, (_Body, _Edge))
+
+    def convert(self, obj: _Body | _Edge, name, color, alpha, helper_scale) -> OcpObject:
+        raise NotImplementedError
+
+    def line(self, start, end) -> _Edge:
+        return _Edge()
+
+    def serialize(self, shape) -> bytes:
+        return b""

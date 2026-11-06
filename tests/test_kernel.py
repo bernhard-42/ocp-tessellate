@@ -412,7 +412,7 @@ def test_line_circle_vertex_rect_take_the_binding_of_any_occt_argument(binding):
 def test_image_face_without_location_uses_the_default():
     face = ImageFace(str(IMAGE))
     assert binding_of(face.objs[0]) is root(DEFAULT_BINDING)
-    assert binding_of(face.loc) is root(DEFAULT_BINDING)
+    assert isinstance(face.loc, ocp_utils.Placement)
 
 
 @pytest.mark.parametrize("binding", INSTALLED)
@@ -420,7 +420,7 @@ def test_image_face_uses_the_binding_of_its_location(binding):
     loc = occt("TopLoc", "TopLoc_Location", binding)()
     face = ImageFace(str(IMAGE), location=loc)
     assert binding_of(face.objs[0]) is root(binding)
-    assert binding_of(face.loc) is root(binding)
+    assert isinstance(face.loc, ocp_utils.Placement)
 
 
 #

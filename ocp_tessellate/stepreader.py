@@ -354,7 +354,8 @@ class StepReader:
             return cq.Workplane(obj=cq.Solid(obj))
 
         def to_loc(loc: TopLoc_Location | None) -> cq.Location:
-            return cq.Location() if loc is None else cq.Location(loc)
+            # the reader's locations are OCP's, as CadQuery's are; the OCP | nanocct union cannot say so
+            return cq.Location() if loc is None else cq.Location(loc)  # ty: ignore[no-matching-overload]
 
         def walk(objs: list[AssemblyObject], name=None, loc=None):
             a = cq.Assembly(name=name, loc=loc)

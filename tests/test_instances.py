@@ -138,11 +138,9 @@ class TestInstances(MyUnitTest):
             return group
 
         expected = moved.wrapped.Location().Transformation()
-        actual = leaf(g).loc.Transformation()
+        actual = leaf(g).loc
         self._assertTupleAlmostEquals(
-            expected.TranslationPart().Coord(), actual.TranslationPart().Coord(), 9
+            expected.TranslationPart().Coord(), actual.origin, 9
         )
-        eq, aq = expected.GetRotation(), actual.GetRotation()
-        self._assertTupleAlmostEquals(
-            (eq.X(), eq.Y(), eq.Z(), eq.W()), (aq.X(), aq.Y(), aq.Z(), aq.W()), 9
-        )
+        eq = expected.GetRotation()
+        self._assertTupleAlmostEquals((eq.X(), eq.Y(), eq.Z(), eq.W()), actual.quaternion, 9)

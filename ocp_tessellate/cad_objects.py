@@ -1,37 +1,46 @@
 from __future__ import annotations
 
 import base64
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING
 
 import imagesize
 
-from ._kernel import kernel_of, kernel_of_all
-from .ocp_utils.location import _axis_to_vecs, _loc_to_vecs, _tq_to_loc
+from ._kernel import adapter, kernel_of
+from ._show_registry import kernel_tag_of, show_of
+from .ocp_utils.location import (
+    _axis_to_vecs,
+    _checked_placement,
+    _loc_to_vecs,
+    _tq_to_loc,
+)
 
 if TYPE_CHECKING:
     from .types import (
         ColorLike,
-        ExternalInstance,
+        KernelShape,
         TopLoc_Location,
         TopoDS_Shape,
     )
 
 from ocp_tessellate.defaults import get_default
 from ocp_tessellate.ocp_utils import (
+    IDENTITY_PLACEMENT,
     BoundingBox,
+    Placement,
     VectorLike,
     axis_to_vecs,  # noqa: F401 - public via cad_objects (tests/api_surface.json)
-    copy_location,
+    copy_location,  # noqa: F401 - public via cad_objects (tests/api_surface.json)
     copy_topods_shape,
     identity_location,  # noqa: F401 - public via cad_objects (tests/api_surface.json)
-    is_identity,
+    is_identity,  # noqa: F401 - public via cad_objects (tests/api_surface.json)
     is_topods_shape as _is_topods_shape,
     line,
-    loc_to_tq,
+    loc_to_tq,  # noqa: F401 - public via cad_objects (tests/api_surface.json)
     loc_to_vecs,  # noqa: F401 - public via cad_objects (tests/api_surface.json)
     make_compound,
     mul_locations,
+    mul_placements,
     rect,
     tq_to_loc,  # noqa: F401 - public via cad_objects (tests/api_surface.json)
 )
@@ -52,11 +61,45 @@ if TYPE_CHECKING:
     # Callbacks provided by tessellate_group to discretize edge and vertex leaves
     # during collect
     EdgeDiscretizer = Callable[
-        [list[TopoDS_Shape], str, str], tuple[DiscretizedEdges, BoundingBox]
+        [Sequence[KernelShape], str, str], tuple[DiscretizedEdges, BoundingBox]
     ]
     VertexConverter = Callable[
-        [list[TopoDS_Shape], str, str], tuple[ConvertedVertices, BoundingBox]
+        [Sequence[KernelShape], str, str], tuple[ConvertedVertices, BoundingBox]
     ]
+
+
+def _plain(placement: Placement | None) -> tuple | None:
+    """A placement as the viewer and the backend get it: a plain tuple of tuples."""
+    return None if placement is None else (placement.origin, placement.quaternion)
+
+
+def _backend_shape(shape):
+    """What a model entry of the measurement backend holds: an instance or the shapes of
+    OCCT as they are, a kernel's shape with its tag, which `encode_kernel_shapes` serializes
+    through the kernel's plugin."""
+    obj = shape["obj"] if isinstance(shape, dict) else shape
+    kernel = kernel_tag_of(obj)
+    if kernel is None:
+        return shape
+    return {"kernel": kernel, "obj": obj}
+
+
+def _copied_shape(shape):
+    """A copy of an OCCT shape. A kernel's shape is immutable to the tree."""
+    return copy_topods_shape(shape) if _is_topods_shape(shape) else shape
+
+
+def _line_for(like, k):
+    """What draws a helper of the object `like`: its plugin's `line`, given the
+    coordinates of the vectors the helper computes with, else OCCT's."""
+    show = show_of(like)
+    if show is None:
+        return line
+
+    def kernel_line(start, end):
+        return show.line(start=adapter(k).coord(start), end=adapter(k).coord(end))
+
+    return kernel_line
 
 
 class OcpObject:
@@ -70,11 +113,11 @@ class OcpObject:
     def __init__(
         self,
         kind: str,
-        obj: TopoDS_Shape | list[TopoDS_Shape] | None = None,
+        obj: KernelShape | list[KernelShape] | None = None,
         ref: int | None = None,
         cache_id: str | None = None,
         name: str = "Object",
-        loc: TopLoc_Location | None = None,
+        loc: Placement | None = None,
         color: Color | ColorLike | list[Color] | tuple[Color, ...] | None = None,
         width: float | None = None,
         show_faces: bool = True,
@@ -106,6 +149,15 @@ class OcpObject:
         self.normalize_uvs = True
         self.helpers: OcpGroup | None = None
 
+    @property
+    def loc(self) -> Placement | None:
+        """Where the object is in the group above it, for every kernel."""
+        return self._loc
+
+    @loc.setter
+    def loc(self, loc: Placement | None) -> None:
+        self._loc = _checked_placement(loc, "loc")
+
     def dump(self, ind: int = 0) -> str:
         if self.obj is None:
             obj_repl = f"ref={self.ref}"
@@ -115,7 +167,7 @@ class OcpObject:
         return (
             f"{' ' * ind}OcpObject name='{self.name}' kind={self.kind}, "
             f"{obj_repl}, "
-            f"color={self.color}, loc={loc_to_tq(self.loc)}, "
+            f"color={self.color}, loc={self.loc}, "
             f"cache_id={'' if self.cache_id is None else self.cache_id[:10]}..."
         )
 
@@ -126,9 +178,9 @@ class OcpObject:
         if self.obj is None:
             obj = None
         elif isinstance(self.obj, list):
-            obj = [copy_topods_shape(o) for o in self.obj]
+            obj = [_copied_shape(o) for o in self.obj]
         else:
-            obj = copy_topods_shape(self.obj)
+            obj = _copied_shape(self.obj)
 
         return OcpObject(
             self.kind,
@@ -136,7 +188,7 @@ class OcpObject:
             self.ref,
             self.cache_id,
             self.name,
-            copy_location(self.loc),
+            self.loc,
             self.color,
             self.width,
             self.state_faces == SELECTED,
@@ -157,22 +209,15 @@ class OcpObject:
     def collect(
         self,
         path: str,
-        instances: list[Instance | ExternalInstance],
-        loc: TopLoc_Location | None,
+        instances: list[Instance],
+        loc: Placement | None,
         discretize_edges: EdgeDiscretizer | None,
         convert_vertices: VertexConverter | None,
     ):
         self.id = f"{path}/{self.name}"
         texture = None
 
-        if loc is None and self.loc is None:
-            combined_loc = None
-        elif loc is None:
-            combined_loc = self.loc
-        elif self.loc is None:
-            combined_loc = loc
-        else:
-            combined_loc = mul_locations(loc, self.loc)
+        combined_loc = mul_placements(loc, self.loc)
 
         if self.kind == "imageface":
             image = {"data": self.image, "format": self.image_type}
@@ -186,7 +231,7 @@ class OcpObject:
             assert isinstance(self.color, Color), (
                 f"'{self.name}' has no resolved color"
             )
-            return {"id": self.id, "shape": instances[self.ref], "loc": combined_loc}, {
+            return {"id": self.id, "shape": _backend_shape(instances[self.ref]), "loc": _plain(combined_loc)}, {
                 "id": self.id,
                 "type": "shapes",
                 "subtype": self.kind,
@@ -198,7 +243,7 @@ class OcpObject:
                 "material": self.material,
                 "normalize_uvs": self.normalize_uvs,
                 "texture": texture,
-                "loc": None if self.loc is None else loc_to_tq(self.loc),
+                "loc": _plain(self.loc),
                 "renderback": self.kind == "face",
                 "accuracy": None,
                 "bb": None,
@@ -210,7 +255,7 @@ class OcpObject:
             assert self.color is not None, f"'{self.name}' has no color"
             convert = convert_vertices if self.kind == "vertex" else discretize_edges
             assert convert is not None, f"no converter for kind {self.kind}"
-            objs = [self.obj] if _is_topods_shape(self.obj) else self.obj
+            objs = self.obj if isinstance(self.obj, (list, tuple)) else [self.obj]
             self.obj = objs
             values, bb = convert(objs, self.name, self.id)
 
@@ -220,7 +265,7 @@ class OcpObject:
                 color = [c.web_color for c in self.color]
 
             result = (
-                {"id": self.id, "shape": self.obj, "loc": None},
+                {"id": self.id, "shape": _backend_shape(self.obj), "loc": None},
                 {
                     "id": self.id,
                     "type": "edges" if self.kind == "edge" else "vertices",
@@ -229,7 +274,7 @@ class OcpObject:
                     "state": self.to_state(),
                     "color": color,
                     "material": self.material,
-                    "loc": None if self.loc is None else loc_to_tq(self.loc),
+                    "loc": _plain(self.loc),
                     "bb": bb,
                 },
             )
@@ -248,7 +293,7 @@ class OcpGroup:
         self,
         objs: list[OcpObject | OcpGroup] | None = None,
         name: str | None = "Group",
-        loc: TopLoc_Location | None = None,
+        loc: Placement | None = None,
     ):
         self.id: str | None = None
         self.objects: list[OcpObject | OcpGroup] = [] if objs is None else objs
@@ -257,8 +302,17 @@ class OcpGroup:
         self.loc = loc
         self.helpers: OcpGroup | None = None
 
+    @property
+    def loc(self) -> Placement | None:
+        """Where the group is in the group above it, for every kernel."""
+        return self._loc
+
+    @loc.setter
+    def loc(self, loc: Placement | None) -> None:
+        self._loc = _checked_placement(loc, "loc")
+
     def dump(self, ind: int = 0) -> str:
-        result = f"{' ' * ind}OcpGroup('{self.name}', loc={loc_to_tq(self.loc)}\n"
+        result = f"{' ' * ind}OcpGroup('{self.name}', loc={self.loc}\n"
         for obj in self.objects:
             result += obj.dump(ind + 4) + "\n"
         return result + f"{' ' * ind})"
@@ -268,7 +322,11 @@ class OcpGroup:
 
     @property
     def can_be_cleaned_up(self) -> bool:
-        return self.name is None and is_identity(self.loc) and len(self.objects) == 1
+        return (
+            self.name is None
+            and (self.loc is None or self.loc.is_identity())
+            and len(self.objects) == 1
+        )
 
     @property
     def length(self) -> int:
@@ -290,7 +348,7 @@ class OcpGroup:
     def cleanup(self) -> OcpObject | OcpGroup:
         if self.length == 1:
             result = self.objects[0]
-            result.loc = mul_locations(self.loc, result.loc)
+            result.loc = mul_placements(self.loc, result.loc)
             return result
 
         return self
@@ -321,26 +379,19 @@ class OcpGroup:
     def collect(
         self,
         path: str,
-        instances: list[Instance | ExternalInstance],
-        loc: TopLoc_Location | None = None,
+        instances: list[Instance],
+        loc: Placement | None = None,
         discretize_edges: EdgeDiscretizer | None = None,
         convert_vertices: VertexConverter | None = None,
     ):
         self.id = f"{path}/{self.name}"
 
-        if loc is None and self.loc is None:
-            combined_loc = None
-        elif loc is None:
-            combined_loc = self.loc
-        elif self.loc is None:
-            combined_loc = loc
-        else:
-            combined_loc = mul_locations(loc, self.loc)
+        combined_loc = mul_placements(loc, self.loc)
 
         result = {
             "version": PROTOCOL_VERSION,
             "parts": [],
-            "loc": None if self.loc is None else loc_to_tq(self.loc),
+            "loc": _plain(self.loc),
             "name": self.name,
             "id": self.id,
         }
@@ -352,13 +403,12 @@ class OcpGroup:
                 self.id, instances, combined_loc, discretize_edges, convert_vertices
             )
             result["parts"].append(mesh)
-            if mapping is not None:  # an OcpExternalObject without a kernel tag has none
-                map["parts"].append(mapping)
+            map["parts"].append(mapping)
         return map, result
 
 
 class OcpInstancesGroup:
-    def __init__(self, instances: list[Instance | ExternalInstance], ocpgrp: OcpGroup):
+    def __init__(self, instances: list[Instance], ocpgrp: OcpGroup):
         self.ocpgrp = ocpgrp
         self.instances = instances
 
@@ -376,11 +426,11 @@ class OcpInstancesGroup:
 class OcpWrapper:
     def __init__(
         self,
-        objs: list[TopoDS_Shape],
+        objs: Sequence[KernelShape],
         kind: str,
         name: str,
         color: Color | list[Color],
-        loc: TopLoc_Location | None = None,
+        loc: Placement | None = None,
         width: float | None = None,
         show_edges: bool = True,
         show_faces: bool = True,
@@ -389,8 +439,7 @@ class OcpWrapper:
         self.kind = kind
         self.name = name
         self.color = color
-        # an identity location of the objects' binding
-        self.loc = kernel_of_all(objs).TopLoc.TopLoc_Location() if loc is None else loc
+        self.loc = IDENTITY_PLACEMENT if loc is None else loc
         self.width = width
         self.show_edges = show_edges
         self.show_faces = show_faces
@@ -414,19 +463,18 @@ class CoordAxis(OcpWrapper):
         name: str,
         origin: VectorLike,
         z_dir: VectorLike,
-        color: Color | None = None,
+        color: Color | ColorLike | None = None,
         size: float = 1,
         like: object = None,
     ):
-        """An axis arrow, built in the binding of `like`, the OCCT object it depicts.
-
-        Without `like` (or with a non-OCCT object), nanocct where it is
-        installed, else OCP: the helper is placed under its object's location,
-        and the two must share one binding.
+        """An axis arrow, built by the kernel of `like`, the object it depicts: with the
+        `line` of its plugin, or in the binding of an OCCT object. Without `like`,
+        nanocct where it is installed, else OCP.
         """
-        if color is None:
-            color = Color("black")
-        o, x, y, z = _axis_to_vecs(kernel_of(like), origin, z_dir)
+        color = Color("black") if color is None else Color(color)
+        k = kernel_of(like)
+        line = _line_for(like, k)
+        o, x, y, z = _axis_to_vecs(k, origin, z_dir)
         # vectors of _axis_to_vecs: one binding at runtime (kernel_of / kernel_of_all); the OCP | nanocct unions cannot say so (known limit, ty in a venv with both bindings)
         edge = line(o, o + size * z)  # ty: ignore[unsupported-operator]
         f = 0.7
@@ -459,13 +507,13 @@ class CoordSystem(OcpWrapper):
         size: float = 1,
         like: object = None,
     ):
-        """A coordinate system, built in the binding of `like`, the OCCT object it depicts.
-
-        Without `like` (or with a non-OCCT object), nanocct where it is
-        installed, else OCP: the helper is placed under its object's location,
-        and the two must share one binding.
+        """A coordinate system, built by the kernel of `like`, the object it depicts: with
+        the `line` of its plugin, or in the binding of an OCCT object. Without `like`,
+        nanocct where it is installed, else OCP.
         """
-        o, x, y, z = _loc_to_vecs(kernel_of(like), origin, x_dir, z_dir)
+        k = kernel_of(like)
+        line = _line_for(like, k)
+        o, x, y, z = _loc_to_vecs(k, origin, x_dir, z_dir)
         # vectors of _loc_to_vecs: one binding at runtime (kernel_of / kernel_of_all); the OCP | nanocct unions cannot say so (known limit, ty in a venv with both bindings)
         x_edge = line(o, o + size * x)  # ty: ignore[unsupported-operator]
         y_edge = line(o, o + size * y)  # ty: ignore[unsupported-operator]
@@ -501,10 +549,11 @@ class ImageFace(OcpWrapper):
         k = kernel_of(loc)
         plane = rect(ws, hs, k.gp.gp_Ax3())
         o = _tq_to_loc(k, (ws / 2 - xs, hs / 2 - ys, 0), (0, 0, 0, 1))
-        loc = mul_locations(loc, o)
+        placed = mul_locations(loc, o)
+        assert placed is not None, "o is a location"
 
         super().__init__(
-            [plane], "imageface", name, Color("white"), show_edges=True, loc=loc
+            [plane], "imageface", name, Color("white"), show_edges=True, loc=Placement.from_occt(placed)
         )
 
         with open(image_path, "rb") as f:

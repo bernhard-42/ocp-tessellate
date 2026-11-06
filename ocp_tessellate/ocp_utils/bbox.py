@@ -28,6 +28,7 @@ import numpy as np
 from cachetools import LRUCache, cached
 
 from .._kernel import adapter, kernel_of
+from .._show_registry import children_of, show_of, tessellation_of
 
 if TYPE_CHECKING:
     from ..types import (
@@ -36,7 +37,7 @@ if TYPE_CHECKING:
     )
 
 from ..utils import distance
-from .location import loc_to_tq, rotate
+from .location import _checked_plugin_placement, loc_to_tq, rotate
 from .measure import center_of_mass
 from .predicates import is_topods_shape
 from .topology import make_compound
@@ -229,36 +230,82 @@ def bounding_box(objs, loc=None, optimal=False):
     )
 
 
-def nested_bounding_box(objs):
-    def bb(objs, total=None):
-        if total is None:
-            total = BoundingBox()
+def _box_corners(box):
+    """The eight corners of a BoundingBox as points (8, 3)."""
+    return np.array(
+        list(
+            itertools.product(
+                (box.xmin, box.xmax), (box.ymin, box.ymax), (box.zmin, box.zmax)
+            )
+        ),
+        dtype=np.float64,
+    )
 
-        if isinstance(objs, (list, tuple)):
-            for obj in objs:
-                total.update(bb(obj, total))
-        elif isinstance(objs, dict):
-            for obj in objs.values():
-                total.update(bb(obj, total))
-        elif hasattr(objs, "objects"):
-            # a prebuilt OcpGroup (by duck typing: cad_objects imports this module)
-            for obj in objs.objects:
-                total.update(bb(obj, total))
-        elif isinstance(getattr(objs, "bounding_box", None), BoundingBox):
-            # an OcpExternalObject that is an instance; its leaves have no box
-            # before they are discretized and add nothing
-            total.update(objs.bounding_box)
+
+def _extent_points(objs):
+    """Points (n, 3) that span `objs` in the frame they are in; every location on the
+    way is applied, as the viewer places them. No points for what adds nothing."""
+
+    def union(parts):
+        boxes = [part for part in parts if len(part) > 0]
+        return np.zeros((0, 3)) if len(boxes) == 0 else np.concatenate(boxes)
+
+    def moved(points, location):
+        if location is None or len(points) == 0:
+            return points
+        translation, rotation = location
+        return rotate(rotation, points) + np.asarray(translation)
+
+    def box_points(measure):
+        # anything without a bounding box (not wrapped, not a shape, a location or
+        # axis, an OCCT failure) adds nothing to the total
+        try:
+            return _box_corners(measure())
+        except Exception:  # noqa: BLE001
+            return np.zeros((0, 3))
+
+    if isinstance(objs, (list, tuple)):
+        return union([_extent_points(obj) for obj in objs])
+    if isinstance(objs, dict):
+        return union([_extent_points(obj) for obj in objs.values()])
+
+    show = show_of(objs)
+    if show is not None:
+        # an object of another kernel, measured as OCCT's is, without converting it
+        children = children_of(show, objs)
+        if children is None:
+            points = box_points(lambda: tessellation_of(objs).bounding_box(shape=objs))
         else:
-            # anything without a bounding box (not wrapped, not a shape, an OCCT
-            # failure) adds nothing to the total
-            try:
-                new_bb = bounding_box(objs.wrapped)
-                total.update(new_bb)
-            except Exception:  # noqa: BLE001, S110
-                pass
-        return total
+            points = union(
+                [
+                    moved(_extent_points(child), _checked_plugin_placement(relative, "the placement get_children returns"))
+                    for _, child, relative in children
+                ]
+            )
+        return moved(points, _checked_plugin_placement(show.get_location(obj=objs), "what get_location returns"))
 
-    return bb(objs)
+    if hasattr(objs, "objects"):
+        # a prebuilt OcpGroup (by duck typing: cad_objects imports this module)
+        return moved(union([_extent_points(obj) for obj in objs.objects]), objs.loc)
+    return box_points(lambda: bounding_box(objs.wrapped))
+
+
+def nested_bounding_box(objs):
+    total = BoundingBox()
+    points = _extent_points(objs)
+    if len(points) > 0:
+        low, high = points.min(axis=0), points.max(axis=0)
+        total.update(
+            {
+                "xmin": float(low[0]),
+                "xmax": float(high[0]),
+                "ymin": float(low[1]),
+                "ymax": float(high[1]),
+                "zmin": float(low[2]),
+                "zmax": float(high[2]),
+            }
+        )
+    return total
 
 
 class NumpyBBox(TypedDict):

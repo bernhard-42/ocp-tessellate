@@ -4,10 +4,18 @@ import enum
 import json
 from collections.abc import Iterable, Sequence
 from hashlib import sha256
+from itertools import repeat
 from typing import TYPE_CHECKING
 
 import numpy as np
+from cachetools import LRUCache
 
+from ocp_tessellate._show_registry import (
+    children_of,
+    kernel_tag_of,
+    show_of,
+    tessellation_of,
+)
 from ocp_tessellate.cad_objects import (
     CoordAxis,
     CoordSystem,
@@ -18,12 +26,15 @@ from ocp_tessellate.cad_objects import (
 )
 from ocp_tessellate.defaults import get_default, preset
 from ocp_tessellate.ocp_utils import *
-from ocp_tessellate.plugin import OcpExternalObject
+from ocp_tessellate.ocp_utils.location import _checked_plugin_placement
 from ocp_tessellate.tessellator import (
+    OcctTessellation,
     compute_quality,
-    convert_vertices,
-    discretize_edges,
+    convert_vertices,  # noqa: F401 - public via convert (tests/api_surface.json)
+    discretize_edges,  # noqa: F401 - public via convert (tests/api_surface.json)
     tessellate,
+    validate_edges,
+    validate_vertices,
 )
 from ocp_tessellate.types import (
     Build123dBuilder,
@@ -35,7 +46,6 @@ from ocp_tessellate.types import (
     CadquerySketch,
     CadqueryWorkplane,
     ColorLike,
-    ExternalInstance,
     Instance,
     Wrapped,
 )
@@ -267,6 +277,25 @@ def _without_location(obj: TopoDS_Shape) -> TopoDS_Shape:
     return downcast(obj.Moved(loc.Inverted()))  # ty: ignore[invalid-argument-type]
 
 
+# a kernel plugin's boxes by cache id; OCCT's bounding_box has its own cache
+_kernel_boxes: LRUCache = LRUCache(maxsize=4096)
+
+
+def _instance_box(shape: object, cache_id: str | None) -> BoundingBox:
+    """The box of an instance, what its quality is computed from at every show."""
+    tessellation = tessellation_of(shape)
+    if isinstance(tessellation, OcctTessellation):
+        return tessellation.bounding_box(shape=shape)
+    box = None if cache_id is None else _kernel_boxes.get(cache_id)
+    if box is None:
+        box = tessellation.bounding_box(shape=shape)
+        if box is None:
+            raise TypeError(f"{type(tessellation).__name__}.bounding_box returned None for a body, which has a box")
+        if cache_id is not None:
+            _kernel_boxes[cache_id] = box
+    return box
+
+
 class OcpConverter:
     """The class to filter obejcts and convert them to OcpObject and OcpGroup hierarchies."""
 
@@ -286,7 +315,9 @@ class OcpConverter:
         @param python_enumeration: Number repeated names from 0 for every occurrence,
             a(0), a(1), ..., instead of a, a(2), ...
         """
-        self.instances: list[Instance | ExternalInstance] = []
+        self.instances: list[Instance] = []
+        # where a kernel plugin's shape already is in `instances`: by its object and its cache id
+        self._kernel_refs: dict[object, int] = {}
         self.ocp = None
         self.progress = progress
         self.helper_scale = helper_scale
@@ -334,18 +365,16 @@ class OcpConverter:
 
         @return: The reference to the object in the instances list and the location
         """
-        ref = None
-
         # Create the relocated object as a copy
         loc = obj.Location()  # Get location
         obj2 = _without_location(obj)
 
-        # check if the same instance is already available (external instances
-        # are objects of another kernel and never shared)
+        # check if the same instance is already available (a kernel plugin's shapes
+        # are shared in _kernel_instance)
+        ref = None
         for i, instance in enumerate(self.instances):
-            if isinstance(instance["obj"], OcpExternalObject):
-                continue
-            if instance["obj"].TShape() == obj2.TShape():
+            shape = instance["obj"]
+            if is_topods_shape(shape) and shape.TShape() == obj2.TShape():
                 ref = i
 
                 if self.progress is not None:
@@ -360,19 +389,61 @@ class OcpConverter:
 
         return ref, loc
 
+    def _remember_instance(self, ref: int, instance: Instance) -> None:
+        """Where a shape is that came into `instances` from elsewhere; the first one wins."""
+        shape = instance["obj"]
+        if is_topods_shape(shape):
+            return
+        self._kernel_refs.setdefault(id(shape), ref)
+        if instance["cache_id"] is not None:
+            self._kernel_refs.setdefault(instance["cache_id"], ref)
+
+    def _kernel_instance(self, obj: OcpObject) -> int:
+        """The instance of a kernel plugin's solid, face or shell: one mesh for one
+        geometry, as `get_instance` shares OCCT's, here by the plugin's cache id."""
+        shape = obj.obj
+        plugin_id = tessellation_of(shape).cache_id(shape=shape)
+        # by kernel: two plugins are free to use the same ids
+        cache_id = None if plugin_id is None else f"{kernel_tag_of(shape)}:{plugin_id}"
+        ref = self._kernel_refs.get(id(shape))
+        if ref is None and cache_id is not None:
+            ref = self._kernel_refs.get(cache_id)
+        if ref is not None:
+            if self.progress is not None:
+                self.progress.update("-")
+            obj.cache_id = self.instances[ref]["cache_id"]
+            return ref
+        instance: Instance = {"obj": shape, "cache_id": cache_id, "name": obj.name}
+        self.instances.append(instance)
+        self._remember_instance(len(self.instances) - 1, instance)
+        obj.cache_id = cache_id
+        return len(self.instances) - 1
+
     def _register_prebuilt(self, obj: OcpObject | OcpGroup) -> None:
-        """Take a prebuilt object or group into this conversion: every external
-        solid, face or shell gets its instance (ref), every object without a
-        color the default color of its kind."""
+        """Take a prebuilt object or group into this conversion: a kernel plugin's
+        solid, face or shell gets its instance (ref), like `unify` gives OCCT's, and
+        every object what it has no value for: the default color and width of its kind."""
         if isinstance(obj, OcpGroup):
             for child in obj.objects:
                 self._register_prebuilt(child)
             return
-        if isinstance(obj, OcpExternalObject):
-            obj.helper_scale = self.helper_scale
-            if obj.is_instance:
-                obj.ref = len(self.instances)
-                self.instances.append(obj.instance())
+        if obj.kind in ("solid", "face", "shell") and obj.ref is None and obj.obj is not None:
+            if is_topods_shape(obj.obj):
+                # OCCT's shape, prebuilt by a host: the one way OCCT's shapes get an instance
+                obj.cache_id = create_cache_id(_without_location(obj.obj))
+                obj.ref, loc = self.get_instance(obj.obj, obj.cache_id, obj.name)
+                obj.loc = mul_placements(obj.loc, Placement.from_occt(loc))
+            else:
+                obj.ref = self._kernel_instance(obj)
+            obj.obj = None
+            if obj.loc is None:
+                # at the origin: an identity, which the viewer applies to a shape
+                obj.loc = IDENTITY_PLACEMENT
+        if obj.width is None:
+            if obj.kind == "edge":
+                obj.width = LINE_WIDTH
+            elif obj.kind == "vertex":
+                obj.width = POINT_SIZE
         if obj.color is None:
             color = self.get_color_for_object(obj, kind=obj.kind)
             # the triple is for coordinate systems only, which are never prebuilt
@@ -501,7 +572,7 @@ class OcpConverter:
                 kind,
                 ref=ref,
                 name=name,
-                loc=loc,
+                loc=Placement.from_occt(loc),
                 color=rgba,
                 cache_id=cache_id,
                 material=material,
@@ -524,7 +595,7 @@ class OcpConverter:
 
     def get_color_for_object(
         self,
-        obj: ShapeLike,
+        obj: ShapeLike | OcpObject,
         color: ColorLike | tuple[ColorLike, ColorLike, ColorLike] | None = None,
         alpha: float | None = None,
         kind: str | None = None,
@@ -573,6 +644,7 @@ class OcpConverter:
 
         # else return default color
         else:
+            assert not isinstance(obj, OcpObject), "a prebuilt object comes with its kind"
             col_a = Color(default_colors.get(class_name(unwrap(obj))))
 
         # Try the onjects alpha first
@@ -597,7 +669,8 @@ class OcpConverter:
         level: int,
         material: str | None = None,
         mode: tuple[int, int] | None = None,
-        loc: TopLoc_Location | None = None,
+        loc: Placement | None = None,
+        relative_locs: Sequence[Placement | None] | None = None,
     ) -> OcpGroup:
         """
         Unroll the objects in an iterable and convert them to OcpObject and OcpGroup hierarchies.
@@ -609,11 +682,13 @@ class OcpConverter:
         @param level: The level of the hierarchy
         @param material: The material string
         @param mode: The (state_faces, state_edges) 2-tuple of 0/1 ints
+        @param relative_locs: A Placement or None per object, placing it in this group
 
         @return: The OcpGroup hierarchy
         """
         ocp_obj: OcpGroup = OcpGroup(name=obj_name, loc=loc)
-        for name, obj in objs:
+        places = repeat(None) if relative_locs is None else relative_locs
+        for (name, obj), relative_loc in zip(objs, places):
             result = self.to_ocp(
                 obj,
                 names=[name],
@@ -626,12 +701,92 @@ class OcpConverter:
             )
             if result.length > 0:
                 c_result = result.cleanup() if result.can_be_cleaned_up else result
+                if relative_loc is not None:
+                    c_result.loc = mul_placements(relative_loc, c_result.loc)
                 ocp_obj.add(c_result)
                 if c_result.helpers is not None:
+                    if relative_loc is not None:
+                        c_result.helpers.loc = mul_placements(relative_loc, c_result.helpers.loc)
                     ocp_obj.add(c_result.helpers)
                     c_result.helpers = None
 
         return ocp_obj.make_unique_names(self.python_enumeration)
+
+    def _convert_atomic(self, show, obj, name, color, alpha, material, mode):
+        """An atomic object of a kernel plugin as its `convert` makes it, with what
+        `unify` gives an OCCT object: its name, placement, material and states."""
+        item = show.convert(
+            obj=obj,
+            name=get_name(obj, name, type(obj).__name__),
+            color=color,
+            alpha=alpha,
+            helper_scale=self.helper_scale,
+        )
+        if not isinstance(item, (OcpObject, CoordSystem, CoordAxis)):
+            raise TypeError(
+                f"{type(show).__name__}.convert must return an OcpObject, CoordSystem or "
+                f"CoordAxis, not {type(item).__name__}"
+            )
+        if isinstance(item, OcpObject) and item.kind in ("solid", "face", "shell") and isinstance(item.obj, (list, tuple)):
+            raise TypeError(f"{type(show).__name__}.convert must return a {item.kind} holding one shape, not a list")
+        location = _checked_plugin_placement(show.get_location(obj=obj), "what get_location returns")
+        if location is not None:
+            item.loc = mul_placements(location, item.loc)
+        if isinstance(item, OcpObject):
+            item.material = self.get_material_for_object(obj, material)
+            if item.color is None and alpha is not None:
+                # `convert` has no color to put it on, so the default of the kind gets it here
+                item.color = self.get_color_for_object(item, alpha=alpha, kind=item.kind)
+            if mode is not None:
+                item.state_faces, item.state_edges = mode
+        return item
+
+    def _handle_external_container(
+        self,
+        cad_obj: object,
+        # (name, child, relative placement) entries of the kernel plugin's get_children
+        children: Sequence[tuple[str | None, object, Placement | None]],
+        location: Placement | None,
+        obj_name: str | None,
+        color: ColorLike | None,
+        alpha: float,
+        level: int,
+        material: str | None = None,
+        mode: tuple[int, int] | None = None,
+    ) -> OcpGroup | OcpObject:
+        """
+        Handle a container of a kernel plugin, as lists and dicts are handled.
+
+        @param cad_obj: The kernel's container
+        @param children: What its plugin's get_children returned
+        @param location: What its plugin's get_location returned
+        @param obj_name: The name of the object
+        @param color: The color of the object
+        @param alpha: The alpha value of the color
+        @param level: The level of the hierarchy
+        @param material: The material string
+        @param mode: The (state_faces, state_edges) 2-tuple of 0/1 ints
+
+        @return: The OcpGroup hierarchy
+        """
+        self._debug(level, "_handle_external_container", obj_name)
+        name = get_name(cad_obj, obj_name, type(cad_obj).__name__)
+        if len(children) == 0:
+            return self.handle_empty_iterables(name, level)
+        ocp_obj = self._unroll_iterable(
+            [(child_name, child) for child_name, child, _ in children],
+            name,
+            color,
+            alpha,
+            level,
+            material,
+            mode,
+            relative_locs=[
+                _checked_plugin_placement(relative_loc, "the placement get_children returns") for _, _, relative_loc in children
+            ],
+        )
+        ocp_obj.loc = _checked_plugin_placement(location, "what get_location returns")
+        return ocp_obj
 
     def handle_list_tuple(
         self,
@@ -695,6 +850,7 @@ class OcpConverter:
         """
         self._debug(level, "handle_dict", obj_name)
 
+        location = get_location(cad_obj, as_none=True)
         return self._unroll_iterable(
             cad_obj.items(),
             get_name(cad_obj, obj_name, "Dict"),
@@ -703,7 +859,7 @@ class OcpConverter:
             level,
             material,
             mode,
-            loc=get_location(cad_obj, as_none=True),
+            loc=None if location is None else Placement.from_occt(location),
         )
 
     def handle_compound(
@@ -784,7 +940,7 @@ class OcpConverter:
 
         name = get_name(cad_obj, obj_name, "Assembly")
         location = get_location(cad_obj, as_none=False)
-        ocp_obj = OcpGroup(name=name, loc=location)
+        ocp_obj = OcpGroup(name=name, loc=Placement.from_occt(location))
 
         for child in cad_obj.children:
             child_material = material
@@ -830,13 +986,10 @@ class OcpConverter:
             joints.name = f"{name}.joints"
             # Move the joint group to the same location as the object and adapt the single
             # joints location to be relative to the group
-            joints.loc = location
+            placement = Placement.from_occt(location)
+            joints.loc = placement
             for joint in joints.objects:
-                if joint.loc is None:
-                    joint.loc = location.Inverted()
-                else:
-                    # the joints of this object: one binding at runtime; the OCP | nanocct unions cannot say so (known limit)
-                    joint.loc = location.Inverted() * joint.loc  # ty: ignore[unsupported-operator]
+                joint.loc = placement.inverted().mul(joint.loc)
             ocp_obj.helpers = joints
 
         return ocp_obj.make_unique_names(self.python_enumeration)
@@ -867,7 +1020,8 @@ class OcpConverter:
         self._debug(level, "handle_cadquery_assembly", obj_name)
         name = get_name(cad_obj, obj_name, "Assembly")
 
-        ocp_obj = OcpGroup(name=name, loc=get_location(cad_obj, as_none=False))
+        location = get_location(cad_obj, as_none=False)
+        ocp_obj = OcpGroup(name=name, loc=Placement.from_occt(location))
         if cad_obj.obj is not None:
             cq_material = material
             if not material:
@@ -900,7 +1054,7 @@ class OcpConverter:
                             get_tuple(mate_def.mate.z_dir),
                             self.helper_scale,
                             # the mates sit under the assembly's location
-                            like=ocp_obj.loc,
+                            like=location,
                         ).to_ocp()
                         for name, mate_def in mates_def.items()
                         if mate_def.assembly == cad_obj
@@ -1188,11 +1342,7 @@ class OcpConverter:
             assert loc is not None, "joints require a located object"
             joints.loc = loc
             for joint in joints.objects:
-                if joint.loc is None:
-                    joint.loc = loc.Inverted()
-                else:
-                    # the joints of this object: one binding at runtime; the OCP | nanocct unions cannot say so (known limit)
-                    joint.loc = loc.Inverted() * joint.loc  # ty: ignore[unsupported-operator]
+                joint.loc = loc.inverted().mul(joint.loc)
             ocp_obj.helpers = joints
 
         if self.show_parent and (
@@ -1513,7 +1663,8 @@ class OcpConverter:
                 shapes = []
                 for obj in construction:
                     for loc in cad_obj.locs:
-                        shapes.append(downcast(obj.wrapped.Moved(loc.wrapped)))
+                        # a sketch and its locations: one binding at runtime; the OCP | nanocct unions cannot say so (known limit)
+                        shapes.append(downcast(obj.wrapped.Moved(loc.wrapped)))  # ty: ignore[invalid-argument-type]
                 compound = make_compound(shapes)
                 cad_objs.append(compound)
                 names.append("Construction")
@@ -1649,12 +1800,14 @@ class OcpConverter:
         ocp_obj = cad_obj.to_ocp()
         ocp_obj.name = name
         if ocp_obj.kind in ["solid", "imageface", "face", "shell"]:
+            plane = cad_obj.objs[0]
+            assert is_topods_shape(plane), "an ImageFace is an OCCT face"
             ref, loc = self.get_instance(
-                cad_obj.objs[0],
-                create_cache_id(_without_location(cad_obj.objs[0])),
+                plane,
+                create_cache_id(_without_location(plane)),
                 name,
             )
-            ocp_obj.loc = mul_locations(cad_obj.loc, loc)
+            ocp_obj.loc = mul_placements(cad_obj.loc, Placement.from_occt(loc))
             ocp_obj.ref = ref
             ocp_obj.obj = None
         return ocp_obj
@@ -1721,9 +1874,8 @@ class OcpConverter:
         @return: The OcpObject or OcpGroup hierarchy
         """
         # no location of our own when none is given: None is the identity
-        # (can_be_cleaned_up, collect), and a location created here would be of
-        # one binding while the objects can be of the other
-        group = OcpGroup(name=None, loc=loc)
+        # (can_be_cleaned_up, collect)
+        group = OcpGroup(name=None, loc=None if loc is None else Placement.from_occt(loc))
 
         # ============================= Validate parameters ============================= #
 
@@ -1788,8 +1940,18 @@ class OcpConverter:
         for cad_obj, obj_name, color, alpha, material, mode in zip(
             cad_objs, names, colors, alphas, materials, modes
         ):
+            # ======================= An object of another kernel ======================= #
+
+            # also inside a list or dict; an atomic one is a prebuilt object from here on
+            show = show_of(cad_obj)
+            children = None if show is None else children_of(show, cad_obj)
+            if show is not None and children is None:
+                cad_obj = self._convert_atomic(
+                    show, cad_obj, obj_name, color, alpha, material, mode
+                )
+
             # =================== Silently skip enums and known types =================== #
-            if (
+            if children is None and (
                 isinstance(cad_obj, enum.Enum)
                 or is_ocp_color(cad_obj)
                 or isinstance(cad_obj, (int, float, bool, str, np.number, np.ndarray))
@@ -1809,9 +1971,25 @@ class OcpConverter:
                     assert is_gp_vec(cad_obj), f"not a vector: {cad_obj}"
                     cad_obj = vertex(cad_obj)
 
+            # ========================= A container of another kernel ==================== #
+
+            if children is not None:
+                assert show is not None, "children come from a plugin"
+                ocp_obj: OcpGroup | OcpObject = self._handle_external_container(
+                    cad_obj,
+                    children,
+                    show.get_location(obj=cad_obj),
+                    obj_name,
+                    color,
+                    alpha,
+                    level,
+                    material,
+                    mode=mode,
+                )
+
             # ========================= Empty list or compounds ========================= #
 
-            if (
+            elif (
                 not is_cadquery_sketch(cad_obj)
                 and not is_vertex(cad_obj)
                 and (
@@ -1823,9 +2001,7 @@ class OcpConverter:
                     )
                 )
             ):
-                ocp_obj: OcpGroup | OcpObject = self.handle_empty_iterables(
-                    obj_name, level
-                )
+                ocp_obj = self.handle_empty_iterables(obj_name, level)
 
             # ================================ Iterables ================================ #
 
@@ -1890,12 +2066,15 @@ class OcpConverter:
 
             # OcpGroup
             elif isinstance(cad_obj, OcpInstancesGroup):
-                cad_obj.apply_offset(len(self.instances))
+                first = len(self.instances)
+                cad_obj.apply_offset(first)
                 ocp_obj = cad_obj.ocpgrp
                 self.instances += cad_obj.instances
+                for ref, instance in enumerate(cad_obj.instances, first):
+                    self._remember_instance(ref, instance)
                 self._register_prebuilt(ocp_obj)
 
-            # a prebuilt OcpObject or OcpGroup, e.g. of OcpExternalObjects
+            # a prebuilt OcpObject or OcpGroup, e.g. what a kernel plugin's convert made
             elif isinstance(cad_obj, (OcpObject, OcpGroup)):
                 if obj_name is not None:
                     cad_obj.name = obj_name
@@ -2042,7 +2221,7 @@ def to_ocpgroup(
     loc: TopLoc_Location | None = None,
     progress: Progress | None = None,
     debug: bool = False,
-) -> tuple[OcpGroup, list[Instance | ExternalInstance]]:
+) -> tuple[OcpGroup, list[Instance]]:
     """
     Central converter routine to convert a list of objects to an OcpGroup hierarchy.
 
@@ -2100,7 +2279,7 @@ def to_ocpgroup(
 
 def tessellate_group(
     group: OcpGroup,
-    instances: list[Instance | ExternalInstance],
+    instances: list[Instance],
     kwargs: dict | None = None,
     progress: Progress | None = None,
     timeit: bool = False,
@@ -2122,16 +2301,11 @@ def tessellate_group(
     def get_bb_max(
         shapes,
         meshed_instances,
-        loc: TopLoc_Location | None = None,
+        loc: Placement,
         bbox: dict[str, float] | None = None,
     ) -> dict[str, float] | None:
         for shape in shapes["parts"]:
-            # mul_locations treats a missing location as identity
-            new_loc = (
-                loc
-                if shape["loc"] is None
-                else mul_locations(loc, tq_to_loc(*shape["loc"]))
-            )
+            new_loc = loc.mul(None if shape["loc"] is None else Placement(*shape["loc"]))
             if shape.get("parts") is None:
                 bb: dict[str, float]
                 if shape["type"] == "shapes":
@@ -2141,7 +2315,7 @@ def tessellate_group(
                     vertices = meshed_instances[ind]["vertices"]
                     if len(vertices) == 0:
                         continue
-                    npb = np_bbox(vertices, *loc_to_tq(new_loc))
+                    npb = np_bbox(vertices, *new_loc)
                     assert npb is not None, "np_bbox of non-empty vertices"
                     bb = {
                         "xmin": npb["xmin"],
@@ -2186,31 +2360,26 @@ def tessellate_group(
             deviation = preset("deviation", kwargs.get("deviation"))
             edge_accuracy = preset("edge_accuracy", kwargs.get("edge_accuracy"))
 
-            if isinstance(obj, OcpExternalObject):
-                assert obj.discretize_edges is not None
-                return obj.discretize_edges(
-                    deviation=deviation,
-                    edge_accuracy=edge_accuracy,
-                    helper_scale=obj.helper_scale,
-                )
-
-            bb = bounding_box(obj)
+            tessellation = tessellation_of(obj)
+            bb = tessellation.bounding_box(shape=obj)
             quality = compute_quality(bb, deviation=deviation)
             deflection = quality / 10 if edge_accuracy is None else edge_accuracy
             t.info = str(bb)
 
         with Timer(timeit, name, "discretize:  ", 2) as t:
             t.info = f"quality: {quality}, deflection: {deflection}"
-            disc_edges = discretize_edges(obj, deflection, id_)
+            disc_edges = tessellation.discretize_edges(edges=obj, deflection=deflection, shape_id=id_)
+            if not isinstance(tessellation, OcctTessellation):
+                validate_edges(disc_edges)
 
         return disc_edges, bb
 
     def _convert_vertices(obj, _name, id_):
-        if isinstance(obj, OcpExternalObject):
-            return obj.vertices()
-
-        bb = bounding_box(obj)
-        vertices = convert_vertices(obj, id_)
+        tessellation = tessellation_of(obj)
+        bb = tessellation.bounding_box(shape=obj)
+        vertices = tessellation.convert_vertices(vertices=obj, shape_id=id_)
+        if not isinstance(tessellation, OcctTessellation):
+            validate_vertices(vertices)
 
         return vertices, bb
 
@@ -2244,15 +2413,10 @@ def tessellate_group(
     for i, instance in enumerate(instances):
         with Timer(timeit, f"instance({i})", "compute quality:", 2) as t:
             shape = instance["obj"]
-            # an OcpExternalObject brings its tessellator and bounding box
-            external = shape if isinstance(shape, OcpExternalObject) else None
-            if external is None:
-                # A first rough estimate of the bounding box.
-                # Will be too large, but is sufficient for computing the quality
-                # location is not relevant here
-                bb = bounding_box(shape, loc=None, optimal=False)
-            else:
-                bb = external.bounding_box
+            # A first rough estimate of the bounding box.
+            # Will be too large, but is sufficient for computing the quality
+            # location is not relevant here
+            bb = _instance_box(shape, instance["cache_id"])
             quality = compute_quality(bb, deviation=deviation)
             t.info = str(bb)
 
@@ -2261,29 +2425,21 @@ def tessellate_group(
         with Timer(
             timeit, f"instance({i}):{instance['name']}", "tessellate:     ", 2
         ) as t:
-            if external is None:
-                mesh = tessellate(
-                    shape,
-                    instance["cache_id"],
-                    deviation=deviation,
-                    quality=quality,
-                    angular_tolerance=angular_tolerance,
-                    debug=timeit,
-                    compute_edges=render_edges,
-                    progress=None if timeit else progress,
-                    shape_id="n/a",
-                    compute_uvs=(i in material_refs),
-                    normalize_uvs=material_refs.get(i, True),
-                )
-            else:
-                assert external.tessellate is not None
-                mesh = external.tessellate(
-                    deviation=deviation,
-                    quality=quality,
-                    angular_tolerance=angular_tolerance,
-                    compute_edges=render_edges,
-                    progress=None if timeit else progress,
-                )
+            # a kernel plugin's shape without a cache id is meshed at every show
+            mesher = tessellate if instance["cache_id"] is not None else tessellate.__wrapped__
+            mesh = mesher(
+                shape,
+                instance["cache_id"],
+                deviation=deviation,
+                quality=quality,
+                angular_tolerance=angular_tolerance,
+                debug=timeit,
+                compute_edges=render_edges,
+                progress=None if timeit else progress,
+                shape_id="n/a",
+                compute_uvs=(i in material_refs),
+                normalize_uvs=material_refs.get(i, True),
+            )
             if len(mesh["vertices"]) == 0:
                 t.info = f"instance {i} ignored (empty mesh)"
             else:
@@ -2318,9 +2474,7 @@ def tessellate_group(
 
     shapes["normal_len"] = max_accuracy / deviation * 4 if render_normals else 0
     with Timer(timeit, "", "compute bounding box:", 2) as t:
-        top_loc = (
-            identity_location() if shapes["loc"] is None else tq_to_loc(*shapes["loc"])
-        )
+        top_loc = IDENTITY_PLACEMENT if shapes["loc"] is None else Placement(*shapes["loc"])
         shapes["bb"] = get_bb_max(shapes, meshed_instances, top_loc)
 
         t.info = str(BoundingBox(shapes["bb"]))
@@ -2350,7 +2504,7 @@ def to_assembly(
     show_locals: bool = True,
     loc: TopLoc_Location | None = None,
     progress: Progress | None = None,
-) -> tuple[OcpGroup, list[Instance | ExternalInstance]]:
+) -> tuple[OcpGroup, list[Instance]]:
     """
     Compatibility wrapper for the converter routine to convert a list of
     objects to an OcpGroup hierarchy.

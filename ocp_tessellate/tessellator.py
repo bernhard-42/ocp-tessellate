@@ -20,13 +20,15 @@ from __future__ import annotations
 
 import os
 import sys
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from typing import TYPE_CHECKING
 
 from ._kernel import adapter, kernel_of
+from ._show_registry import _set_occt_tessellation, tessellation_of
 
 if TYPE_CHECKING:
     from .types import (
+        KernelShape,
         TopoDS_Edge,
         TopoDS_Face,
         TopoDS_Shape,
@@ -40,6 +42,7 @@ from numpy.typing import NDArray
 
 from . import trace as trace_module
 from .ocp_utils import (
+    bounding_box,
     extent_or_size as _extent_or_size,
     get_edge_type,
     get_edges,
@@ -49,9 +52,9 @@ from .ocp_utils import (
     get_vertices,
     is_degenerated_edge,
     is_line,
-    is_topods_shape as _is_topods_shape,
     make_compound,
 )
+from .protocols import CURVE_TYPES, SURFACE_TYPES, TessellationProtocol
 from .trace import Trace
 from .types import (
     ConvertedVertices,
@@ -397,8 +400,8 @@ def compute_quality(bb, deviation: float = 0.1) -> float:
 # cache key: (cache_key, deviation, angular_tolerance, compute_edges, compute_faces, compute_uvs)
 @cached(cache, key=make_key)
 def tessellate(
-    shape: TopoDS_Shape | list[TopoDS_Shape] | tuple[TopoDS_Shape, ...],
-    cache_key: str,
+    shape: KernelShape | list[KernelShape] | tuple[KernelShape, ...],
+    cache_key: str | None,
     # only provided for managing cache:
     deviation: float,  # pylint: disable=unused-argument
     quality: float,
@@ -411,7 +414,7 @@ def tessellate(
     compute_uvs: bool = False,
     normalize_uvs: bool = True,
 ) -> Tessellation:
-    if not _is_topods_shape(shape):
+    if isinstance(shape, (list, tuple)):
         if len(shape) == 1:
             shape = shape[0]
         else:
@@ -419,6 +422,38 @@ def tessellate(
 
     if progress is not None:
         progress.update("+")
+    # compute_faces is OCCT's alone, and no caller switches it off
+    faces = {} if compute_faces is True else {"compute_faces": compute_faces}
+    tessellation = tessellation_of(shape)
+    mesh = tessellation.tessellate(
+        shape=shape,
+        deviation=deviation,
+        quality=quality,
+        angular_tolerance=angular_tolerance,
+        compute_edges=compute_edges,
+        compute_uvs=compute_uvs,
+        normalize_uvs=normalize_uvs,
+        shape_id=shape_id,
+        debug=debug,
+        **faces,
+    )
+    if not isinstance(tessellation, OcctTessellation):
+        validate_tessellation(mesh)
+    return mesh
+
+
+def _occt_tessellate(
+    shape: TopoDS_Shape,
+    deviation: float,
+    quality: float,
+    angular_tolerance: float,
+    compute_edges: bool = True,
+    compute_uvs: bool = False,
+    normalize_uvs: bool = True,
+    shape_id: str = "",
+    debug: bool = False,
+    compute_faces: bool = True,
+) -> Tessellation:
     tess = Tessellator(shape_id)
     tess.compute(
         shape,
@@ -566,6 +601,132 @@ def convert_vertices(
     trace.close()
 
     return {"obj_vertices": np.asarray(n_vertices, dtype="float32")}
+
+
+def _check_arrays(values: Mapping[str, object], layout: dict[str, str]) -> None:
+    """Every array of a kernel plugin's result is there, as the numpy array of its dtype that
+    goes on the wire unchanged."""
+    for key, dtype in layout.items():
+        if key not in values:
+            raise ValueError(f"a kernel plugin's result has no '{key}'")
+        value = values[key]
+        if not isinstance(value, np.ndarray) or value.dtype != dtype:
+            found = getattr(value, "dtype", type(value).__name__)
+            raise ValueError(f"'{key}' of a kernel plugin's result must be a {dtype} array, not {found}")
+
+
+def _check_type_codes(values: Mapping[str, object], key: str, table: dict[str, int], name: str) -> None:
+    """The viewer indexes a table of names with these codes."""
+    codes = values[key]
+    assert isinstance(codes, np.ndarray), "_check_arrays has looked"
+    if len(codes) > 0 and (int(codes.min()) < 0 or int(codes.max()) >= len(table)):
+        raise ValueError(f"a kernel plugin's '{key}' holds codes from {int(codes.min())} to {int(codes.max())}: the codes are those of {name}")
+
+
+def _check_edge_arrays(values: Tessellation | DiscretizedEdges) -> None:
+    _check_type_codes(values, "edge_types", CURVE_TYPES, "CURVE_TYPES")
+    if len(values["edge_types"]) != len(values["segments_per_edge"]):
+        raise ValueError("a kernel plugin's 'edge_types' and 'segments_per_edge' differ in length")
+    # no edges were asked for, or there are the segments the counts say
+    if len(values["edges"]) != 0 and int(values["segments_per_edge"].sum()) * 6 != len(values["edges"]):
+        raise ValueError(
+            f"a kernel plugin's 'segments_per_edge' count {int(values['segments_per_edge'].sum())} segments, "
+            f"but 'edges' holds {len(values['edges']) / 6}"
+        )
+
+
+def validate_tessellation(mesh: Tessellation) -> None:
+    """Check the `Tessellation` of a kernel plugin, what the viewer gets without a further
+    look. The pipeline does for a plugin's mesh; a plugin's tests can call it too."""
+    _check_arrays(
+        mesh,
+        {
+            "vertices": "float32",
+            "normals": "float32",
+            "triangles": "int32",
+            "triangles_per_face": "int32",
+            "face_types": "int32",
+            "edges": "float32",
+            "segments_per_edge": "int32",
+            "edge_types": "int32",
+            "obj_vertices": "float32",
+        },
+    )
+    if len(mesh["vertices"]) % 3 != 0 or len(mesh["normals"]) != len(mesh["vertices"]):
+        raise ValueError(
+            f"a kernel plugin's 'vertices' ({len(mesh['vertices'])}) must be points, "
+            f"with one normal each ('normals': {len(mesh['normals'])})"
+        )
+    if int(mesh["triangles_per_face"].sum()) * 3 != len(mesh["triangles"]):
+        raise ValueError(
+            f"a kernel plugin's 'triangles_per_face' count {int(mesh['triangles_per_face'].sum())} triangles, "
+            f"but 'triangles' holds {len(mesh['triangles']) / 3}"
+        )
+    _check_type_codes(mesh, "face_types", SURFACE_TYPES, "SURFACE_TYPES")
+    if len(mesh["face_types"]) != len(mesh["triangles_per_face"]):
+        raise ValueError("a kernel plugin's 'face_types' and 'triangles_per_face' differ in length")
+    if len(mesh["triangles"]) > 0 and int(np.max(mesh["triangles"])) * 3 >= len(mesh["vertices"]):
+        raise ValueError(f"a kernel plugin's 'triangles' point at vertex {int(np.max(mesh['triangles']))}, which it does not have")
+    _check_edge_arrays(mesh)
+    if "uvs" in mesh:
+        _check_arrays(mesh, {"uvs": "float32"})
+        if len(mesh["uvs"]) * 3 != len(mesh["vertices"]) * 2:
+            raise ValueError("a kernel plugin's 'uvs' must hold one (u, v) per vertex")
+
+
+def validate_edges(values: DiscretizedEdges) -> None:
+    """Check the `DiscretizedEdges` of a kernel plugin."""
+    _check_arrays(values, {"edges": "float32", "segments_per_edge": "int32", "edge_types": "int32", "obj_vertices": "float32"})
+    _check_edge_arrays(values)
+
+
+def validate_vertices(values: ConvertedVertices) -> None:
+    """Check the `ConvertedVertices` of a kernel plugin."""
+    _check_arrays(values, {"obj_vertices": "float32"})
+
+
+class OcctTessellation(TessellationProtocol["TopoDS_Shape", "TopoDS_Edge", "TopoDS_Vertex"]):
+    """OCCT's implementation of the protocol, for OCP and nanocct alike: what differs
+    between the bindings lies below these functions, in `adapter(k)`. An OCCT instance
+    gets its cache id in `OcpConverter.get_instance`."""
+
+    def tessellate(
+        self,
+        shape,
+        deviation,
+        quality,
+        angular_tolerance,
+        compute_edges=True,
+        compute_uvs=False,
+        normalize_uvs=True,
+        shape_id="",
+        debug=False,
+        compute_faces=True,
+    ):
+        return _occt_tessellate(
+            shape,
+            deviation,
+            quality,
+            angular_tolerance,
+            compute_edges,
+            compute_uvs,
+            normalize_uvs,
+            shape_id,
+            debug,
+            compute_faces,
+        )
+
+    def discretize_edges(self, edges, deflection=0.1, shape_id=""):
+        return discretize_edges(edges, deflection, shape_id)
+
+    def convert_vertices(self, vertices, shape_id=""):
+        return convert_vertices(vertices, shape_id)
+
+    def bounding_box(self, shape):
+        return bounding_box(shape)
+
+
+_set_occt_tessellation(OcctTessellation())
 
 
 def bbox_edges(bb) -> NDArray[np.float32]:

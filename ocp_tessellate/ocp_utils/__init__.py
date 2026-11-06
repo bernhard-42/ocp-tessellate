@@ -103,8 +103,10 @@ from .geometry import (
     vertex,
 )
 from .location import (
+    IDENTITY_PLACEMENT,
     AxisCoord,
     LocationCoord,
+    Placement,
     VectorLike,
     axis_to_vecs,
     copy_location,
@@ -117,6 +119,7 @@ from .location import (
     loc_to_tq,
     loc_to_vecs,
     mul_locations,
+    mul_placements,
     relocate,
     rotate,
     tq_to_loc,

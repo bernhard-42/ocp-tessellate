@@ -63,18 +63,18 @@ class TestsImageFace(MyUnitTest):
             if ind == 0:
                 self._assertTupleAlmostEquals(
                     (400.0, -6.672440377997191e-14, -300.65789473684214),
-                    loc_to_tq(o.loc)[0],
+                    o.loc.origin,
                     5,
                 )
                 self._assertTupleAlmostEquals(
                     (0.7071067811865475, 0.0, 0.0, 0.7071067811865476),
-                    loc_to_tq(o.loc)[1],
+                    o.loc.quaternion,
                     5,
                 )
             else:
-                self._assertTupleAlmostEquals((0.0, -100, 0.0), loc_to_tq(o.loc)[0], 5)
+                self._assertTupleAlmostEquals((0.0, -100, 0.0), o.loc.origin, 5)
                 self._assertTupleAlmostEquals(
                     (0.0, 0.0, 0.0, 1.0),
-                    loc_to_tq(o.loc)[1],
+                    o.loc.quaternion,
                     5,
                 )

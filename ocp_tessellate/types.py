@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from typing import (
     TYPE_CHECKING,
     Protocol,
@@ -106,7 +106,6 @@ if TYPE_CHECKING:
         XCAFDoc_VisMaterialPBR as _OCP_XCAFDoc_VisMaterialPBR,
     )
 
-    from ocp_tessellate.plugin import OcpExternalObject
 
     # the aliases carry OCCT's class names, gp_Pnt and so on, not CamelCase ones
     # ruff: noqa: PYI042
@@ -328,31 +327,26 @@ class CadquerySketch(Protocol):
     def _selection(self) -> Sequence[object] | None: ...
     @property
     def locs(self) -> Sequence[Wrapped[TopLoc_Location]]: ...
+    @property
+    def _tags(self) -> Mapping[str, Iterable[object]]: ...
 
 
 class Instance(TypedDict):
     """
-    One deduplicated shape registered by OcpConverter.get_instance:
-    the shape relocated to the origin, its cache id, and the name of
-    the first object that produced it.
+    One deduplicated shape registered by OcpConverter: an OCCT shape relocated to the
+    origin (get_instance), or a kernel plugin's shape (_kernel_instance), its cache id, and
+    the name of the first object that produced it. Only a plugin's shape can have no cache
+    id, and is then meshed at every show.
     """
 
-    obj: TopoDS_Shape
-    cache_id: str
+    obj: KernelShape
+    cache_id: str | None
     name: str
 
 
-class ExternalInstance(TypedDict):
-    """
-    The instance of an OcpExternalObject (cad_objects), an object of another
-    kernel: registered by OcpConverter.to_ocp and meshed by the object's own
-    `tessellate` in tessellate_group. The measurement backend's model holds the
-    object's body only when it carries a kernel tag (OcpExternalObject.collect).
-    """
-
-    obj: OcpExternalObject
-    cache_id: str
-    name: str
+# an object of any kernel: an OCCT shape, or whatever a kernel plugin's objects are. The
+# tree only carries it, and tessellation_of and the backend know the kernel
+KernelShape = object
 
 
 class FaceMapper(TypedDict):

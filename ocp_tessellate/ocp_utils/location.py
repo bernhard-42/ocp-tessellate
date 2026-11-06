@@ -20,10 +20,10 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, Literal, Protocol, TypedDict, overload
+from typing import TYPE_CHECKING, Literal, NamedTuple, Protocol, TypedDict, overload
 
 import numpy as np
-from numpy.typing import ArrayLike
+from numpy.typing import ArrayLike, NDArray
 
 from .._kernel import adapter, kernel, kernel_of
 
@@ -67,6 +67,12 @@ def _tq_to_loc(
     return k.TopLoc.TopLoc_Location(T)
 
 
+@overload
+def loc_to_tq(
+    loc: TopLoc_Location,
+) -> tuple[tuple[float, float, float], tuple[float, float, float, float]]: ...
+@overload
+def loc_to_tq(loc: None) -> tuple[None, None]: ...
 def loc_to_tq(
     loc: TopLoc_Location | None,
 ) -> (
@@ -87,6 +93,157 @@ def identity_location() -> TopLoc_Location:
     loc = k.TopLoc.TopLoc_Location()
     k.TopLoc.TopLoc_Location.Identity(loc)
     return loc
+
+
+class Placement(NamedTuple):
+    """Where an object is, as plain numbers: what the tree of OcpObjects and OcpGroups
+    holds for every kernel, and what the viewer and the backend get as a tuple."""
+
+    origin: tuple[float, float, float]
+    quaternion: tuple[float, float, float, float]  # x, y, z, w
+
+    @classmethod
+    def from_axes(
+        cls,
+        origin: tuple[float, float, float],
+        x_dir: tuple[float, float, float],
+        z_dir: tuple[float, float, float],
+    ) -> Placement:
+        """The placement of a frame given by its directions, for a kernel without
+        quaternions. As in CoordSystem, y is `z x x`, and z wins over an x that is not
+        orthogonal to it."""
+        z = np.asarray(z_dir, dtype=np.float64)
+        x = np.asarray(x_dir, dtype=np.float64)
+        if np.linalg.norm(z) == 0:
+            raise ValueError("Placement.from_axes: z_dir has no length")
+        if np.linalg.norm(x) == 0:
+            raise ValueError("Placement.from_axes: x_dir has no length")
+        z = z / np.linalg.norm(z)
+        y = np.cross(z, x)
+        if np.linalg.norm(y) < 1e-12:
+            raise ValueError("Placement.from_axes: x_dir and z_dir are parallel")
+        y = y / np.linalg.norm(y)
+        x = np.cross(y, z)
+        m = np.column_stack((x, y, z))
+
+        # the rotation matrix as a quaternion, from its largest component, which stays
+        # exact at rotations of 180 degrees
+        trace = np.trace(m)
+        if trace > 0:
+            s = 2 * np.sqrt(1 + trace)
+            q = ((m[2, 1] - m[1, 2]) / s, (m[0, 2] - m[2, 0]) / s, (m[1, 0] - m[0, 1]) / s, s / 4)
+        else:
+            i = int(np.argmax(np.diag(m)))
+            j, k = (i + 1) % 3, (i + 2) % 3
+            s = 2 * np.sqrt(1 + m[i, i] - m[j, j] - m[k, k])
+            v = np.zeros(4)
+            v[i] = s / 4
+            v[j] = (m[j, i] + m[i, j]) / s
+            v[k] = (m[k, i] + m[i, k]) / s
+            v[3] = (m[k, j] - m[j, k]) / s
+            q = tuple(v)
+        return cls(
+            (float(origin[0]), float(origin[1]), float(origin[2])),
+            (float(q[0]), float(q[1]), float(q[2]), float(q[3])),
+        )
+
+    @classmethod
+    def from_occt(cls, loc: TopLoc_Location) -> Placement:
+        """The placement of an OCCT location, of either binding."""
+        if loc is None:
+            raise TypeError("Placement.from_occt: no location given")
+        return cls(*loc_to_tq(loc))
+
+    def mul(self, other: Placement | None) -> Placement:
+        """`self * other`: other in the frame of self. A missing other acts as identity."""
+        if other is None:
+            return self
+        rotated = _rotated(self.quaternion, other.origin)
+        origin = (
+            self.origin[0] + rotated[0],
+            self.origin[1] + rotated[1],
+            self.origin[2] + rotated[2],
+        )
+        return Placement(origin, _mul_quaternions(self.quaternion, other.quaternion))
+
+    def inverted(self) -> Placement:
+        x, y, z, w = self.quaternion
+        conjugate = (-x, -y, -z, w)
+        ox, oy, oz = _rotated(conjugate, self.origin)
+        return Placement((-ox, -oy, -oz), conjugate)
+
+    def is_identity(self) -> bool:
+        return self == IDENTITY_PLACEMENT
+
+    def matrix(self) -> NDArray[np.float64]:
+        """The rigid motion `P' = R P + t` as a 4 x 4 matrix, for a kernel that places
+        objects by one."""
+        (tx, ty, tz), (x, y, z, w) = self
+        return np.array(
+            [
+                [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w), tx],
+                [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w), ty],
+                [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y), tz],
+                [0.0, 0.0, 0.0, 1.0],
+            ],
+            dtype=np.float64,
+        )
+
+
+IDENTITY_PLACEMENT = Placement((0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0))
+
+
+def _checked_placement(value: object, what: str) -> Placement | None:
+    """`value` as it is, if it is a Placement or None: the one type of location in the tree."""
+    if value is None or isinstance(value, Placement):
+        return value
+    raise TypeError(f"{what} must be a Placement or None, not {type(value).__name__}")
+
+
+def _checked_plugin_placement(value: object, what: str) -> Placement | None:
+    """`value` as it is, if it is a placement the viewer can use: what a kernel plugin returned
+    is not known to be one. Not for the tree's own `.loc`, which every object sets."""
+    placement = _checked_placement(value, what)
+    if placement is None:
+        return None
+    origin, quaternion = placement
+    if len(origin) != 3 or len(quaternion) != 4:
+        raise ValueError(f"{what} must have an origin of 3 and a quaternion of 4 numbers, not {placement!r}")
+    x, y, z, w = quaternion
+    if abs(x * x + y * y + z * z + w * w - 1.0) > 1e-6:
+        raise ValueError(f"{what} must have a unit quaternion, not {placement!r}")
+    return placement
+
+
+def _mul_quaternions(a, b) -> tuple[float, float, float, float]:
+    ax, ay, az, aw = a
+    bx, by, bz, bw = b
+    return (
+        aw * bx + ax * bw + ay * bz - az * by,
+        aw * by - ax * bz + ay * bw + az * bx,
+        aw * bz + ax * by - ay * bx + az * bw,
+        aw * bw - ax * bx - ay * by - az * bz,
+    )
+
+
+def _rotated(q, v) -> tuple[float, float, float]:
+    x, y, z, w = q
+    px, py, pz = v
+    # v + 2 w (q x v) + 2 q x (q x v)
+    cx, cy, cz = y * pz - z * py, z * px - x * pz, x * py - y * px
+    return (
+        px + 2 * (w * cx + y * cz - z * cy),
+        py + 2 * (w * cy + z * cx - x * cz),
+        pz + 2 * (w * cz + x * cy - y * cx),
+    )
+
+
+def mul_placements(a: Placement | None, b: Placement | None) -> Placement | None:
+    """`a * b` where a may be missing too, which a method cannot take: a missing placement
+    acts as identity."""
+    if a is None:
+        return b
+    return a.mul(b)
 
 
 def is_identity(loc: TopLoc_Location | None) -> bool:
