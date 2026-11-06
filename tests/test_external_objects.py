@@ -394,11 +394,61 @@ def test_a_kernels_container_needs_no_build123d_selectors(container):
     assert _leaf_kinds(group) == ["vertex", "vertex"]
 
 
+class Undeclared:
+    def __iter__(self):
+        return iter([Point(0, 0, 0)])
+
+
 def test_a_container_the_kernel_declares_is_walked_by_to_ocp():
     bag = Bag(Point(3, 0, 0), Point(3, 0, 0))
     assert is_external_object(bag) is True
     group, _ = to_ocpgroup(bag, [bag], names=["bag", "bags"])
     assert _leaf_kinds(group) == ["vertex"] * 4
+
+
+def test_an_iterable_no_plugin_declares_cannot_be_drawn():
+    """Not a list, tuple or dict: nothing walks it, so it is an unknown object like any other."""
+    assert is_external_object(Undeclared()) is False
+    with pytest.raises(TypeError, match="show cannot draw an object of type .*Undeclared"):
+        to_ocpgroup(Undeclared(), names=["bag"])
+    group, _ = to_ocpgroup([Undeclared()], names=["bags"])
+    assert _leaf_kinds(group) == []
+
+
+class NotDrawable:
+    """Nothing can draw it: no OCCT object, no build123d or CadQuery object, no plugin's."""
+
+
+CANNOT_DRAW = "show cannot draw an object of type test_external_objects.NotDrawable; .* plugin installed"
+
+
+def test_an_object_nothing_can_draw_raises():
+    with pytest.raises(TypeError, match=CANNOT_DRAW):
+        to_ocpgroup(NotDrawable(), names=["x"])
+
+
+def test_it_raises_beside_an_object_that_can_be_drawn():
+    with pytest.raises(TypeError, match=CANNOT_DRAW):
+        to_ocpgroup(Segment((0, 0, 0), (1, 0, 0)), NotDrawable(), names=["line", "x"])
+
+
+@pytest.mark.parametrize(
+    "container",
+    [lambda item: [item], lambda item: (item,), lambda item: {"a": item}],
+    ids=["list", "tuple", "dict"],
+)
+def test_inside_a_container_it_is_filtered(container):
+    """`show_all` relies on it: a container is drawable when anything in it is."""
+    group, _ = to_ocpgroup(container(NotDrawable()), names=["c"])
+    assert _leaf_kinds(group) == []
+    group, _ = to_ocpgroup([Segment((0, 0, 0), (1, 0, 0)), container(NotDrawable())], names=["c"])
+    assert _leaf_kinds(group) == ["edge"]
+
+
+@pytest.mark.parametrize("value", [5, 1.5, True, "text"])
+def test_a_plain_value_stays_silent(value):
+    group, _ = to_ocpgroup(value, names=["x"])
+    assert _leaf_kinds(group) == []
 
 
 # ---------------------------------------------------------------------------- what a plugin gets wrong
@@ -549,6 +599,12 @@ def test_a_plugin_whose_is_object_raises_is_reported_once():
             assert is_external_object(object()) is False
     finally:
         _show_plugins.pop("reported")
+
+
+def test_an_object_of_a_builtin_type_has_no_hint_about_plugins():
+    with pytest.raises(TypeError) as error:
+        to_ocpgroup(None, names=["x"])
+    assert str(error.value) == "show cannot draw an object of type NoneType"
 
 
 # ---------------------------------------------------------------------------- validating a mesh
