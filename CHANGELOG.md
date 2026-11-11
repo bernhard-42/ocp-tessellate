@@ -5,7 +5,7 @@
 - **Objects of other kernels are shown like OCCT objects**: the new module `ocp_tessellate.plugin` lets a kernel other than OCCT plug into the pipeline, alone or mixed with build123d, CadQuery and OCCT objects ([CAD kernel plugins](https://bernhard-42.github.io/ocp_viewer_docs/plugins/overview/)). A plugin implements two protocols `TessellationProtocol` (how to tessellate object) and `ShowProtocol[Object]` (how to show objects).
 - **Plugins are found by entry point**: Installed plugins are imported once and automatically, at the first show.
 - **One cache, checked results**: a new kernel's meshes share the tessellator's cache and instances by `cache_id`.
-- **Measurement backend**: every leaf of a kernel has an entry `{"id", "shape": {"kernel": tag, "obj": shape}, "loc"}` in the backend's model, written by through `ShowProtocol.serialize`, for ocp-viewer-core's `BackendProtocol`.
+- **Measurement backend**: every leaf of a kernel has an entry `{"id", "shape": {"kernel": tag, "obj": shape}, "loc"}` in the backend's model, written through `ShowProtocol.serialize`, for ocp-viewer-core's `BackendProtocol`.
 - **The first plugin** is [ocp-viewer-smlibpy](https://github.com/bernhard-42/ocp-viewer-smlibpy) for SMLib.
 
 **Kernel-neutral locations**
