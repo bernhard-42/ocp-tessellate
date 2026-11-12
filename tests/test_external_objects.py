@@ -406,11 +406,12 @@ def test_a_container_the_kernel_declares_is_walked_by_to_ocp():
     assert _leaf_kinds(group) == ["vertex"] * 4
 
 
-def test_an_iterable_no_plugin_declares_cannot_be_drawn():
+def test_an_iterable_no_plugin_declares_cannot_be_drawn(capsys):
     """Not a list, tuple or dict: nothing walks it, so it is an unknown object like any other."""
     assert is_external_object(Undeclared()) is False
-    with pytest.raises(TypeError, match="show cannot draw an object of type .*Undeclared"):
-        to_ocpgroup(Undeclared(), names=["bag"])
+    group, _ = to_ocpgroup(Undeclared(), names=["bag"])
+    assert _leaf_kinds(group) == []
+    assert capsys.readouterr().out == ""
     group, _ = to_ocpgroup([Undeclared()], names=["bags"])
     assert _leaf_kinds(group) == []
 
@@ -419,17 +420,18 @@ class NotDrawable:
     """Nothing can draw it: no OCCT object, no build123d or CadQuery object, no plugin's."""
 
 
-CANNOT_DRAW = "show cannot draw an object of type test_external_objects.NotDrawable; .* plugin installed"
+def test_an_object_nothing_can_draw_is_left_out_quietly(capsys):
+    """Passed directly as inside a list: left out without a message (the caller says when
+    nothing at all is left to show)."""
+    group, _ = to_ocpgroup(NotDrawable(), names=["x"])
+    assert _leaf_kinds(group) == []
+    assert capsys.readouterr().out == ""
 
 
-def test_an_object_nothing_can_draw_raises():
-    with pytest.raises(TypeError, match=CANNOT_DRAW):
-        to_ocpgroup(NotDrawable(), names=["x"])
-
-
-def test_it_raises_beside_an_object_that_can_be_drawn():
-    with pytest.raises(TypeError, match=CANNOT_DRAW):
-        to_ocpgroup(Segment((0, 0, 0), (1, 0, 0)), NotDrawable(), names=["line", "x"])
+def test_beside_an_object_that_can_be_drawn_that_one_is_drawn(capsys):
+    group, _ = to_ocpgroup(Segment((0, 0, 0), (1, 0, 0)), NotDrawable(), names=["line", "x"])
+    assert _leaf_kinds(group) == ["edge"]
+    assert capsys.readouterr().out == ""
 
 
 @pytest.mark.parametrize(
@@ -601,10 +603,10 @@ def test_a_plugin_whose_is_object_raises_is_reported_once():
         _show_plugins.pop("reported")
 
 
-def test_an_object_of_a_builtin_type_has_no_hint_about_plugins():
-    with pytest.raises(TypeError) as error:
-        to_ocpgroup(None, names=["x"])
-    assert str(error.value) == "show cannot draw an object of type NoneType"
+def test_an_object_of_a_builtin_type_is_left_out_quietly(capsys):
+    group, _ = to_ocpgroup(None, names=["x"])
+    assert _leaf_kinds(group) == []
+    assert capsys.readouterr().out == ""
 
 
 # ---------------------------------------------------------------------------- validating a mesh

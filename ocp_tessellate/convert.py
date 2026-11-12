@@ -2180,16 +2180,8 @@ class OcpConverter:
                 ocp_obj = self.handle_axis(cad_obj, obj_name, color, level)
 
             else:
-                # What was passed directly is what the user asked to see. Inside a list or
-                # dict the rest is filtered, which `show_all` relies on.
-                if level == 0:
-                    kind = type(cad_obj)
-                    if kind.__module__ == "builtins":
-                        raise TypeError(f"show cannot draw an object of type {kind.__qualname__}")
-                    raise TypeError(
-                        f"show cannot draw an object of type {kind.__module__}.{kind.__qualname__}; "
-                        "if it belongs to another kernel, is its plugin installed?"
-                    )
+                # Left out quietly, passed directly as inside a list or dict: `show_all`
+                # relies on it, and the caller says when nothing at all is left to show.
                 if self.debug:
                     print(
                         "Unknown object"

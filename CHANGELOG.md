@@ -14,7 +14,6 @@
 
 **Changes**
 
-- **`show` raises for an object it cannot draw**: a `TypeError` ("... is its plugin installed?") instead of silently drawing nothing; inside lists, dicts and in `show_all` such objects are still skipped.
 - **Faster instance lookup**: the time to find shared shapes no longer grows with the square of their number.
 - **Bounding boxes of other kernels**: a flat body (a planar face) no longer breaks the quality computation, and relative `helper_scale` values include objects of other kernels.
 
