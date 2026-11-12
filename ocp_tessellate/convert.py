@@ -334,6 +334,9 @@ class OcpConverter:
         # its object and its cache id
         self._occt_refs: dict[object, int] = {}
         self._kernel_refs: dict[object, int] = {}
+        # the types left out because nothing can draw them, in the order they were met,
+        # each once; `to_ocpgroup` prints them
+        self.skipped_types: list[str] = []
         self.ocp = None
         self.progress = progress
         self.helper_scale = helper_scale
@@ -2180,8 +2183,14 @@ class OcpConverter:
                 ocp_obj = self.handle_axis(cad_obj, obj_name, color, level)
 
             else:
-                # Left out quietly, passed directly as inside a list or dict: `show_all`
-                # relies on it, and the caller says when nothing at all is left to show.
+                # Left out, passed directly as inside a list or dict (`show_all` relies on
+                # the filtering), and named once per type. Not for builtin types: no plugin
+                # draws them, and `[box, None]` stays as quiet as numbers and strings.
+                kind = type(cad_obj)
+                if kind.__module__ != "builtins":
+                    name = f"{kind.__module__}.{kind.__qualname__}"
+                    if name not in self.skipped_types:
+                        self.skipped_types.append(name)
                 if self.debug:
                     print(
                         "Unknown object"
@@ -2283,6 +2292,11 @@ def to_ocpgroup(
         default_thickedgecolor=default_thickedgecolor,
         default_vertexcolor=default_vertexcolor,
     )
+
+    # Stdout, like the other messages about what is not drawn. A plugin that is not
+    # installed is the usual reason an object of another package cannot be drawn.
+    for name in converter.skipped_types:
+        print(f"show: skipped {name} (no kernel plugin installed?)")
 
     if ocp_group.name is None:
         ocp_group.name = "Group"

@@ -411,27 +411,35 @@ def test_an_iterable_no_plugin_declares_cannot_be_drawn(capsys):
     assert is_external_object(Undeclared()) is False
     group, _ = to_ocpgroup(Undeclared(), names=["bag"])
     assert _leaf_kinds(group) == []
-    assert capsys.readouterr().out == ""
+    assert capsys.readouterr().out == skipped("Undeclared")
     group, _ = to_ocpgroup([Undeclared()], names=["bags"])
     assert _leaf_kinds(group) == []
+    assert capsys.readouterr().out == skipped("Undeclared")
 
 
 class NotDrawable:
     """Nothing can draw it: no OCCT object, no build123d or CadQuery object, no plugin's."""
 
 
-def test_an_object_nothing_can_draw_is_left_out_quietly(capsys):
-    """Passed directly as inside a list: left out without a message (the caller says when
-    nothing at all is left to show)."""
+class AlsoNotDrawable:
+    """A second type nothing can draw."""
+
+
+def skipped(name):
+    """The line a show prints for a type it left out."""
+    return f"show: skipped test_external_objects.{name} (no kernel plugin installed?)\n"
+
+
+def test_an_object_nothing_can_draw_is_left_out_with_one_line(capsys):
     group, _ = to_ocpgroup(NotDrawable(), names=["x"])
     assert _leaf_kinds(group) == []
-    assert capsys.readouterr().out == ""
+    assert capsys.readouterr().out == skipped("NotDrawable")
 
 
 def test_beside_an_object_that_can_be_drawn_that_one_is_drawn(capsys):
     group, _ = to_ocpgroup(Segment((0, 0, 0), (1, 0, 0)), NotDrawable(), names=["line", "x"])
     assert _leaf_kinds(group) == ["edge"]
-    assert capsys.readouterr().out == ""
+    assert capsys.readouterr().out == skipped("NotDrawable")
 
 
 @pytest.mark.parametrize(
@@ -439,18 +447,34 @@ def test_beside_an_object_that_can_be_drawn_that_one_is_drawn(capsys):
     [lambda item: [item], lambda item: (item,), lambda item: {"a": item}],
     ids=["list", "tuple", "dict"],
 )
-def test_inside_a_container_it_is_filtered(container):
-    """`show_all` relies on it: a container is drawable when anything in it is."""
+def test_inside_a_container_it_is_left_out_with_the_same_line(container, capsys):
+    """`show_all` relies on the filtering: a container is drawable when anything in it is."""
     group, _ = to_ocpgroup(container(NotDrawable()), names=["c"])
     assert _leaf_kinds(group) == []
+    assert capsys.readouterr().out == skipped("NotDrawable")
     group, _ = to_ocpgroup([Segment((0, 0, 0), (1, 0, 0)), container(NotDrawable())], names=["c"])
     assert _leaf_kinds(group) == ["edge"]
+    assert capsys.readouterr().out == skipped("NotDrawable")
+
+
+def test_one_line_per_type_however_many_objects(capsys):
+    """In the order the types were met, passed directly or nested."""
+    to_ocpgroup(NotDrawable(), [AlsoNotDrawable(), NotDrawable()], [NotDrawable()] * 100, names=["a", "b", "c"])
+    assert capsys.readouterr().out == skipped("NotDrawable") + skipped("AlsoNotDrawable")
+
+
+def test_every_conversion_reports_its_own(capsys):
+    """Not once per session: a second show with the same type says it again."""
+    to_ocpgroup(NotDrawable(), names=["x"])
+    to_ocpgroup(NotDrawable(), names=["x"])
+    assert capsys.readouterr().out == skipped("NotDrawable") * 2
 
 
 @pytest.mark.parametrize("value", [5, 1.5, True, "text"])
-def test_a_plain_value_stays_silent(value):
+def test_a_plain_value_stays_silent(value, capsys):
     group, _ = to_ocpgroup(value, names=["x"])
     assert _leaf_kinds(group) == []
+    assert capsys.readouterr().out == ""
 
 
 # ---------------------------------------------------------------------------- what a plugin gets wrong
@@ -603,9 +627,15 @@ def test_a_plugin_whose_is_object_raises_is_reported_once():
         _show_plugins.pop("reported")
 
 
-def test_an_object_of_a_builtin_type_is_left_out_quietly(capsys):
-    group, _ = to_ocpgroup(None, names=["x"])
-    assert _leaf_kinds(group) == []
+@pytest.mark.parametrize(
+    "objects",
+    [lambda: (None,), lambda: ([Segment((0, 0, 0), (1, 0, 0)), None],), lambda: ({"a": object()},)],
+    ids=["None", "None in a list", "object() in a dict"],
+)
+def test_an_object_of_a_builtin_type_is_left_out_quietly(objects, capsys):
+    """No plugin draws a builtin type, so there is nothing to suggest - `[box, None]` stays
+    as quiet as numbers and strings."""
+    to_ocpgroup(*objects(), names=["x"])
     assert capsys.readouterr().out == ""
 
 

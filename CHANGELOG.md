@@ -14,6 +14,7 @@
 
 **Changes**
 
+- **Objects nothing can draw are named**: an object no handler and no kernel plugin can draw is still left out, passed directly or inside a list, tuple or dict, and the others are drawn - but each such type is now named once per conversion, e.g. `show: skipped smlibpy.shapes.Part (no kernel plugin installed?)`, where it used to be left out without a word. Builtin types such as `None` stay silent, like numbers and strings.
 - **Faster instance lookup**: the time to find shared shapes no longer grows with the square of their number.
 - **Bounding boxes of other kernels**: a flat body (a planar face) no longer breaks the quality computation, and relative `helper_scale` values include objects of other kernels.
 
