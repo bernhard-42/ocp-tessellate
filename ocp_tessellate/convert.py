@@ -1439,7 +1439,19 @@ class OcpConverter:
                 return None
             return Color(color)
 
-        builder_color = get_color(getattr(cad_obj, "color", color))
+        def get_alpha(own_color: Color | None) -> float:
+            # A given alpha overwrites the color's, as for every other object
+            # (get_color_for_object)
+            if alpha is not None:
+                return alpha
+            if own_color is not None and isinstance(own_color.a, (int, float)):
+                return own_color.a
+            return 1.0
+
+        # The builder's own color when it has one; build123d's builders carry the
+        # attribute as None until it is set, and None must not hide the given color
+        own_color = getattr(cad_obj, "color", None)
+        builder_color = get_color(color if own_color is None else own_color)
         m = getattr(cad_obj, "material", None)
         builder_material = m if isinstance(m, str) else material
 
@@ -1455,11 +1467,7 @@ class OcpConverter:
                 return self.handle_empty_iterables(obj_name, level)
             part_color = get_color(part.color)
             part_color = builder_color if part_color is None else part_color
-            part_alpha = (
-                part_color.a
-                if (part_color is not None and isinstance(part_color.a, (int, float)))
-                else 1.0
-            )
+            part_alpha = get_alpha(part_color)
             part_material = getattr(part, "material", None)
             if not isinstance(part_material, str):
                 part_material = builder_material
@@ -1488,11 +1496,7 @@ class OcpConverter:
                 return self.handle_empty_iterables(obj_name, level)
             sheet_color = get_color(sheet.color)
             sheet_color = builder_color if sheet_color is None else sheet_color
-            sheet_alpha = (
-                sheet_color.a
-                if (sheet_color is not None and isinstance(sheet_color.a, (int, float)))
-                else 1.0
-            )
+            sheet_alpha = get_alpha(sheet_color)
             sheet_material = getattr(sheet, "material", None)
             if not isinstance(sheet_material, str):
                 sheet_material = None
@@ -1516,14 +1520,7 @@ class OcpConverter:
                 return self.handle_empty_iterables(obj_name, level)
             sketch_color = get_color(sketch.color)
             sketch_color = builder_color if sketch_color is None else sketch_color
-            sketch_alpha = (
-                sketch_color.a
-                if (
-                    sketch_color is not None
-                    and isinstance(sketch_color.a, (int, float))
-                )
-                else 1.0
-            )
+            sketch_alpha = get_alpha(sketch_color)
             sketch_material = getattr(sketch, "material", None)
             if not isinstance(sketch_material, str):
                 sketch_material = None
@@ -1549,11 +1546,7 @@ class OcpConverter:
                 return self.handle_empty_iterables(obj_name, level)
             line_color = get_color(b3d_line.color)
             line_color = builder_color if line_color is None else line_color
-            line_alpha = (
-                line_color.a
-                if (line_color is not None and isinstance(line_color.a, (int, float)))
-                else 1.0
-            )
+            line_alpha = get_alpha(line_color)
             ocp_obj = self.unify(
                 [e.wrapped for e in b3d_line.edges()],
                 kind="edge",

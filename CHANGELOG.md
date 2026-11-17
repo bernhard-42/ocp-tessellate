@@ -23,6 +23,7 @@
 - **A face that cannot be meshed shifted the ids of the faces and edges after it**, so clicking one could report another; it now keeps its place with an empty mesh. With nanocct, edges follow with the next nanocct release.
 - **Edges and vertices under a located group were measured at the origin**; they are now measured where they are drawn.
 - **Edges, wires and vertices under a located group were counted without the group's location when fitting the view**, so the camera could point at the wrong place.
+- **A build123d builder ignored the color and alpha it was given**: `show(builder, colors=[...], alphas=[...])` drew a `BuildPart`, `BuildSketch`, `BuildLine` or `BuildSheet` in its default color, and a part, sketch or sheet at alpha 1.0, because build123d's builders carry a `color` attribute that is `None` until it is set. A color set on the builder still wins, and a given alpha overwrites the color's, as for every other object. Edges are drawn without alpha, so a `BuildLine` takes the color only.
 
 ## v3.6.3 (2026-10-18)
 
