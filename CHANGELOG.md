@@ -1,4 +1,4 @@
-## v3.7.0 (unreleased)
+## v3.7.0 (2026-11-20)
 
 **New kernel plugin system**
 
